@@ -1,0 +1,60 @@
+import type { MockOfficialActivity } from '../types/adminMock.ts'
+
+export const mockOfficialActivities: MockOfficialActivity[] = [
+  {
+    id: 'a1',
+    userName: 'Νίκος Παπαδόπουλος',
+    category: 'Αναρρίχηση',
+    routeOrLocation: 'Interstellar — Metropolis',
+    date: '2026-04-12',
+    status: 'official',
+  },
+  {
+    id: 'a2',
+    userName: 'Μαρία Κωνσταντίνου',
+    category: 'Ορειβασία',
+    routeOrLocation: 'Όλυμπος — Μύτικας',
+    date: '2026-03-28',
+    status: 'official',
+  },
+  {
+    id: 'a3',
+    userName: 'Γιώργος Αλεξίου',
+    category: 'Αποστολή',
+    routeOrLocation: 'Αλπεις — Mont Blanc περιοχή',
+    date: '2025-07-15',
+    status: 'official',
+  },
+  {
+    id: 'a4',
+    userName: 'Κώστας Νικολάου',
+    category: 'Αναρρίχηση',
+    routeOrLocation: 'Crystallization — Metropolis',
+    date: '2025-11-02',
+    status: 'official',
+  },
+  {
+    id: 'a5',
+    userName: 'Σοφία Βασιλείου',
+    category: 'Ορειβασία',
+    routeOrLocation: 'Πάρνηθα — Μπάφι',
+    date: '2024-06-08',
+    status: 'official',
+  },
+  {
+    id: 'a6',
+    userName: 'Μαρία Κωνσταντίνου',
+    category: 'Αναρρίχηση',
+    routeOrLocation: 'Falakrodaemon — Metropolis',
+    date: '2024-09-21',
+    status: 'official',
+  },
+  {
+    id: 'a7',
+    userName: 'Ελένη Δημητρίου',
+    category: 'Ορειβασία',
+    routeOrLocation: 'Γκιώνα — πεζοπορία',
+    date: '2026-01-14',
+    status: 'official',
+  },
+]
