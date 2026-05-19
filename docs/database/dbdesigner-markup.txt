@@ -1,0 +1,118 @@
+
+users {
+	id uuid pk def(gen_random_uuid())
+	first_name varchar(100)
+	last_name varchar(100)
+	email varchar(255) unique
+	password_hash text
+	system_role varchar(30)
+	preferred_activity varchar(30) null
+	onboarding_completed boolean
+	created_at timestamp def(now())
+	updated_at timestamp def(now())
+}
+
+clubs {
+	id uuid pk def(gen_random_uuid())
+	name varchar(255)
+	short_name varchar(100) null
+	created_at timestamp def(now())
+	updated_at timestamp def(now())
+}
+
+club_memberships {
+	id uuid pk def(gen_random_uuid())
+	user_id uuid > users.id
+	club_id uuid > clubs.id
+	role varchar(30)
+	registry_number varchar(100) null
+	created_at timestamp def(now())
+	updated_at timestamp def(now())
+}
+
+activities {
+	id uuid pk def(gen_random_uuid())
+	user_id uuid > users.id
+	club_id uuid null > clubs.id
+	date date
+	category varchar(30)
+	is_official boolean
+	points numeric(10,2) null
+	private_notes text null
+	public_notes text null
+	created_at timestamp def(now())
+	updated_at timestamp def(now())
+}
+
+routes {
+	id uuid pk def(gen_random_uuid())
+	created_by_user_id uuid null > users.id
+	category varchar(30)
+	name varchar(255)
+	normalized_name varchar(255)
+	mountain_or_area varchar(255)
+	climbing_field varchar(255)
+	default_scale varchar(30)
+	default_grade varchar(50)
+	altitude integer null
+	route_length numeric(8,2) null
+	created_at timestamp def(now())
+	updated_at timestamp def(now())
+}
+
+hiking_activity_details {
+	activity_id uuid pk > activities.id
+	mountain varchar(255)
+	start_point varchar(255)
+	end_point varchar(255)
+	max_altitude integer
+	total_elevation_gain integer
+	distance_length numeric(8,2)
+	field_type varchar(100)
+	difficulty_grade varchar(50)
+	participants_num integer
+}
+
+climbing_activity_details {
+	activity_id uuid pk > activities.id
+	route_id uuid > routes.id
+	route_name varchar(255)
+	mountain_or_area varchar(255)
+	climbing_field varchar(255)
+	season varchar(30)
+	repetition_type varchar(30)
+	altitude integer
+	completion_type varchar(50) null
+	difficulty_scale varchar(30) null
+	difficulty_grade varchar(50) null
+	mapped_scale varchar(30) null
+	mapped_grade varchar(50) null
+	mixed_climbing varchar(50) null
+	route_length numeric(8,2)
+	participants_num integer
+	participants_text text
+}
+
+expedition_activity_details {
+	activity_id uuid pk > activities.id
+	country varchar(255)
+	mountain_range varchar(255)
+	mountain varchar(255)
+	summit varchar(255)
+	route_name varchar(255)
+	season varchar(30)
+	altitude integer
+	total_elevation_gain integer
+	difficulty_grade varchar(50)
+	participants_num integer
+	organization_type varchar(100)
+}
+
+grade_mappings {
+	id uuid pk def(gen_random_uuid())
+	source_scale varchar(30)
+	source_grade varchar(50)
+	target_scale varchar(30)
+	target_grade varchar(50)
+}
+
