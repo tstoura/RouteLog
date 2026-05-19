@@ -1,0 +1,252 @@
+// RouteLog — Prisma Schema
+// Source of truth: docs/database/database-schema.md, docs/database/routelog-schema-postgresql.sql
+//
+// Design rules (from docs/backend-decisions.md):
+// - Detail tables use activity_id as both primary key and foreign key. No separate id on detail tables.
+// - activities.club_id is nullable (personal activities have no club).
+// - activities.points is nullable (calculated only for official activities).
+// - climbing_activity_details.completion_type is varchar(50) nullable.
+// - climbing_activity_details difficulty fields are nullable (at least one must exist on official submit).
+// - routes.category is kept as String for future non-climbing route support.
+// - selectedUserIds are never stored — they are temporary export request input only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName           String   @map("first_name") @db.VarChar(100)
+  lastName            String   @map("last_name") @db.VarChar(100)
+  email               String   @unique @db.VarChar(255)
+  passwordHash        String   @map("password_hash")
+  // Allowed values: "user" | "super_admin"  (docs/backend-decisions.md §3)
+  systemRole          String   @map("system_role") @db.VarChar(30)
+  // Optional UI personalisation — does not restrict what the user can do (§4)
+  // Allowed values: "hiking" | "climbing" | "expedition" | null
+  preferredActivity   String?  @map("preferred_activity") @db.VarChar(30)
+  onboardingCompleted Boolean  @map("onboarding_completed")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  memberships   ClubMembership[]
+  activities    Activity[]
+  createdRoutes Route[]          @relation("RouteCreatedBy")
+
+  @@map("users")
+}
+
+// ── Clubs ─────────────────────────────────────────────────────────────────────
+
+model Club {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(255)
+  shortName String?  @map("short_name") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  memberships ClubMembership[]
+  activities  Activity[]
+
+  @@map("clubs")
+}
+
+// ── Club memberships ──────────────────────────────────────────────────────────
+// A user is considered a club member if they have at least one row here.
+// An independent user has no rows here.
+// Allowed role values: "member" | "club_admin"  (docs/backend-decisions.md §2)
+
+model ClubMembership {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  clubId         String   @map("club_id") @db.Uuid
+  // Allowed values: "member" | "club_admin"
+  role           String   @db.VarChar(30)
+  registryNumber String?  @map("registry_number") @db.VarChar(100)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+  club Club @relation(fields: [clubId], references: [id])
+
+  @@map("club_memberships")
+}
+
+// ── Activities (shared base table) ────────────────────────────────────────────
+// Every activity has exactly one row here plus exactly one row in the
+// corresponding detail table. Both are written in a single transaction.
+//
+// Allowed category values: "hiking" | "climbing" | "expedition"
+//
+// is_official = true  → participates in official export; points calculated.
+// is_official = false → personal record; points may remain null.
+// club_id is nullable: null for independent users or personal activities.
+// For official activities, club_id must be present (enforced at service layer).
+
+model Activity {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  clubId       String?  @map("club_id") @db.Uuid
+  date         DateTime @db.Date
+  // Allowed values: "hiking" | "climbing" | "expedition"
+  category     String   @db.VarChar(30)
+  isOfficial   Boolean  @map("is_official")
+  // Null for personal activities; calculated by ScoringService for official ones.
+  points       Decimal? @db.Decimal(10, 2)
+  privateNotes String?  @map("private_notes")
+  publicNotes  String?  @map("public_notes")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user             User                       @relation(fields: [userId], references: [id])
+  club             Club?                      @relation(fields: [clubId], references: [id])
+  hikingDetail     HikingActivityDetails?
+  climbingDetail   ClimbingActivityDetails?
+  expeditionDetail ExpeditionActivityDetails?
+
+  @@index([userId])
+  @@index([clubId, isOfficial])
+  @@map("activities")
+}
+
+// ── Routes (canonical climbing routes) ────────────────────────────────────────
+// Routes are mainly used for Rock Climbing. Every climbing activity must
+// reference a route_id. Route identity fields are read-only after creation
+// (editing restricted to super_admin).
+//
+// category is kept as String (not enum) to allow future hiking/expedition
+// route types. MVP value is always "climbing".
+//
+// normalized_name = trim(lower(name)); used for exact-duplicate prevention.
+// Exact duplicate check: normalizedName + mountainOrArea + climbingField.
+
+model Route {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  // MVP: always "climbing". Kept as String for future extensibility.
+  category        String   @db.VarChar(30)
+  name            String   @db.VarChar(255)
+  // Generated by backend: trim(lower(name)). Never shown to users.
+  normalizedName  String   @map("normalized_name") @db.VarChar(255)
+  mountainOrArea  String   @map("mountain_or_area") @db.VarChar(255)
+  climbingField   String   @map("climbing_field") @db.VarChar(255)
+  defaultScale    String   @map("default_scale") @db.VarChar(30)
+  defaultGrade    String   @map("default_grade") @db.VarChar(50)
+  // Nullable: optional at route creation; required in official climbing activity.
+  altitude        Int?
+  routeLength     Decimal? @map("route_length") @db.Decimal(8, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  createdBy          User?                     @relation("RouteCreatedBy", fields: [createdByUserId], references: [id])
+  climbingActivities ClimbingActivityDetails[]
+
+  @@index([normalizedName, mountainOrArea, climbingField])
+  @@map("routes")
+}
+
+// ── Detail tables ─────────────────────────────────────────────────────────────
+// Each detail table uses activity_id as BOTH primary key and FK to activities.
+// There is no separate auto-generated id column on any detail table.
+
+model HikingActivityDetails {
+  // activity_id is the primary key AND the FK — no separate id column.
+  activityId         String  @id @map("activity_id") @db.Uuid
+  mountain           String  @db.VarChar(255)
+  startPoint         String  @map("start_point") @db.VarChar(255)
+  endPoint           String  @map("end_point") @db.VarChar(255)
+  maxAltitude        Int     @map("max_altitude")
+  totalElevationGain Int     @map("total_elevation_gain")
+  distanceLength     Decimal @map("distance_length") @db.Decimal(8, 2)
+  // Allowed values: "normal" | "winter_conditions" | "ski_mountaineering"
+  fieldType          String  @map("field_type") @db.VarChar(100)
+  // Allowed values: ΠΕΖΟΠΟΡΙΑ | F- | F | F+ | PD- | PD | PD+ | AD- | AD | AD+
+  difficultyGrade    String  @map("difficulty_grade") @db.VarChar(50)
+  participantsNum    Int     @map("participants_num")
+
+  activity Activity @relation(fields: [activityId], references: [id])
+
+  @@map("hiking_activity_details")
+}
+
+model ClimbingActivityDetails {
+  // activity_id is the primary key AND the FK — no separate id column.
+  activityId     String  @id @map("activity_id") @db.Uuid
+  routeId        String  @map("route_id") @db.Uuid
+  // Snapshot fields: copied from the selected Route at submission time.
+  // Preserved even if the canonical Route is later renamed or merged.
+  routeName      String  @map("route_name") @db.VarChar(255)
+  mountainOrArea String  @map("mountain_or_area") @db.VarChar(255)
+  climbingField  String  @map("climbing_field") @db.VarChar(255)
+  // Allowed values: "summer" | "winter"
+  season         String  @db.VarChar(30)
+  // Allowed values: "new" | "repeat"
+  repetitionType String  @map("repetition_type") @db.VarChar(30)
+  altitude       Int
+  // Optional personal tracking field — does not affect scoring, not exported.
+  // Allowed values: "on_sight" | "flash" | "red_point" | "top_rope" | null
+  completionType String? @map("completion_type") @db.VarChar(50)
+  // Difficulty fields: at least one of (difficultyScale+difficultyGrade) or mixedClimbing
+  // must be present for official activities. Both may be null for personal records.
+  difficultyScale String? @map("difficulty_scale") @db.VarChar(30)
+  difficultyGrade String? @map("difficulty_grade") @db.VarChar(50)
+  // Populated by ScoringService when difficultyScale is "french".
+  mappedScale    String?  @map("mapped_scale") @db.VarChar(30)
+  mappedGrade    String?  @map("mapped_grade") @db.VarChar(50)
+  // Mixed/ice grade e.g. "M4", "WI4". Null if no mixed/ice component.
+  mixedClimbing  String?  @map("mixed_climbing") @db.VarChar(50)
+  routeLength    Decimal  @map("route_length") @db.Decimal(8, 2)
+  participantsNum Int     @map("participants_num")
+  // Required for official records (Excel column ΣΥΜ/ΝΤΕΣ). Not used in scoring.
+  participantsText String @map("participants_text")
+
+  activity Activity @relation(fields: [activityId], references: [id])
+  route    Route    @relation(fields: [routeId], references: [id])
+
+  @@map("climbing_activity_details")
+}
+
+model ExpeditionActivityDetails {
+  // activity_id is the primary key AND the FK — no separate id column.
+  activityId         String @id @map("activity_id") @db.Uuid
+  country            String @db.VarChar(255)
+  mountainRange      String @map("mountain_range") @db.VarChar(255)
+  mountain           String @db.VarChar(255)
+  summit             String @db.VarChar(255)
+  routeName          String @map("route_name") @db.VarChar(255)
+  // Allowed values: "summer" | "winter"
+  season             String @db.VarChar(30)
+  altitude           Int
+  totalElevationGain Int    @map("total_elevation_gain")
+  // Allowed values: ΠΕΖΟΠΟΡΙΑ | F- through ED+ (docs/eooa-rules-alignment.md §4.3)
+  difficultyGrade    String @map("difficulty_grade") @db.VarChar(50)
+  participantsNum    Int    @map("participants_num")
+  // Allowed values: "no" | "europe" | "africa" | "other_continents"
+  organizationType   String @map("organization_type") @db.VarChar(100)
+
+  activity Activity @relation(fields: [activityId], references: [id])
+
+  @@map("expedition_activity_details")
+}
+
+// ── Grade mappings ────────────────────────────────────────────────────────────
+// Lookup table for climbing grade conversions (e.g. French → UIAA/Alpine).
+// Seeded in Phase 2. Used by ScoringService in Phase 6.
+// No timestamps — this is reference data, not user-generated data.
+
+model GradeMapping {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceScale String @map("source_scale") @db.VarChar(30)
+  sourceGrade String @map("source_grade") @db.VarChar(50)
+  targetScale String @map("target_scale") @db.VarChar(30)
+  targetGrade String @map("target_grade") @db.VarChar(50)
+
+  @@map("grade_mappings")
+}
