@@ -1,6 +1,12 @@
 import { Module } from '@nestjs/common'
+import { UsersController } from './users.controller'
+import { UsersService } from './users.service'
 
-// Phase 4 will add: UsersController (GET /users/me, PATCH /users/me),
-// UsersService, and UpdateUserDto.
-@Module({})
+@Module({
+  controllers: [UsersController],
+  providers: [UsersService],
+  // UsersService is exported so a future AuthModule can inject it
+  // for credential verification via findByEmailWithPassword().
+  exports: [UsersService],
+})
 export class UsersModule {}

@@ -76,6 +76,10 @@ model ClubMembership {
   user User @relation(fields: [userId], references: [id])
   club Club @relation(fields: [clubId], references: [id])
 
+  // A user can be a member of each club at most once.
+  // The service layer also checks for duplicates, but this constraint
+  // enforces the invariant at database level.
+  @@unique([userId, clubId])
   @@map("club_memberships")
 }
 
