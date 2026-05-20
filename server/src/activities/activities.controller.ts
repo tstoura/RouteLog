@@ -2,6 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common'
 import { ActivitiesService } from './activities.service'
 import { CreateHikingActivityDto } from './dto/create-hiking-activity.dto'
 import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
+import { CreateExpeditionActivityDto } from './dto/create-expedition-activity.dto'
 
 /**
  * NOTE: All endpoints here are currently UNPROTECTED for development convenience.
@@ -47,5 +48,26 @@ export class ActivitiesController {
   @Post('climbing')
   createClimbing(@Body() dto: CreateClimbingActivityDto) {
     return this.activitiesService.createClimbing(dto)
+  }
+
+  /**
+   * Submit an Expeditions Abroad activity.
+   *
+   * Creates one row in `activities` + one row in `expedition_activity_details`.
+   *
+   * Official activity: requires all EOOA fields; points calculated and stored.
+   * Personal activity: club_id optional; difficulty_grade relaxed; points null.
+   *
+   * Note: ski-mountaineering conditions → use season = "winter".
+   * Note: organization_type = "no" when the expedition was not organized by the club.
+   *
+   * Returns 201 Created with the full activity + expeditionDetail.
+   * Returns 400 if DTO validation fails.
+   * Returns 404 if userId or clubId (for official) does not exist.
+   * Returns 422 if official fields fail EOOA rules or scoring fails.
+   */
+  @Post('expedition')
+  createExpedition(@Body() dto: CreateExpeditionActivityDto) {
+    return this.activitiesService.createExpedition(dto)
   }
 }

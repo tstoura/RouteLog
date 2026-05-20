@@ -26,8 +26,17 @@ import {
   ClimbingSeason,
   ClimbingUiaaGrade,
 } from '../scoring/constants/climbing.constants'
+import {
+  EXPEDITION_DIFFICULTY_GRADES,
+  EXPEDITION_ORGANIZATION_TYPES,
+  EXPEDITION_SEASONS,
+  ExpeditionDifficultyGrade,
+  ExpeditionOrganizationType,
+  ExpeditionSeason,
+} from '../scoring/constants/expedition.constants'
 import { CreateHikingActivityDto } from './dto/create-hiking-activity.dto'
 import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
+import { CreateExpeditionActivityDto } from './dto/create-expedition-activity.dto'
 
 @Injectable()
 export class ActivitiesService {
@@ -381,6 +390,134 @@ export class ActivitiesService {
         },
       },
       include: { climbingDetail: true },
+    })
+
+    return activity
+  }
+
+  /**
+   * Creates an Expeditions Abroad activity.
+   *
+   * Creates both `activities` and `expedition_activity_details` in a single Prisma
+   * nested write (implicit transaction).
+   *
+   * Official activities (is_official = true):
+   *   - club_id is required and must resolve to an existing club.
+   *   - season must be "summer" or "winter" (ski mountaineering ⇒ use "winter").
+   *   - altitude and total_elevation_gain must be > 0.
+   *   - difficulty_grade must be one of the EOOA expedition grades (different table
+   *     from hiking — do NOT mix up the coefficient tables).
+   *   - organization_type must be one of: no, europe, africa, other_continents.
+   *   - Points are calculated via ScoringService and rounded to 2 d.p.
+   *   - No minimum participants restriction (§4.5).
+   *
+   * Personal activities (is_official = false):
+   *   - club_id optional.
+   *   - difficulty_grade can be any non-empty string.
+   *   - season and organization_type are still validated against allowed values
+   *     because all DB columns are non-nullable and the allowed sets are fixed.
+   *   - Points remain null.
+   */
+  async createExpedition(dto: CreateExpeditionActivityDto) {
+    // ── Validate user exists ─────────────────────────────────────────────────
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } })
+    if (!user) {
+      throw new NotFoundException(`User with id ${dto.userId} not found`)
+    }
+
+    // ── Validate season (both official and personal — fixed allowed set) ─────
+    if (!EXPEDITION_SEASONS.includes(dto.season as ExpeditionSeason)) {
+      throw new UnprocessableEntityException(
+        `season "${dto.season}" is not valid for expeditions. ` +
+        `Allowed values: ${EXPEDITION_SEASONS.join(', ')}. ` +
+        `Note: ski-mountaineering conditions should use "winter".`,
+      )
+    }
+
+    // ── Validate organization_type (both — fixed allowed set) ───────────────
+    if (!EXPEDITION_ORGANIZATION_TYPES.includes(dto.organizationType as ExpeditionOrganizationType)) {
+      throw new UnprocessableEntityException(
+        `organization_type "${dto.organizationType}" is not valid. ` +
+        `Allowed values: ${EXPEDITION_ORGANIZATION_TYPES.join(', ')}. ` +
+        `Use "no" when the expedition was not organized by the club.`,
+      )
+    }
+
+    // ── Official-activity business rules ────────────────────────────────────
+    let points: number | null = null
+
+    if (dto.isOfficial) {
+      // club_id required for official.
+      const club = await this.prisma.club.findUnique({ where: { id: dto.clubId! } })
+      if (!club) {
+        throw new NotFoundException(`Club with id ${dto.clubId} not found`)
+      }
+
+      // difficulty_grade must be from the EOOA expedition table (§4.3).
+      // IMPORTANT: expedition uses a different coefficient table than hiking.
+      if (!EXPEDITION_DIFFICULTY_GRADES.includes(dto.difficultyGrade as ExpeditionDifficultyGrade)) {
+        throw new UnprocessableEntityException(
+          `difficulty_grade "${dto.difficultyGrade}" is not valid for official expedition activities. ` +
+          `Allowed values: ${EXPEDITION_DIFFICULTY_GRADES.join(', ')}.`,
+        )
+      }
+
+      // altitude and total_elevation_gain must be > 0 for official (§4.4).
+      if (dto.altitude <= 0) {
+        throw new UnprocessableEntityException('altitude must be greater than 0 for official expedition activities.')
+      }
+      if (dto.totalElevationGain <= 0) {
+        throw new UnprocessableEntityException('total_elevation_gain must be greater than 0 for official expedition activities.')
+      }
+
+      // Calculate EOOA points (§4.7).
+      // No minimum participants restriction for expeditions (§4.5).
+      try {
+        const rawPoints = this.scoring.calculateExpeditionPoints({
+          altitude: dto.altitude,
+          totalElevationGain: dto.totalElevationGain,
+          season: dto.season,
+          difficultyGrade: dto.difficultyGrade,
+          participantsNum: dto.participantsNum,
+          organizationType: dto.organizationType,
+        })
+        points = Math.round(rawPoints * 100) / 100
+      } catch (err) {
+        if (err instanceof ScoringError) {
+          throw new UnprocessableEntityException(err.message)
+        }
+        throw err
+      }
+    }
+
+    // ── Create activity + detail in a single nested write ───────────────────
+    const activity = await this.prisma.activity.create({
+      data: {
+        userId: dto.userId,
+        clubId: dto.clubId ?? null,
+        date: new Date(dto.date),
+        category: 'expedition',
+        isOfficial: dto.isOfficial,
+        points: points !== null ? points : undefined,
+        privateNotes: dto.privateNotes ?? null,
+        publicNotes: dto.publicNotes ?? null,
+        expeditionDetail: {
+          create: {
+            country: dto.country,
+            mountainRange: dto.mountainRange,
+            mountain: dto.mountain,
+            summit: dto.summit,
+            routeName: dto.routeName,
+            season: dto.season,
+            altitude: dto.altitude,
+            totalElevationGain: dto.totalElevationGain,
+            difficultyGrade: dto.difficultyGrade,
+            participantsNum: dto.participantsNum,
+            organizationType: dto.organizationType,
+          },
+        },
+      },
+      include: { expeditionDetail: true },
     })
 
     return activity
