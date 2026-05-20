@@ -166,10 +166,14 @@ export const CLIMBING_UIAA_COEFFICIENTS: Record<ClimbingUiaaGrade, number> = {
 
 /**
  * Allowed backend values for climbing_activity_details.difficulty_scale.
- * "uiaa" covers both UIAA and Alpine grades accepted by the EOOA template.
- * "french" triggers a grade_mappings lookup to resolve mapped_scale / mapped_grade.
+ *   "uiaa"   — UIAA numeric grades (IV, IV+, V … XI+).
+ *   "alpine" — Alpine adjectival grades (D-, D, D+, TD-, TD, TD+, ED-, ED, ED+).
+ *              Alpine grades share the same EOOA coefficient table as UIAA grades
+ *              (CLIMBING_UIAA_COEFFICIENTS) so no separate lookup is needed.
+ *   "french" — French sport-climbing grades (e.g. 6c, 7a+). Triggers a
+ *              grade_mappings DB lookup to resolve mapped_scale / mapped_grade.
  */
-export const CLIMBING_DIFFICULTY_SCALES = ['uiaa', 'french'] as const
+export const CLIMBING_DIFFICULTY_SCALES = ['uiaa', 'alpine', 'french'] as const
 export type ClimbingDifficultyScale = (typeof CLIMBING_DIFFICULTY_SCALES)[number]
 
 // ── Mixed / ice climbing ──────────────────────────────────────────────────────

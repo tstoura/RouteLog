@@ -233,6 +233,44 @@ describe('ScoringService', () => {
       expect(newRoute).toBeCloseTo(4.3818, 4)
     })
 
+    // Alpine scale uses the same CLIMBING_UIAA_COEFFICIENTS table (D/TD/ED grades)
+    it('scores Alpine grades (D, TD, ED) correctly using the shared coefficient table', () => {
+      // D → coeff 9, same table as UIAA
+      // altitude=1200, summer, repeat, routeLength=100, 2 participants
+      // 1 * 1 * sqrt(1.2) * 9 * (100/1500) * 2 ≈ 1.3145
+      const dResult = service.calculateClimbingPoints({
+        ...base,
+        difficultyScale: 'alpine',
+        difficultyGrade: 'D',
+      })
+      expect(dResult).toBeCloseTo(1.3145, 4)
+
+      // TD → coeff 12
+      // 1 * 1 * sqrt(1.2) * 12 * (100/1500) * 2 ≈ 1.7527
+      const tdResult = service.calculateClimbingPoints({
+        ...base,
+        difficultyScale: 'alpine',
+        difficultyGrade: 'TD',
+      })
+      expect(tdResult).toBeCloseTo(1.7527, 4)
+
+      // ED+ → coeff 16
+      // 1 * 1 * sqrt(1.2) * 16 * (100/1500) * 2 ≈ 2.3369
+      const edPlusResult = service.calculateClimbingPoints({
+        ...base,
+        difficultyScale: 'alpine',
+        difficultyGrade: 'ED+',
+      })
+      expect(edPlusResult).toBeCloseTo(2.3369, 4)
+    })
+
+    it('Alpine and UIAA give identical scores for the same grade', () => {
+      // D+ is in both the UIAA and Alpine conceptual ranges → same coefficient (10)
+      const withUiaa = service.calculateClimbingPoints({ ...base, difficultyScale: 'uiaa', difficultyGrade: 'D+' })
+      const withAlpine = service.calculateClimbingPoints({ ...base, difficultyScale: 'alpine', difficultyGrade: 'D+' })
+      expect(withUiaa).toBeCloseTo(withAlpine, 10)
+    })
+
     // §5.6: neither regular difficulty nor mixed_climbing → invalid
     it('throws ScoringError when neither regular difficulty nor mixed_climbing provided', () => {
       expect(() =>

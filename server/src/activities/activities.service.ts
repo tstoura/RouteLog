@@ -12,7 +12,22 @@ import {
   HikingDifficultyGrade,
   HikingFieldType,
 } from '../scoring/constants/hiking.constants'
+import {
+  CLIMBING_COMPLETION_TYPES,
+  CLIMBING_DIFFICULTY_SCALES,
+  CLIMBING_MIXED_GRADES,
+  CLIMBING_REPETITION_TYPES,
+  CLIMBING_SEASONS,
+  CLIMBING_UIAA_GRADES,
+  ClimbingCompletionType,
+  ClimbingDifficultyScale,
+  ClimbingMixedGrade,
+  ClimbingRepetitionType,
+  ClimbingSeason,
+  ClimbingUiaaGrade,
+} from '../scoring/constants/climbing.constants'
 import { CreateHikingActivityDto } from './dto/create-hiking-activity.dto'
+import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
 
 @Injectable()
 export class ActivitiesService {
@@ -129,6 +144,243 @@ export class ActivitiesService {
         },
       },
       include: { hikingDetail: true },
+    })
+
+    return activity
+  }
+
+  /**
+   * Creates a Rock Climbing activity.
+   *
+   * Creates both `activities` and `climbing_activity_details` in a single Prisma
+   * nested write (implicit transaction).
+   *
+   * Route snapshot (§3.2, docs/eooa-rules-alignment.md):
+   *   The selected Route's identity fields (routeName, mountainOrArea, climbingField)
+   *   are fetched from the DB and snapshotted into climbing_activity_details.
+   *   The client must NOT send these — they come from the canonical Route only.
+   *   altitude and routeLength come from the submitted payload (may be prefilled
+   *   from the Route in the UI but are stored as the activity's own values).
+   *
+   * French scale (§3.6):
+   *   If difficultyScale = "french", ScoringService.resolveClimbingGrade() queries
+   *   the grade_mappings table. Since grade_mappings is currently empty (Phase 3 TODO),
+   *   any French submission will fail with 422 until verified mappings are added.
+   *   When a mapping is found, mappedScale and mappedGrade are persisted.
+   *
+   * Difficulty validation (§3.8):
+   *   Official: at least one of (difficultyScale + difficultyGrade) OR mixedClimbing.
+   *   Scoring: finalDifficultyCoefficient = max(regular, mixed).
+   */
+  async createClimbing(dto: CreateClimbingActivityDto) {
+    // ── Validate user exists ─────────────────────────────────────────────────
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } })
+    if (!user) {
+      throw new NotFoundException(`User with id ${dto.userId} not found`)
+    }
+
+    // ── Fetch and validate route ─────────────────────────────────────────────
+    // route_id is always required (official and personal).
+    const route = await this.prisma.route.findUnique({ where: { id: dto.routeId } })
+    if (!route) {
+      throw new NotFoundException(`Route with id ${dto.routeId} not found`)
+    }
+
+    // ── Validate season and repetition_type (non-nullable in DB) ────────────
+    if (!CLIMBING_SEASONS.includes(dto.season as ClimbingSeason)) {
+      throw new UnprocessableEntityException(
+        `season "${dto.season}" is not valid. Allowed values: ${CLIMBING_SEASONS.join(', ')}.`,
+      )
+    }
+    if (!CLIMBING_REPETITION_TYPES.includes(dto.repetitionType as ClimbingRepetitionType)) {
+      throw new UnprocessableEntityException(
+        `repetition_type "${dto.repetitionType}" is not valid. Allowed values: ${CLIMBING_REPETITION_TYPES.join(', ')}.`,
+      )
+    }
+
+    // ── Validate completion_type (optional, both official and personal) ──────
+    if (dto.completionType !== undefined) {
+      if (!CLIMBING_COMPLETION_TYPES.includes(dto.completionType as ClimbingCompletionType)) {
+        throw new UnprocessableEntityException(
+          `completion_type "${dto.completionType}" is not valid. ` +
+          `Allowed values: ${CLIMBING_COMPLETION_TYPES.join(', ')}.`,
+        )
+      }
+    }
+
+    // ── Resolve difficulty inputs ────────────────────────────────────────────
+    const hasRegularDifficulty = !!(dto.difficultyScale && dto.difficultyGrade)
+    const hasMixedDifficulty = !!dto.mixedClimbing
+
+    // Validate that difficultyScale and difficultyGrade are always paired.
+    if (!!dto.difficultyScale !== !!dto.difficultyGrade) {
+      throw new UnprocessableEntityException(
+        'difficulty_scale and difficulty_grade must be provided together. ' +
+        'Provide both or neither.',
+      )
+    }
+
+    // ── Official-activity business rules ────────────────────────────────────
+    let points: number | null = null
+    let mappedScale: string | null = null
+    let mappedGrade: string | null = null
+
+    if (dto.isOfficial) {
+      // club_id required for official.
+      const club = await this.prisma.club.findUnique({ where: { id: dto.clubId! } })
+      if (!club) {
+        throw new NotFoundException(`Club with id ${dto.clubId} not found`)
+      }
+
+      // participants_text required for official records (Excel ΣΥΜ/ΝΤΕΣ column).
+      if (!dto.participantsText) {
+        throw new UnprocessableEntityException('participants_text is required for official climbing records.')
+      }
+
+      // altitude and route_length must be > 0 for official.
+      if (dto.altitude <= 0) {
+        throw new UnprocessableEntityException('altitude must be greater than 0 for official climbing records.')
+      }
+      if (dto.routeLength <= 0) {
+        throw new UnprocessableEntityException('route_length must be greater than 0 for official climbing records.')
+      }
+
+      // At least one difficulty must exist for official records.
+      if (!hasRegularDifficulty && !hasMixedDifficulty) {
+        throw new UnprocessableEntityException(
+          'Official climbing records require at least one of: ' +
+          '(difficulty_scale + difficulty_grade) or mixed_climbing.',
+        )
+      }
+
+      // Validate difficulty_scale value.
+      if (hasRegularDifficulty) {
+        if (!CLIMBING_DIFFICULTY_SCALES.includes(dto.difficultyScale! as ClimbingDifficultyScale)) {
+          throw new UnprocessableEntityException(
+            `difficulty_scale "${dto.difficultyScale}" is not valid. ` +
+            `Allowed values: ${CLIMBING_DIFFICULTY_SCALES.join(', ')}.`,
+          )
+        }
+      }
+
+      // Validate mixed_climbing grade.
+      if (hasMixedDifficulty) {
+        if (!CLIMBING_MIXED_GRADES.includes(dto.mixedClimbing! as ClimbingMixedGrade)) {
+          throw new UnprocessableEntityException(
+            `mixed_climbing "${dto.mixedClimbing}" is not valid. ` +
+            `Allowed values: M1–M12, WI1–WI12.`,
+          )
+        }
+      }
+
+      // ── French scale resolution (§3.6) ──────────────────────────────────
+      // Resolve French grade → UIAA/Alpine via grade_mappings table.
+      // This will throw ScoringError while grade_mappings is empty (Phase 3 TODO).
+      // When a mapping is found, persist mapped_scale and mapped_grade.
+      if (hasRegularDifficulty && dto.difficultyScale === 'french') {
+        try {
+          const resolved = await this.scoring.resolveClimbingGrade(dto.difficultyGrade!)
+          mappedScale = resolved.mappedScale
+          mappedGrade = resolved.mappedGrade
+        } catch (err) {
+          if (err instanceof ScoringError) {
+            throw new UnprocessableEntityException(err.message)
+          }
+          throw err
+        }
+      }
+
+      // ── Validate UIAA/Alpine grade value (when not French) ───────────────
+      // When difficultyScale is "uiaa" (includes Alpine grades), validate the grade.
+      if (hasRegularDifficulty && dto.difficultyScale !== 'french') {
+        const gradeToCheck = dto.difficultyGrade!
+        if (!CLIMBING_UIAA_GRADES.includes(gradeToCheck as ClimbingUiaaGrade)) {
+          throw new UnprocessableEntityException(
+            `difficulty_grade "${gradeToCheck}" is not a valid UIAA/Alpine grade. ` +
+            `Allowed values include: IV, IV+, V, V+, VI, VI+, VII, VII+, VIII, D, TD, ED, etc.`,
+          )
+        }
+      }
+
+      // ── Calculate points (§3.13) ─────────────────────────────────────────
+      try {
+        const rawPoints = await this.scoring.calculateClimbingPoints({
+          altitude: dto.altitude,
+          routeLength: dto.routeLength,
+          season: dto.season,
+          repetitionType: dto.repetitionType,
+          participantsNum: dto.participantsNum,
+          difficultyScale: dto.difficultyScale ?? null,
+          difficultyGrade: dto.difficultyGrade ?? null,
+          mappedGrade: mappedGrade,
+          mixedClimbing: dto.mixedClimbing ?? null,
+        })
+        points = Math.round(rawPoints * 100) / 100
+      } catch (err) {
+        if (err instanceof ScoringError) {
+          throw new UnprocessableEntityException(err.message)
+        }
+        throw err
+      }
+    } else {
+      // ── Personal: validate difficulty fields if present ──────────────────
+      // Validate difficultyScale only if the user provides one.
+      if (hasRegularDifficulty && dto.difficultyScale) {
+        if (!CLIMBING_DIFFICULTY_SCALES.includes(dto.difficultyScale as ClimbingDifficultyScale)) {
+          throw new UnprocessableEntityException(
+            `difficulty_scale "${dto.difficultyScale}" is not valid. ` +
+            `Allowed values: ${CLIMBING_DIFFICULTY_SCALES.join(', ')}.`,
+          )
+        }
+      }
+      // Validate mixed_climbing grade if provided.
+      if (hasMixedDifficulty) {
+        if (!CLIMBING_MIXED_GRADES.includes(dto.mixedClimbing! as ClimbingMixedGrade)) {
+          throw new UnprocessableEntityException(
+            `mixed_climbing "${dto.mixedClimbing}" is not valid. Allowed values: M1–M12, WI1–WI12.`,
+          )
+        }
+      }
+    }
+
+    // ── Create activity + detail in a single nested write ───────────────────
+    // Route identity fields are snapshotted from the canonical Route (§3.2).
+    // The client payload does NOT include routeName, mountainOrArea, climbingField.
+    const activity = await this.prisma.activity.create({
+      data: {
+        userId: dto.userId,
+        clubId: dto.clubId ?? null,
+        date: new Date(dto.date),
+        category: 'climbing',
+        isOfficial: dto.isOfficial,
+        points: points !== null ? points : undefined,
+        privateNotes: dto.privateNotes ?? null,
+        publicNotes: dto.publicNotes ?? null,
+        climbingDetail: {
+          create: {
+            routeId: dto.routeId,
+            // ── Route identity snapshot (read-only fields from the Route) ──
+            routeName: route.name,
+            mountainOrArea: route.mountainOrArea,
+            climbingField: route.climbingField,
+            // ── Activity-specific values ───────────────────────────────────
+            season: dto.season,
+            repetitionType: dto.repetitionType,
+            altitude: dto.altitude,
+            routeLength: dto.routeLength,
+            participantsNum: dto.participantsNum,
+            participantsText: dto.participantsText ?? '',
+            completionType: dto.completionType ?? null,
+            // ── Difficulty ─────────────────────────────────────────────────
+            difficultyScale: dto.difficultyScale ?? null,
+            difficultyGrade: dto.difficultyGrade ?? null,
+            mappedScale: mappedScale,
+            mappedGrade: mappedGrade,
+            mixedClimbing: dto.mixedClimbing ?? null,
+          },
+        },
+      },
+      include: { climbingDetail: true },
     })
 
     return activity
