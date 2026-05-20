@@ -238,8 +238,9 @@ model ExpeditionActivityDetails {
 
 // ── Grade mappings ────────────────────────────────────────────────────────────
 // Lookup table for climbing grade conversions (e.g. French → UIAA/Alpine).
-// Seeded in Phase 2. Used by ScoringService in Phase 6.
-// No timestamps — this is reference data, not user-generated data.
+// Seeded in Phase 3. Used by ScoringService in Phase 6.
+// The composite unique key (source_scale, source_grade, target_scale) prevents
+// duplicate mappings and enables idempotent upsert in the seed script.
 
 model GradeMapping {
   id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -248,5 +249,6 @@ model GradeMapping {
   targetScale String @map("target_scale") @db.VarChar(30)
   targetGrade String @map("target_grade") @db.VarChar(50)
 
+  @@unique([sourceScale, sourceGrade, targetScale], name: "grade_mapping_source_target_unique")
   @@map("grade_mappings")
 }
