@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common'
+import { ScoringService } from './scoring.service'
 
-// Phase 6 will add: ScoringService with three pure calculation functions:
-//   calculateHikingPoints(input)
-//   calculateClimbingPoints(input)
-//   calculateExpeditionPoints(input)
-//
-// All coefficient lookup tables will live in scoring/coefficients.ts.
-// Scoring logic strictly follows docs/eooa-rules-alignment.md.
-// ScoringModule is imported by ActivitiesModule to calculate points on submission.
-@Module({})
+@Module({
+  providers: [ScoringService],
+  // Exported so ActivitiesModule (Phase 7) can inject ScoringService to
+  // calculate points at activity submission time.
+  exports: [ScoringService],
+})
 export class ScoringModule {}
