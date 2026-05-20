@@ -37,6 +37,7 @@ import {
 import { CreateHikingActivityDto } from './dto/create-hiking-activity.dto'
 import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
 import { CreateExpeditionActivityDto } from './dto/create-expedition-activity.dto'
+import { GetActivitiesDto } from './dto/get-activities.dto'
 
 @Injectable()
 export class ActivitiesService {
@@ -519,6 +520,72 @@ export class ActivitiesService {
       },
       include: { expeditionDetail: true },
     })
+
+    return activity
+  }
+
+  // ── Activity retrieval (Phase 8) ────────────────────────────────────────────
+
+  /**
+   * Returns all activities for a given user, with their detail relation included.
+   *
+   * All three detail relations (hikingDetail, climbingDetail, expeditionDetail) are
+   * always included in the query. For each activity exactly one will be non-null;
+   * the others will be null. The client uses the non-null field to determine the
+   * category-specific data.
+   *
+   * Ordering: date descending (most recent first).
+   *
+   * Temporary auth note: userId comes from the query param until JWT auth is added.
+   * Once auth guards are implemented, userId will come from the decoded token.
+   */
+  findAllForUser(dto: GetActivitiesDto) {
+    return this.prisma.activity.findMany({
+      where: {
+        userId: dto.userId,
+        ...(dto.category ? { category: dto.category } : {}),
+      },
+      include: {
+        hikingDetail: true,
+        climbingDetail: true,
+        expeditionDetail: true,
+      },
+      orderBy: { date: 'desc' },
+      take: dto.take ?? 20,
+      skip: dto.skip ?? 0,
+    })
+  }
+
+  /**
+   * Returns a single activity by id with its detail relation included.
+   *
+   * If userId is provided, the method verifies the activity belongs to that user.
+   * A non-matching userId returns 404 (not 403) to avoid leaking the existence of
+   * activities belonging to other users.
+   *
+   * Temporary auth note: userId is an optional query param for now. Once JWT auth
+   * is implemented, the ownership check will use the decoded token user id instead.
+   */
+  async findById(id: string, userId?: string) {
+    const activity = await this.prisma.activity.findUnique({
+      where: { id },
+      include: {
+        hikingDetail: true,
+        climbingDetail: true,
+        expeditionDetail: true,
+      },
+    })
+
+    if (!activity) {
+      throw new NotFoundException(`Activity with id ${id} not found`)
+    }
+
+    // Ownership check: if userId is provided, verify it matches.
+    // Returns 404 rather than 403 to avoid revealing that the activity exists
+    // and belongs to a different user.
+    if (userId && activity.userId !== userId) {
+      throw new NotFoundException(`Activity with id ${id} not found`)
+    }
 
     return activity
   }
