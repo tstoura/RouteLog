@@ -147,6 +147,10 @@ export type ExpeditionActivityPayload = {
    * UI labels:       Όχι  | Ευρώπη  | Αφρική  | Άλλες ήπειροι
    */
   organizationType: string
+  /** Optional free-text notes visible only to the submitting user. */
+  privateNotes?: string
+  /** Optional expedition review visible to other club members. */
+  publicNotes?: string
 }
 
 export function submitExpeditionActivity(
