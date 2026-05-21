@@ -10,10 +10,11 @@ export type RouteCategory = (typeof ROUTE_CATEGORIES)[number]
 
 /**
  * Allowed values for routes.default_scale (and climbing_activity_details.difficulty_scale).
- * "uiaa"   — UIAA/Alpine grades (IV, V-, ..., XI+, D-, ..., ED+)
+ * "uiaa"   — UIAA numeric grades (IV, V-, ..., XI+)
+ * "alpine" — Alpine adjectival grades (D-, D, ..., ED+); share the same EOOA coefficient table as UIAA.
  * "french" — French sport grades (6a, 6c+, 7b, ...) — requires grade_mappings lookup.
  */
-export const ROUTE_DIFFICULTY_SCALES = ['uiaa', 'french'] as const
+export const ROUTE_DIFFICULTY_SCALES = ['uiaa', 'alpine', 'french'] as const
 export type RouteDifficultyScale = (typeof ROUTE_DIFFICULTY_SCALES)[number]
 
 /**

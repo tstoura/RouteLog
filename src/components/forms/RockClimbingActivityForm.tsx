@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FormSection } from '../ui/FormSection.tsx'
 import { Input } from '../ui/Input.tsx'
+import { Textarea } from '../ui/Textarea.tsx'
 import {
   ActivityTypeTabs,
   type ActivityFormTabKind,
@@ -9,58 +11,65 @@ import {
   FieldHints,
   FieldLabel,
   FormActions,
-  NotesSection,
   OfficialParticipationSection,
-  type Option,
-  ACTIVITY_SEASON_RADIO_OPTIONS,
   RadioGroupField,
   ScoreSummaryCard,
   SectionIconBasics,
+  SectionIconNotes,
   SectionIconParticipation,
   SectionIconTechnical,
-  SelectField,
   SelectFieldControlled,
 } from './shared/FormBuildingBlocks.tsx'
 import { AutoFilledBadge } from './AutoFilledBadge.tsx'
 import { CreateRouteModal } from './CreateRouteModal.tsx'
 import { FormFieldHelperText } from './FormFieldHelperText.tsx'
 import { RouteCombobox } from './RouteCombobox.tsx'
-import { getBaseClimbingFormRoutes } from '../../data/climbingFormRoutes.ts'
 import {
-  CLIMBING_GRADE_OPTIONS,
+  CLIMBING_COMPLETION_OPTIONS,
+  CLIMBING_REPETITION_OPTIONS,
   CLIMBING_SCALE_FORM_OPTIONS,
-  coerceGradeOptionValue,
+  CLIMBING_SEASON_OPTIONS,
+  MIXED_CLIMBING_HELPER,
+  MIXED_CLIMBING_OPTIONS,
+  getGradeOptionsForScale,
   scaleKeyFromGreek,
   scaleKeyToGreek,
 } from '../../constants/climbingFormOptions.ts'
 import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
 import { mapRouteToClimbingFormValues } from '../../lib/activityRoutePrefill.ts'
-import { AUTO_FILL_ROUTE_HELPER } from './activityAutofillCopy.ts'
+import { AUTO_FILL_EDITABLE_HELPER, AUTO_FILL_ROUTE_HELPER } from './activityAutofillCopy.ts'
+import {
+  createClimbingRoute,
+  searchClimbingRoutes,
+  type ClimbingRouteResponse,
+} from '../../api/climbingRoutes.ts'
+import { submitClimbingActivity } from '../../api/activities.ts'
+import { ApiError } from '../../api/client.ts'
+import { DEV_CLUB_ID, DEV_USER_ID } from '../../lib/devUser.ts'
 
-const repeatRadioOptions = [
-  { value: 'νέα', label: 'Νέα' },
-  { value: 'επανάληψη', label: 'Επανάληψη' },
-]
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const completionOptions: Option[] = [
-  { value: '', label: 'Επιλέξτε τρόπο ολοκλήρωσης' },
-  { value: 'onsight', label: 'On Sight' },
-  { value: 'flash', label: 'Flash' },
-  { value: 'redpoint', label: 'Red Point' },
-  { value: 'toprope', label: 'Top Rope' },
-]
+/** Map a backend ClimbingRouteResponse to the form's display record type. */
+function routeResponseToFormRecord(r: ClimbingRouteResponse): ClimbingRouteFormRecord {
+  return {
+    id: r.id,
+    name: r.name,
+    field: r.climbingField,
+    mountainOrArea: r.mountainOrArea,
+    difficultyScale:
+      r.defaultScale === 'uiaa'
+        ? 'UIAA'
+        : r.defaultScale === 'alpine'
+          ? 'Alpine'
+          : 'Γαλλική',
+    difficultyGrade: r.defaultGrade ?? '',
+    altitude: r.altitude != null ? String(r.altitude) : undefined,
+    routeLength: r.routeLength != null ? String(r.routeLength) : undefined,
+  }
+}
 
-const mixedOptions: Option[] = [
-  { value: '', label: 'Επιλογή' },
-  { value: 'όχι', label: 'Όχι' },
-  { value: 'μικτό', label: 'Μικτό' },
-  { value: 'πάγος', label: 'Πάγος' },
-]
+// ── Label row + autofill badge ─────────────────────────────────────────────────
 
-const gradeSelectOptions: Option[] = CLIMBING_GRADE_OPTIONS as Option[]
-const scaleSelectOptions: Option[] = CLIMBING_SCALE_FORM_OPTIONS as Option[]
-
-/** Label row + autofill badge; same flex layout as the route field row. */
 function FormLabelRow({ label, showBadge }: { label: string; showBadge: boolean }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -70,19 +79,26 @@ function FormLabelRow({ label, showBadge }: { label: string; showBadge: boolean 
   )
 }
 
+// ── Props ──────────────────────────────────────────────────────────────────────
+
 export type RockClimbingActivityFormProps = {
   /** Prefill from `/app/new/climbing?route=…` */
   initialRouteSlug?: string | null
-  /** Called after mock submit (parent shows banner / resets form). */
-  onMockSubmitSuccess?: () => void
-  /** Activity type tab click (including the active tab); parent handles reset / navigation. */
+  /** Called after successful backend submission; receives server-calculated points. */
+  onSubmitSuccess?: (points: number | null) => void
+  /** Points from the most recent successful submission, passed back by the parent. */
+  lastSubmittedPoints?: number | null
+  /** Activity type tab click; parent handles reset / navigation. */
   onActivityTabSelect: (kind: ActivityFormTabKind) => void
 }
+
+// ── Initial state from prefill slug ───────────────────────────────────────────
 
 function buildStateFromRouteSlug(slug: string | null) {
   const mapped = slug ? mapRouteToClimbingFormValues(slug) : undefined
   if (!mapped) {
     return {
+      routeId: '',
       routeName: '',
       mountain: '',
       fieldSector: '',
@@ -96,11 +112,20 @@ function buildStateFromRouteSlug(slug: string | null) {
     }
   }
   return {
+    // Mock/prefill routes don't have backend IDs; only real UUIDs get used as routeId
+    routeId: mapped.id.startsWith('temp-') || mapped.id.startsWith('r-') ? '' : mapped.id,
     routeName: mapped.name,
     mountain: mapped.mountainOrArea,
     fieldSector: mapped.field,
     scaleKey: scaleKeyFromGreek(mapped.difficultyScale) || 'french',
-    gradeVal: coerceGradeOptionValue(mapped.difficultyGrade),
+    gradeVal: (() => {
+      const sk = scaleKeyFromGreek(mapped.difficultyScale) || 'french'
+      const raw = mapped.difficultyGrade?.trim() ?? ''
+      const hit = getGradeOptionsForScale(sk).find(
+        (o) => o.value !== '' && o.value.toLowerCase() === raw.toLowerCase(),
+      )
+      return hit?.value ?? raw
+    })(),
     altitude: mapped.altitude ?? '',
     routeLength: mapped.routeLength ?? '',
     autofill: true,
@@ -109,60 +134,142 @@ function buildStateFromRouteSlug(slug: string | null) {
   }
 }
 
+// ── Component ──────────────────────────────────────────────────────────────────
+
 export function RockClimbingActivityForm({
   initialRouteSlug = null,
-  onMockSubmitSuccess,
+  onSubmitSuccess,
+  lastSubmittedPoints,
   onActivityTabSelect,
 }: RockClimbingActivityFormProps) {
   const seed = useMemo(() => buildStateFromRouteSlug(initialRouteSlug ?? null), [initialRouteSlug])
 
-  const [season, setSeason] = useState('θερινή')
-  const [repeat, setRepeat] = useState('νέα')
+  // ── Official / personal toggle ─────────────────────────────────────────────
+  const [isOfficial, setIsOfficial] = useState(true)
 
+  // ── Basic ──────────────────────────────────────────────────────────────────
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [season, setSeason] = useState('summer')
+  const [repeat, setRepeat] = useState('new')
+
+  // ── Route ──────────────────────────────────────────────────────────────────
+  const [routeId, setRouteId] = useState(seed.routeId)
   const [routeName, setRouteName] = useState(seed.routeName)
   const [mountain, setMountain] = useState(seed.mountain)
   const [fieldSector, setFieldSector] = useState(seed.fieldSector)
-  const [scaleKey, setScaleKey] = useState(seed.scaleKey)
-  const [gradeVal, setGradeVal] = useState(seed.gradeVal)
-  const [altitude, setAltitude] = useState(seed.altitude)
-  const [routeLength, setRouteLength] = useState(seed.routeLength)
-
   const [autofill, setAutofill] = useState(seed.autofill)
   const [autofillHadAlt, setAutofillHadAlt] = useState(seed.autofillHadAlt)
   const [autofillHadLen, setAutofillHadLen] = useState(seed.autofillHadLen)
-  /** Route name after last list pick; if text diverges, mountain/field unlock from autofill lock. */
   const [lockedRouteName, setLockedRouteName] = useState<string | null>(() =>
     seed.autofill && seed.routeName ? seed.routeName : null,
   )
 
-  const [userRoutes, setUserRoutes] = useState<ClimbingRouteFormRecord[]>([])
+  // ── Backend route search ───────────────────────────────────────────────────
+  const [searchResults, setSearchResults] = useState<ClimbingRouteFormRecord[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // saveError is set only when POST /climbing-routes fails (inside handleSaveNewRoute)
+  const [routeError, setRouteError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    if (!routeName.trim()) {
+      setSearchResults([])
+      setSearchError(null)
+      return
+    }
+    searchTimerRef.current = setTimeout(() => {
+      setIsSearching(true)
+      setSearchError(null)
+      searchClimbingRoutes(routeName.trim())
+        .then((results) => setSearchResults(results.map(routeResponseToFormRecord)))
+        .catch(() => setSearchError('Σφάλμα αναζήτησης διαδρομών. Δοκιμάστε ξανά.'))
+        .finally(() => setIsSearching(false))
+    }, 350)
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [routeName])
+
+  // Routes created during this session (already saved to backend)
+  const [sessionRoutes, setSessionRoutes] = useState<ClimbingRouteFormRecord[]>([])
+  const allRoutes = useMemo(() => {
+    const seen = new Set(searchResults.map((r) => r.id))
+    return [...searchResults, ...sessionRoutes.filter((r) => !seen.has(r.id))]
+  }, [searchResults, sessionRoutes])
+
+  // ── Difficulty ─────────────────────────────────────────────────────────────
+  const [scaleKey, setScaleKey] = useState(seed.scaleKey)
+  const [gradeVal, setGradeVal] = useState(seed.gradeVal)
+  const [mixedClimbing, setMixedClimbing] = useState('')
+  const gradeOptions = useMemo(() => getGradeOptionsForScale(scaleKey), [scaleKey])
+
+  const handleScaleChange = useCallback((newScale: string) => {
+    setScaleKey(newScale)
+    setGradeVal('') // reset grade — scales have different valid grades
+  }, [])
+
+  // ── Technical ──────────────────────────────────────────────────────────────
+  const [altitude, setAltitude] = useState(seed.altitude)
+  const [routeLength, setRouteLength] = useState(seed.routeLength)
+
+  // ── Participation ──────────────────────────────────────────────────────────
+  const [participantsNum, setParticipantsNum] = useState(1)
+  const [participantsText, setParticipantsText] = useState('')
+
+  // ── Optional fields ────────────────────────────────────────────────────────
+  const [completionType, setCompletionType] = useState('')
+  const [privateNotes, setPrivateNotes] = useState('')
+  const [publicNotes, setPublicNotes] = useState('')
+
+  // ── Modal ──────────────────────────────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSeed, setModalSeed] = useState<Partial<ClimbingRouteFormRecord>>({})
   const [modalNonce, setModalNonce] = useState(0)
 
-  const allRoutes = useMemo(() => [...getBaseClimbingFormRoutes(), ...userRoutes], [userRoutes])
+  // ── Submit state ───────────────────────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
+  // ── Apply a selected/created route to form fields ──────────────────────────
   const applyRoute = useCallback((r: ClimbingRouteFormRecord) => {
+    // Only real backend UUIDs count as routeId; mock/temp IDs do not
+    const isRealId = r.id.length === 36 && !r.id.startsWith('temp-') && !r.id.startsWith('r-')
+    setRouteId(isRealId ? r.id : '')
     setRouteName(r.name)
     setMountain(r.mountainOrArea)
     setFieldSector(r.field)
-    setScaleKey(scaleKeyFromGreek(r.difficultyScale) || 'french')
-    setGradeVal(coerceGradeOptionValue(r.difficultyGrade))
+    const newScaleKey = scaleKeyFromGreek(r.difficultyScale) || 'french'
+    setScaleKey(newScaleKey)
+    // Use scale-aware lookup so UIAA/Alpine grades match their own options list.
+    // Falls back to the raw value (empty → leaves grade unselected) rather than crashing.
+    const rawGrade = r.difficultyGrade?.trim() ?? ''
+    const scaleOptions = getGradeOptionsForScale(newScaleKey)
+    const matched = scaleOptions.find(
+      (o) => o.value !== '' && o.value.toLowerCase() === rawGrade.toLowerCase(),
+    )
+    setGradeVal(matched?.value ?? rawGrade)
     setAltitude(r.altitude ?? '')
     setRouteLength(r.routeLength ?? '')
     setAutofillHadAlt(Boolean(r.altitude))
     setAutofillHadLen(Boolean(r.routeLength))
     setAutofill(true)
     setLockedRouteName(r.name)
+    setRouteError(null)
   }, [])
 
-  const handleRouteComboboxChange = useCallback((v: string) => {
-    setRouteName(v)
-    if (lockedRouteName !== null && v !== lockedRouteName) {
-      setAutofill(false)
-      setLockedRouteName(null)
-    }
-  }, [lockedRouteName])
+  const handleRouteComboboxChange = useCallback(
+    (v: string) => {
+      setRouteName(v)
+      if (lockedRouteName !== null && v !== lockedRouteName) {
+        setAutofill(false)
+        setLockedRouteName(null)
+        setRouteId('')
+      }
+    },
+    [lockedRouteName],
+  )
 
   const openCreateModal = useCallback(
     (extra?: Partial<ClimbingRouteFormRecord>) => {
@@ -182,14 +289,125 @@ export function RockClimbingActivityForm({
     [routeName, fieldSector, mountain, scaleKey, gradeVal, altitude, routeLength],
   )
 
+  /**
+   * Called by CreateRouteModal on save.
+   * Persists the new route to the backend, then applies it to the form.
+   * The modal is unmodified — it still calls onSave(record) synchronously;
+   * we fire the async API call from here and close the modal when done.
+   */
   const handleSaveNewRoute = useCallback(
-    (r: ClimbingRouteFormRecord) => {
-      setUserRoutes((prev) => [...prev, r])
-      applyRoute(r)
+    async (r: ClimbingRouteFormRecord) => {
+      try {
+        const created = await createClimbingRoute({
+          name: r.name,
+          mountainOrArea: r.mountainOrArea,
+          climbingField: r.field,
+          defaultScale: scaleKeyFromGreek(r.difficultyScale) || undefined,
+          defaultGrade: r.difficultyGrade || undefined,
+          altitude: r.altitude ? Number(r.altitude) : undefined,
+          routeLength: r.routeLength ? Number(r.routeLength) : undefined,
+        })
+        const saved = routeResponseToFormRecord(created)
+        setSessionRoutes((prev) => [...prev, saved])
+        applyRoute(saved)
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 409) {
+          setRouteError('Η διαδρομή υπάρχει ήδη. Αναζητήστε την με το πεδίο αναζήτησης.')
+        } else {
+          setRouteError('Σφάλμα αποθήκευσης διαδρομής. Δοκιμάστε ξανά.')
+        }
+      }
       setModalOpen(false)
     },
     [applyRoute],
   )
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setSubmitError(null)
+
+    // TODO: replace DEV_USER_ID / DEV_CLUB_ID with JWT-decoded user context
+    //       once auth guards are implemented (later phase).
+    if (!DEV_USER_ID) {
+      setSubmitError('Δεν βρέθηκε αναγνωριστικό χρήστη. Ορίστε VITE_DEV_USER_ID στο .env.')
+      return
+    }
+    if (isOfficial && !DEV_CLUB_ID) {
+      setSubmitError('Δεν βρέθηκε αναγνωριστικό συλλόγου. Ορίστε VITE_DEV_CLUB_ID στο .env.')
+      return
+    }
+
+    // routeId is always required — user must pick or create a backend route
+    if (!routeId) {
+      setSubmitError(
+        'Απαιτείται επιλογή διαδρομής από τη βάση. Αναζητήστε ή δημιουργήστε μια νέα διαδρομή.',
+      )
+      return
+    }
+
+    if (isOfficial) {
+      if (!altitude || Number(altitude) < 1) {
+        setSubmitError('Το υψόμετρο είναι υποχρεωτικό για επίσημη καταγραφή.')
+        return
+      }
+      if (!routeLength || Number(routeLength) <= 0) {
+        setSubmitError('Το ανάπτυγμα διαδρομής είναι υποχρεωτικό για επίσημη καταγραφή.')
+        return
+      }
+      if (participantsNum < 1) {
+        setSubmitError('Απαιτείται τουλάχιστον 1 άτομο.')
+        return
+      }
+      if (!participantsText.trim()) {
+        setSubmitError(
+          'Ο κατάλογος σχοινοσυντρόφων είναι υποχρεωτικός για επίσημη καταγραφή.',
+        )
+        return
+      }
+      if (!mixedClimbing && (!scaleKey || !gradeVal)) {
+        setSubmitError(
+          'Απαιτείται βαθμός δυσκολίας (κλίμακα + βαθμός) ή βαθμός ΜΙΚΤΑ για επίσημη καταγραφή.',
+        )
+        return
+      }
+    }
+
+    // TODO: for personal records, determine which fields become optional once
+    //       the backend supports relaxed personal-record validation (later phase).
+
+    setIsSubmitting(true)
+    try {
+      const result = await submitClimbingActivity({
+        userId: DEV_USER_ID,
+        isOfficial,
+        clubId: isOfficial ? DEV_CLUB_ID : undefined,
+        routeId,
+        date,
+        season,
+        repetitionType: repeat,
+        altitude: Number(altitude) || 1,
+        routeLength: Number(routeLength) || 0.01,
+        participantsNum,
+        participantsText: participantsText.trim() || undefined,
+        difficultyScale: scaleKey && gradeVal ? scaleKey : undefined,
+        difficultyGrade: scaleKey && gradeVal ? gradeVal : undefined,
+        mixedClimbing: mixedClimbing || undefined,
+        completionType: completionType || undefined,
+        privateNotes: privateNotes.trim() || undefined,
+        publicNotes: publicNotes.trim() || undefined,
+      })
+      onSubmitSuccess?.(result.points)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setSubmitError(err.message)
+      } else {
+        setSubmitError('Απρόσμενο σφάλμα. Παρακαλώ δοκιμάστε ξανά.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <>
@@ -203,17 +421,11 @@ export function RockClimbingActivityForm({
         />
       ) : null}
 
-      <form
-        className="space-y-8"
-        onSubmit={(e) => {
-          e.preventDefault()
-          onMockSubmitSuccess?.()
-        }}
-      >
+      <form className="space-y-8" onSubmit={handleSubmit}>
         <ActivityTypeTabs active="climbing" onTabSelect={onActivityTabSelect} />
 
         <div className="grid gap-8 lg:grid-cols-12">
-          <div className="space-y-8 lg:col-span-8">
+          <div className="space-y-8 lg:col-span-9">
             <FormSection title="ΒΑΣΙΚΑ ΣΤΟΙΧΕΙΑ" icon={<SectionIconBasics />}>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="col-span-full grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
@@ -221,7 +433,7 @@ export function RockClimbingActivityForm({
                     <FieldLabel>ΗΜΕΡΟΜΗΝΙΑ</FieldLabel>
                   </div>
                   <div className="col-start-1 row-start-4 flex items-start justify-between gap-3 md:col-start-2 md:row-start-1">
-                    <FormLabelRow label="ΔΙΑΔΡΟΜΗ" showBadge={autofill} />
+                    <FormLabelRow label="ΔΙΑΔΡΟΜΗ" showBadge={false} />
                     <button
                       type="button"
                       onClick={() => openCreateModal()}
@@ -231,7 +443,11 @@ export function RockClimbingActivityForm({
                     </button>
                   </div>
                   <div className="col-start-1 row-start-2 md:row-start-2">
-                    <DateInputWithCalendar defaultValue="04/17/2026" />
+                    <DateInputWithCalendar
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                    />
                   </div>
                   <div className="col-start-1 row-start-5 md:col-start-2 md:row-start-2">
                     <RouteCombobox
@@ -242,6 +458,17 @@ export function RockClimbingActivityForm({
                       onFooterNewRoute={() => openCreateModal()}
                       onEmptyCreateRoute={() => openCreateModal()}
                     />
+                    {isSearching ? (
+                      <p className="mt-1 text-xs text-[#94a3b8]">Αναζήτηση...</p>
+                    ) : null}
+                    {searchError ? (
+                      <p className="mt-1 text-xs font-medium text-[#b91c1c]">{searchError}</p>
+                    ) : null}
+                    {autofill ? (
+                      <div className="mt-2">
+                        <AutoFilledBadge />
+                      </div>
+                    ) : null}
                   </div>
                   <div className="col-start-1 row-start-3 md:row-start-3">
                     <FieldHints>
@@ -253,14 +480,22 @@ export function RockClimbingActivityForm({
                     </FieldHints>
                   </div>
                   <div className="col-start-1 row-start-6 flex flex-col gap-3 md:col-start-2 md:row-start-3">
+                    {routeError ? (
+                      <p className="text-xs font-medium text-[#b91c1c]">{routeError}</p>
+                    ) : null}
                     {autofill ? <FormFieldHelperText>{AUTO_FILL_ROUTE_HELPER}</FormFieldHelperText> : null}
-                    <FieldHints>
-                      <FieldHint>
-                        Αναζήτησε υπάρχουσα διαδρομή ή καταχωρήστε νέα.
-                        <br />
-                        <span className="italic">Αν επιλέξετε υπάρχουσα διαδρομή, τα υπόλοιπα στοιχεία συμπληρώνονται αυτόματα.</span>
-                      </FieldHint>
-                    </FieldHints>
+                    {!autofill ? (
+                      <FieldHints>
+                        <FieldHint>
+                          Αναζήτησε υπάρχουσα διαδρομή ή καταχωρήστε νέα.
+                          <br />
+                          <span className="italic">
+                            Αν επιλέξετε υπάρχουσα διαδρομή, τα υπόλοιπα στοιχεία συμπληρώνονται
+                            αυτόματα.
+                          </span>
+                        </FieldHint>
+                      </FieldHints>
+                    ) : null}
                   </div>
                 </div>
 
@@ -274,13 +509,15 @@ export function RockClimbingActivityForm({
                     className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:border-[#e2e8e0] disabled:bg-[#f1f5f9] disabled:text-[#334155] disabled:opacity-100"
                   />
                   {autofill ? <FormFieldHelperText>{AUTO_FILL_ROUTE_HELPER}</FormFieldHelperText> : null}
-                  <FieldHints>
-                    <FieldHint>
-                      Η ευρύτερη περιοχή ή το βουνό όπου βρίσκεται η διαδρομή.
-                      <br />
-                      <span className="italic">Συμπληρώνεται αυτόματα από τη διαδρομή ή ορίζεται χειροκίνητα.</span>
-                    </FieldHint>
-                  </FieldHints>
+                  {!autofill ? (
+                    <FieldHints>
+                      <FieldHint>
+                        Η ευρύτερη περιοχή ή το βουνό όπου βρίσκεται η διαδρομή.
+                        <br />
+                        <span className="italic">Συμπληρώνεται αυτόματα από τη διαδρομή ή ορίζεται χειροκίνητα.</span>
+                      </FieldHint>
+                    </FieldHints>
+                  ) : null}
                 </label>
 
                 <label className="flex flex-col gap-3">
@@ -293,20 +530,22 @@ export function RockClimbingActivityForm({
                     className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:border-[#e2e8e0] disabled:bg-[#f1f5f9] disabled:text-[#334155] disabled:opacity-100"
                   />
                   {autofill ? <FormFieldHelperText>{AUTO_FILL_ROUTE_HELPER}</FormFieldHelperText> : null}
-                  <FieldHints>
-                    <FieldHint>
-                      Η ονομασία του αναρριχητικού πεδίου.
-                      <br />
-                      <span className="italic">Συμπληρώνεται αυτόματα αν επιλεγεί υπάρχουσα διαδρομή.</span>
-                    </FieldHint>
-                  </FieldHints>
+                  {!autofill ? (
+                    <FieldHints>
+                      <FieldHint>
+                        Η ονομασία του αναρριχητικού πεδίου.
+                        <br />
+                        <span className="italic">Συμπληρώνεται αυτόματα αν επιλεγεί υπάρχουσα διαδρομή.</span>
+                      </FieldHint>
+                    </FieldHints>
+                  ) : null}
                 </label>
 
                 <div className="flex flex-col gap-3 md:col-span-2">
                   <RadioGroupField
                     name="season"
                     label="ΕΠΟΧΗ"
-                    options={ACTIVITY_SEASON_RADIO_OPTIONS}
+                    options={CLIMBING_SEASON_OPTIONS}
                     value={season}
                     onChange={setSeason}
                   />
@@ -322,7 +561,7 @@ export function RockClimbingActivityForm({
                   <RadioGroupField
                     name="repeat"
                     label="ΕΠΑΝΑΛΗΨΗ"
-                    options={repeatRadioOptions}
+                    options={CLIMBING_REPETITION_OPTIONS}
                     value={repeat}
                     onChange={setRepeat}
                   />
@@ -336,9 +575,17 @@ export function RockClimbingActivityForm({
             <FormSection title="ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ" icon={<SectionIconTechnical />}>
               <div className="flex flex-col gap-8">
                 <div className="flex flex-col gap-3">
-                  <SelectField label="ΤΡΟΠΟΣ ΟΛΟΚΛΗΡΩΣΗΣ" options={completionOptions} />
+                  <SelectFieldControlled
+                    label="ΤΡΟΠΟΣ ΟΛΟΚΛΗΡΩΣΗΣ"
+                    options={CLIMBING_COMPLETION_OPTIONS}
+                    value={completionType}
+                    onChange={setCompletionType}
+                  />
                   <FieldHints>
                     <FieldHint>Προαιρετικά: περιγράφει τον τρόπο που ολοκληρώθηκε η διαδρομή.</FieldHint>
+                    <FieldHint>
+                      <span className="italic">Δεν επηρεάζει τη βαθμολόγηση ΕΟΟΑ και δεν εξάγεται.</span>
+                    </FieldHint>
                   </FieldHints>
                 </div>
 
@@ -346,37 +593,57 @@ export function RockClimbingActivityForm({
                   <div className="flex flex-col gap-3">
                     <FieldLabel>ΚΛΙΜΑΚΑ ΔΥΣΚΟΛΙΑΣ</FieldLabel>
                     <SelectFieldControlled
-                      options={scaleSelectOptions}
+                      options={CLIMBING_SCALE_FORM_OPTIONS}
                       value={scaleKey}
-                      onChange={setScaleKey}
-                      selectClassName="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
-                    />
-                    {autofill ? <AutoFilledBadge /> : null}
-                    <FieldHints>
-                      <FieldHint>Επιλέξτε το σύστημα βαθμολόγησης που προτιμάτε.</FieldHint>
-                    </FieldHints>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    <FieldLabel>ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ</FieldLabel>
-                    <SelectFieldControlled
-                      options={gradeSelectOptions}
-                      value={gradeVal}
-                      onChange={setGradeVal}
+                      onChange={handleScaleChange}
                       selectClassName="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill ? <AutoFilledBadge /> : null}
                     <FieldHints>
                       <FieldHint>
-                        Επιλέξτε το βαθμό δυσκολίας της διαδρομής.
-                        <br />
-                        <span className="italic">Αν επιλέξεις υπάρχουσα διαδρομή, προτείνεται αυτόματα τιμή.</span>
+                        {autofill
+                          ? AUTO_FILL_EDITABLE_HELPER
+                          : 'Επιλέξτε το σύστημα βαθμολόγησης που προτιμάτε.'}
                       </FieldHint>
                     </FieldHints>
                   </div>
+
                   <div className="flex flex-col gap-3">
-                    <SelectField label="ΜΙΚΤΑ" options={mixedOptions} />
+                    <FieldLabel>ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ</FieldLabel>
+                    <SelectFieldControlled
+                      options={gradeOptions}
+                      value={gradeVal}
+                      onChange={setGradeVal}
+                      selectClassName="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                      disabledValues={['']}
+                    />
+                    {autofill ? <AutoFilledBadge /> : null}
                     <FieldHints>
-                      <FieldHint>Συμπληρώστε μόνο αν η διαδρομή περιλαμβάνει μικτό ή παγοαναρριχητικό πεδίο.</FieldHint>
+                      <FieldHint>
+                        {autofill ? (
+                          AUTO_FILL_EDITABLE_HELPER
+                        ) : (
+                          <>
+                            Επιλέξτε τον βαθμό δυσκολίας της διαδρομής.
+                            <br />
+                            <span className="italic">
+                              Αν επιλέξεις υπάρχουσα διαδρομή, προτείνεται αυτόματα τιμή.
+                            </span>
+                          </>
+                        )}
+                      </FieldHint>
+                    </FieldHints>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <SelectFieldControlled
+                      label="ΜΙΚΤΑ"
+                      options={MIXED_CLIMBING_OPTIONS}
+                      value={mixedClimbing}
+                      onChange={setMixedClimbing}
+                    />
+                    <FieldHints>
+                      <FieldHint>{MIXED_CLIMBING_HELPER}</FieldHint>
                     </FieldHints>
                   </div>
                 </div>
@@ -385,6 +652,8 @@ export function RockClimbingActivityForm({
                   <label className="flex flex-col gap-3">
                     <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
                     <Input
+                      type="number"
+                      min="1"
                       value={altitude}
                       onChange={(e) => setAltitude(e.target.value)}
                       placeholder="Υψόμετρο αναρρίχησης (m)"
@@ -403,6 +672,9 @@ export function RockClimbingActivityForm({
                   <label className="flex flex-col gap-3">
                     <FieldLabel>ΑΝΑΠΤΥΓΜΑ ΔΙΑΔΡΟΜΗΣ (M)</FieldLabel>
                     <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
                       value={routeLength}
                       onChange={(e) => setRouteLength(e.target.value)}
                       placeholder="Συνολικό μήκος αναρρίχησης"
@@ -426,11 +698,27 @@ export function RockClimbingActivityForm({
                 <div className="flex flex-col gap-3">
                   <FieldLabel>ΑΤΟΜΑ</FieldLabel>
                   <div className="flex items-center rounded-lg border border-[#e2e8e0] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                    <button type="button" className="px-4 py-4 text-lg text-[#64748b]">
+                    <button
+                      type="button"
+                      onClick={() => setParticipantsNum((n) => Math.max(1, n - 1))}
+                      aria-label="Μείωση αριθμού ατόμων"
+                      className="px-4 py-4 text-lg text-[#64748b]"
+                    >
                       −
                     </button>
-                    <Input defaultValue="1" className="h-14 rounded-none border-0 text-center shadow-none ring-0 focus:ring-0" />
-                    <button type="button" className="px-4 py-4 text-lg text-[#64748b]">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={participantsNum}
+                      onChange={(e) => setParticipantsNum(Math.max(1, Number(e.target.value)))}
+                      className="h-14 rounded-none border-0 text-center shadow-none ring-0 focus:ring-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setParticipantsNum((n) => n + 1)}
+                      aria-label="Αύξηση αριθμού ατόμων"
+                      className="px-4 py-4 text-lg text-[#64748b]"
+                    >
                       +
                     </button>
                   </div>
@@ -451,6 +739,8 @@ export function RockClimbingActivityForm({
                         Εσείς
                       </span>
                       <Input
+                        value={participantsText}
+                        onChange={(e) => setParticipantsText(e.target.value)}
                         placeholder="Προσθήκη σχοινοσύντροφου..."
                         className="min-w-[200px] flex-1 border-0 shadow-none focus:ring-0"
                       />
@@ -467,19 +757,55 @@ export function RockClimbingActivityForm({
               </div>
             </FormSection>
 
-            <NotesSection
-              personalPlaceholder="Κατάγραψε μια προσωπική σημείωση ή ανάμνηση από τη δράση"
-              personalHint="Ιδιωτική σημείωση για την εμπειρία σου."
-              publicPlaceholder="Κατάγραψε πληροφορίες ή εμπειρίες χρήσιμες για άλλους χρήστες"
-              publicHint="Πληροφορίες χρήσιμες για άλλους αναρριχητές."
-            />
+            <FormSection title="ΣΗΜΕΙΩΣΕΙΣ" icon={<SectionIconNotes />}>
+              <div className="flex flex-col gap-10">
+                <label className="flex flex-col gap-3">
+                  <FieldLabel>ΠΡΟΣΩΠΙΚΗ ΣΗΜΕΙΩΣΗ (ΠΡΟΑΙΡΕΤΙΚΑ)</FieldLabel>
+                  <Textarea
+                    value={privateNotes}
+                    onChange={(e) => setPrivateNotes(e.target.value)}
+                    placeholder="Κατάγραψε μια προσωπική σημείωση ή ανάμνηση από τη δράση"
+                    className="min-h-[150px]"
+                  />
+                  <FieldHints>
+                    <FieldHint>Ιδιωτική σημείωση για την εμπειρία σου.</FieldHint>
+                  </FieldHints>
+                </label>
 
-            <OfficialParticipationSection />
+                <label className="flex flex-col gap-3">
+                  <FieldLabel>ΑΞΙΟΛΟΓΗΣΗ ΔΙΑΔΡΟΜΗΣ (ΠΡΟΑΙΡΕΤΙΚΑ)</FieldLabel>
+                  <Textarea
+                    value={publicNotes}
+                    onChange={(e) => setPublicNotes(e.target.value)}
+                    placeholder="Κατάγραψε πληροφορίες ή εμπειρίες χρήσιμες για άλλους χρήστες"
+                    className="min-h-[150px]"
+                  />
+                  <FieldHints>
+                    <FieldHint>Πληροφορίες χρήσιμες για άλλους αναρριχητές.</FieldHint>
+                  </FieldHints>
+                </label>
+              </div>
+            </FormSection>
 
-            <FormActions />
+            <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+
+            {submitError ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]"
+              >
+                {submitError}
+              </div>
+            ) : null}
+
+            <FormActions submitText={isSubmitting ? 'Υποβολή...' : 'Υποβολή Καταχώρησης'} />
           </div>
 
-          <ScoreSummaryCard description="Οι βαθμοί υπολογίζονται αυτόματα βάσει της υψομετρικής, του μήκους και της δυσκολίας." />
+          <ScoreSummaryCard
+            description="Οι βαθμοί υπολογίζονται αυτόματα από τον server βάσει της δυσκολίας, ύψους και εποχής."
+            value={lastSubmittedPoints != null ? String(lastSubmittedPoints) : '-'}
+            colSpan={3}
+          />
         </div>
       </form>
     </>

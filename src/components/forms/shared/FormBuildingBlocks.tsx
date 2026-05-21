@@ -145,6 +145,7 @@ export function SelectFieldControlled({
   onChange,
   selectClassName = '',
   disabled,
+  disabledValues,
 }: {
   /** If omitted, only the select is shown (custom label rendered outside). */
   label?: string
@@ -153,6 +154,8 @@ export function SelectFieldControlled({
   onChange: (value: string) => void
   selectClassName?: string
   disabled?: boolean
+  /** Option values that should be rendered as disabled (e.g. empty placeholder options). */
+  disabledValues?: string[]
 }) {
   return (
     <label className="flex flex-col gap-3">
@@ -164,7 +167,11 @@ export function SelectFieldControlled({
         className={`h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:border-[#e2e8e0] disabled:bg-[#f1f5f9] disabled:text-[#334155] disabled:opacity-100 ${selectClassName}`}
       >
         {options.map((opt) => (
-          <option key={`${opt.value}-${opt.label}`} value={opt.value}>
+          <option
+            key={`${opt.value}-${opt.label}`}
+            value={opt.value}
+            disabled={disabledValues?.includes(opt.value)}
+          >
             {opt.label}
           </option>
         ))}
@@ -357,14 +364,17 @@ export function ScoreSummaryCard({
   value = '-',
   description,
   icon = 'Σ',
+  colSpan = 4,
 }: {
   title?: string
   value?: string
   description: string
   icon?: string
+  /** Grid column span at lg breakpoint. Defaults to 4 (used by hiking form). */
+  colSpan?: 3 | 4
 }) {
   return (
-    <aside className="hidden lg:col-span-4 lg:block">
+    <aside className={`hidden lg:block ${colSpan === 3 ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
       <div className="rounded-xl bg-[#00453e] p-8 text-center text-white shadow-[0px_25px_50px_-12px_rgba(6,78,59,0.1)]">
         <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-[#005f56] text-2xl font-bold">
           {icon}

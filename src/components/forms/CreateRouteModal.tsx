@@ -1,10 +1,99 @@
-import { useState } from 'react'
-import { Link2, MapPin, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, Link2, MapPin, X } from 'lucide-react'
 import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
-import { CLIMBING_GRADE_OPTIONS, CLIMBING_SCALE_OPTIONS, scaleKeyToGreek } from '../../constants/climbingFormOptions.ts'
+import {
+  CLIMBING_SCALE_FORM_OPTIONS,
+  getGradeOptionsForScale,
+  scaleKeyToGreek,
+  type ClimbingSelectOption,
+} from '../../constants/climbingFormOptions.ts'
 import { Button } from '../ui/Button.tsx'
 import { Input } from '../ui/Input.tsx'
 import { Select } from '../ui/Select.tsx'
+
+// ── Styled grade dropdown ──────────────────────────────────────────────────────
+// Custom-styled dropdown that visually matches the app. Selection-only — no
+// free-text entry. Grade options update when the parent scale changes.
+
+function GradeDropdown({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: ClimbingSelectOption[]
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const displayOptions = useMemo(() => options.filter((o) => o.value !== ''), [options])
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? ''
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          'flex h-12 w-full items-center justify-between rounded-lg border px-3 text-sm transition',
+          'bg-white ring-[#005f56]',
+          open
+            ? 'border-[#005f56] ring-2'
+            : 'border-[#e2e8e0] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] hover:border-[#cbd5e1]',
+          value ? 'text-[#1a1c1e]' : 'text-[#94a3b8]',
+        ].join(' ')}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span>{selectedLabel || 'Επιλογή βαθμού...'}</span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-[#64748b] transition-transform ${open ? 'rotate-180' : ''}`}
+          strokeWidth={2}
+          aria-hidden
+        />
+      </button>
+
+      {open ? (
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 max-h-52 overflow-auto rounded-xl border border-[#e8eef0] bg-white py-1 shadow-[0_8px_24px_-4px_rgba(15,23,42,0.15)]"
+        >
+          {displayOptions.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="option"
+              aria-selected={opt.value === value}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange(opt.value)
+                setOpen(false)
+              }}
+              className={[
+                'w-full px-4 py-2.5 text-left text-sm transition',
+                opt.value === value
+                  ? 'bg-[#f0fdf4] font-semibold text-[#00453e]'
+                  : 'text-[#1a1c1e] hover:bg-[#f0fdf4] hover:text-[#00453e]',
+              ].join(' ')}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 type Props = {
   initial: Partial<ClimbingRouteFormRecord>
@@ -26,12 +115,24 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
   const [name, setName] = useState(() => initial.name ?? '')
   const [field, setField] = useState(() => initial.field ?? '')
   const [mountain, setMountain] = useState(() => initial.mountainOrArea ?? '')
-  const [scaleKey, setScaleKey] = useState(() =>
-    initial.difficultyScale === 'UIAA' ? 'uiaa' : initial.difficultyScale === 'Alpine' ? 'alpine' : initial.difficultyScale === 'Γαλλική' ? 'french' : '',
-  )
+  // Default scale is 'french' — most routes in the combobox are sport climbing grades.
+  const [scaleKey, setScaleKey] = useState<string>(() => {
+    if (initial.difficultyScale === 'UIAA') return 'uiaa'
+    if (initial.difficultyScale === 'Alpine') return 'alpine'
+    if (initial.difficultyScale === 'Γαλλική') return 'french'
+    return 'french'
+  })
   const [grade, setGrade] = useState(() => initial.difficultyGrade ?? '')
   const [altitude, setAltitude] = useState(() => initial.altitude ?? '')
   const [length, setLength] = useState(() => initial.routeLength ?? '')
+
+  // Grade options update when scale changes.
+  const gradeOptions = useMemo(() => getGradeOptionsForScale(scaleKey).filter((o) => o.value !== ''), [scaleKey])
+
+  const handleScaleChange = (newScale: string) => {
+    setScaleKey(newScale)
+    setGrade('') // reset grade — scales have non-overlapping grade lists
+  }
 
   const handleSave = () => {
     if (!name.trim() || !field.trim() || !mountain.trim() || !scaleKey || !grade.trim()) return
@@ -113,25 +214,21 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2">
               <FieldLabelReq>Κλίμακα</FieldLabelReq>
-              <Select value={scaleKey} onChange={(e) => setScaleKey(e.target.value)} className="h-12" required>
-                {CLIMBING_SCALE_OPTIONS.map((o) => (
-                  <option key={o.value || 'scale-empty'} value={o.value}>
+              {/* Uses CLIMBING_SCALE_FORM_OPTIONS: French | UIAA | Alpine (no empty placeholder). */}
+              <Select value={scaleKey} onChange={(e) => handleScaleChange(e.target.value)} className="h-12" required>
+                {CLIMBING_SCALE_FORM_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
               </Select>
             </label>
-            <label className="space-y-2">
+            <div className="space-y-2">
               <FieldLabelReq>Βαθμός Δυσκολίας</FieldLabelReq>
-              <Select value={grade} onChange={(e) => setGrade(e.target.value)} className="h-12" required>
-                {CLIMBING_GRADE_OPTIONS.map((o) => (
-                  <option key={o.value || 'grade-empty'} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Select>
+              {/* Custom styled dropdown — selection only, no free text. Updates when scale changes. */}
+              <GradeDropdown value={grade} onChange={setGrade} options={gradeOptions} />
               <p className="text-xs text-[#94a3b8]">Επίλεξε τον βαθμό δυσκολίας σύμφωνα με την αντίστοιχη κλίμακα.</p>
-            </label>
+            </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">

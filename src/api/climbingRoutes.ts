@@ -6,8 +6,9 @@ export type ClimbingRouteResponse = {
   mountainOrArea: string
   climbingField: string
   category: string
-  difficultyScale: string | null
-  difficultyGrade: string | null
+  /** Backend values: "french" | "uiaa" | "alpine" — matches routes.default_scale */
+  defaultScale: string | null
+  defaultGrade: string | null
   altitude: number | null
   routeLength: number | null
 }
@@ -17,15 +18,16 @@ export type CreateClimbingRoutePayload = {
   mountainOrArea: string
   climbingField: string
   category?: string
-  difficultyScale?: string
-  difficultyGrade?: string
+  /** Backend values: "french" | "uiaa" | "alpine" */
+  defaultScale?: string
+  defaultGrade?: string
   altitude?: number
   routeLength?: number
 }
 
 export function searchClimbingRoutes(query: string): Promise<ClimbingRouteResponse[]> {
   const params = new URLSearchParams()
-  if (query) params.set('search', query)
+  if (query) params.set('q', query)
   params.set('take', '20')
   return apiFetch<ClimbingRouteResponse[]>(`/climbing-routes?${params.toString()}`)
 }

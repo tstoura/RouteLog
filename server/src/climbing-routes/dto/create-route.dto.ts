@@ -34,7 +34,7 @@ export class CreateRouteDto {
 
   /**
    * Preferred difficulty scale for this route.
-   * Allowed values: uiaa | french
+   * Allowed values: uiaa | alpine | french
    */
   @IsIn(ROUTE_DIFFICULTY_SCALES)
   defaultScale: string

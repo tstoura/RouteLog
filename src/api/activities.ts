@@ -96,6 +96,10 @@ export type ClimbingActivityPayload = {
    * Values: "on_sight" | "flash" | "red_point" | "top_rope"
    */
   completionType?: string
+  /** Optional free-text notes visible only to the submitting user. */
+  privateNotes?: string
+  /** Optional route review visible to other club members. */
+  publicNotes?: string
 }
 
 export function submitClimbingActivity(

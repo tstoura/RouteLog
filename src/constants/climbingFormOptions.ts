@@ -26,9 +26,9 @@ export type ClimbingSelectOption = { value: string; label: string }
  */
 export const CLIMBING_SCALE_OPTIONS: ClimbingSelectOption[] = [
   { value: '', label: 'Επιλογή κλίμακας...' },
-  { value: 'french', label: 'Γαλλική' },
+  { value: 'french', label: 'French' },
   { value: 'uiaa', label: 'UIAA' },
-  { value: 'alpine', label: 'Αλπική' },
+  { value: 'alpine', label: 'Alpine' },
 ]
 
 /** Activity form scale options — no empty placeholder. @legacy */
@@ -143,34 +143,55 @@ export const ALPINE_GRADE_OPTIONS: ClimbingSelectOption[] = [
  */
 export const FRENCH_GRADE_OPTIONS: ClimbingSelectOption[] = [
   { value: '', label: 'Επιλογή βαθμού...' },
+  // Lower grades
+  { value: '3', label: '3' },
+  { value: '4', label: '4' },
+  { value: '5', label: '5' },
+  // 5-band
+  { value: '5a', label: '5a' },
+  { value: '5a+', label: '5a+' },
+  { value: '5b', label: '5b' },
+  { value: '5b+', label: '5b+' },
+  { value: '5c', label: '5c' },
+  { value: '5c+', label: '5c+' },
+  // 6-band
   { value: '6a', label: '6a' },
   { value: '6a+', label: '6a+' },
   { value: '6b', label: '6b' },
   { value: '6b+', label: '6b+' },
   { value: '6c', label: '6c' },
   { value: '6c+', label: '6c+' },
+  // 7-band
   { value: '7a', label: '7a' },
   { value: '7a+', label: '7a+' },
   { value: '7b', label: '7b' },
   { value: '7b+', label: '7b+' },
+  { value: '7c', label: '7c' },
+  { value: '7c+', label: '7c+' },
+  // 8-band
   { value: '8a', label: '8a' },
   { value: '8a+', label: '8a+' },
   { value: '8b', label: '8b' },
   { value: '8b+', label: '8b+' },
+  { value: '8c', label: '8c' },
+  { value: '8c+', label: '8c+' },
+  // 9-band
+  { value: '9a', label: '9a' },
+  { value: '9a+', label: '9a+' },
+  { value: '9b', label: '9b' },
+  { value: '9b+', label: '9b+' },
+  { value: '9c', label: '9c' },
 ]
 
 /**
- * @legacy — maps to FRENCH_GRADE_OPTIONS.
- * Kept so existing code (RockClimbingActivityForm, CreateRouteModal, etc.)
- * continues to compile until Phase 10C rewrites the climbing form.
- * The empty placeholder value '' is kept but labelled "Επιλογή βαθμού..."
- * to avoid showing "Επιλογή" as a raw Excel technical value in the UI.
+ * @legacy — alias of FRENCH_GRADE_OPTIONS. Kept for any code that still imports
+ * CLIMBING_GRADE_OPTIONS directly; new code should use getGradeOptionsForScale().
  */
 export const CLIMBING_GRADE_OPTIONS: ClimbingSelectOption[] = FRENCH_GRADE_OPTIONS
 
 /**
  * Returns grade options for the given scale key.
- * Phase 10C will use this to drive the grade select based on the chosen scale.
+ * Used by both the climbing activity form and the CreateRouteModal grade combobox.
  */
 export function getGradeOptionsForScale(scaleKey: string): ClimbingSelectOption[] {
   if (scaleKey === 'uiaa') return UIAA_GRADE_OPTIONS
