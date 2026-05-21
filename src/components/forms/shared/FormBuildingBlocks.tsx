@@ -251,8 +251,29 @@ export function NotesSection({
   )
 }
 
-export function OfficialParticipationSection() {
-  const [enabled, setEnabled] = useState(true)
+/**
+ * Official / personal participation toggle.
+ *
+ * Controlled usage (Phase 10B+):
+ *   <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+ *
+ * Uncontrolled legacy usage (climbing form before Phase 10C):
+ *   <OfficialParticipationSection />
+ */
+export function OfficialParticipationSection({
+  value,
+  onChange,
+}: {
+  value?: boolean
+  onChange?: (v: boolean) => void
+} = {}) {
+  const [internalEnabled, setInternalEnabled] = useState(true)
+  const enabled = value !== undefined ? value : internalEnabled
+  const handleToggle = () => {
+    const next = !enabled
+    if (onChange) onChange(next)
+    else setInternalEnabled(next)
+  }
   return (
     <section className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-6">
       <div className="flex gap-4">
@@ -260,7 +281,7 @@ export function OfficialParticipationSection() {
           type="button"
           aria-pressed={enabled}
           aria-label={enabled ? 'Απενεργοποίηση επίσημης καταγραφής' : 'Ενεργοποίηση επίσημης καταγραφής'}
-          onClick={() => setEnabled((v) => !v)}
+          onClick={handleToggle}
           className={[
             'relative mt-1 h-6 w-12 shrink-0 rounded-full transition-colors',
             enabled ? 'bg-[#00453e]' : 'bg-[#cbd5e1]',

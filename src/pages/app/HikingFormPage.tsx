@@ -9,8 +9,10 @@ export function HikingFormPage() {
   const navigate = useNavigate()
   const [showSuccess, setShowSuccess] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const [lastPoints, setLastPoints] = useState<number | null>(null)
 
-  const handleMockSubmitSuccess = () => {
+  const handleSubmitSuccess = (points: number | null) => {
+    setLastPoints(points)
     setShowSuccess(true)
     navigate('/app/new/hiking', { replace: true })
     setFormKey((k) => k + 1)
@@ -51,7 +53,7 @@ export function HikingFormPage() {
         ) : null
       }
     >
-      <HikingActivityForm key={formKey} onMockSubmitSuccess={handleMockSubmitSuccess} onActivityTabSelect={handleActivityTabSelect} />
+      <HikingActivityForm key={formKey} onSubmitSuccess={handleSubmitSuccess} lastSubmittedPoints={lastPoints} onActivityTabSelect={handleActivityTabSelect} />
     </ActivityFormLayout>
   )
 }
