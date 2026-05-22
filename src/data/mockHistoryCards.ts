@@ -1,6 +1,6 @@
 import type { HistoryCard } from '../types/historyCard.ts'
 
-/** Mock history cards (grid + rock-climbing filter subset in UI). */
+/** Mock history cards — kept for reference only, no longer rendered (HistoryPage uses backend data). */
 export const mockHistoryCards: HistoryCard[] = [
   {
     id: 'h1',
@@ -9,9 +9,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '12/12/2026',
     title: 'Χιονοδρομικό Καλαβρύτων - Νεραϊδοράχη',
     styleBadge: 'ΟΡΕΙΒΑΤΙΚΟ ΣΚΙ',
-    locationLine: 'Χελμός',
-    metricLine: 'Υψόμετρο: 2350m',
-    peopleLine: '48 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Αφετηρία: Χιονοδρομικό → Τερματισμός: Νεραϊδοράχη' },
+      { iconKey: 'mountain', text: 'Μέγιστο υψόμετρο: 2350 m' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 48 άτομα' },
+    ],
     status: 'official',
   },
   {
@@ -21,9 +23,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '20/05/2026',
     title: 'Κεράσεβο - Δρακόλιμνη',
     styleBadge: 'ΚΑΝΟΝΙΚΕΣ ΣΥΝΘΗΚΕΣ',
-    locationLine: 'Σμόλικας',
-    metricLine: 'Υψόμετρο: 2150m',
-    peopleLine: '32 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Αφετηρία: Κεράσεβο → Τερματισμός: Δρακόλιμνη' },
+      { iconKey: 'mountain', text: 'Μέγιστο υψόμετρο: 2150 m' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 32 άτομα' },
+    ],
     status: 'official',
   },
   {
@@ -33,9 +37,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '15/11/2023',
     title: 'Μελισσουργοί - Καταρράκτες Κρυσονέρι',
     styleBadge: 'ΚΑΝΟΝΙΚΕΣ ΣΥΝΘΗΚΕΣ',
-    locationLine: 'Τζουμέρκα',
-    metricLine: 'Υψόμετρο: 949m',
-    peopleLine: '40 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Αφετηρία: Μελισσουργοί → Τερματισμός: Καταρράκτες' },
+      { iconKey: 'mountain', text: 'Μέγιστο υψόμετρο: 949 m' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 40 άτομα' },
+    ],
     status: 'official',
   },
   {
@@ -45,9 +51,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '15/05/2026',
     title: 'Πτυχιούχος',
     styleBadge: 'RED POINT',
-    locationLine: 'Κύριο Πεδίο - Metropolis',
-    metricLine: 'Βαθμός: 6c',
-    peopleLine: '3 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Πεδίο: Κύριο Πεδίο - Metropolis' },
+      { iconKey: 'gauge', text: 'ΒΔ: 6c' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 3 άτομα' },
+    ],
     status: 'official',
     detailSlug: 'ptychiouchos',
     rockCompletion: 'red_point',
@@ -58,9 +66,12 @@ export const mockHistoryCards: HistoryCard[] = [
     categoryLabel: 'ΑΠΟΣΤΟΛΗ',
     dateLabel: '12/05/2026',
     title: 'Ιταλία - Δολομίτες',
-    locationLine: 'Monte Paterno',
-    metricLine: 'Υψόμετρο: 2744m',
-    peopleLine: '5 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Χώρα: Ιταλία' },
+      { iconKey: 'pin', text: 'Οροσειρά: Δολομίτες' },
+      { iconKey: 'mountain', text: 'Υψόμετρο: 2744 m' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 5 άτομα' },
+    ],
     status: 'official',
   },
   {
@@ -70,9 +81,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '10/05/2026',
     title: 'Λούκυ Λουκ',
     styleBadge: 'ON SIGHT',
-    locationLine: 'Στροφιλιά - «Γαλάζιο Όνειρο»',
-    metricLine: 'Βαθμός: 6c+/7a',
-    peopleLine: '2 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Πεδίο: Στροφιλιά - «Γαλάζιο Όνειρο»' },
+      { iconKey: 'gauge', text: 'ΒΔ: 6c+/7a' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 2 άτομα' },
+    ],
     status: 'personal',
     rockCompletion: 'on_sight',
   },
@@ -83,9 +96,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '01/05/2026',
     title: 'Βραχομανία',
     styleBadge: 'FLASH',
-    locationLine: 'Παναγιά',
-    metricLine: 'Βαθμός: 6c',
-    peopleLine: '4 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Πεδίο: Παναγιά' },
+      { iconKey: 'gauge', text: 'ΒΔ: 6c' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 4 άτομα' },
+    ],
     status: 'official',
     rockCompletion: 'flash',
   },
@@ -96,9 +111,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '28/04/2026',
     title: 'Interstellar',
     styleBadge: 'RED POINT',
-    locationLine: 'Κύριο Πεδίο - Metropolis',
-    metricLine: 'Βαθμός: 8a+',
-    peopleLine: '3 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Πεδίο: Κύριο Πεδίο - Metropolis' },
+      { iconKey: 'gauge', text: 'ΒΔ: 8a+' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 3 άτομα' },
+    ],
     status: 'official',
     rockCompletion: 'red_point',
   },
@@ -109,9 +126,11 @@ export const mockHistoryCards: HistoryCard[] = [
     dateLabel: '20/04/2026',
     title: 'Υδροχόος — επανάληψη',
     styleBadge: 'RED POINT',
-    locationLine: 'Κύριο Πεδίο - Metropolis',
-    metricLine: 'Βαθμός: 6c+',
-    peopleLine: '2 άτομα',
+    infoRows: [
+      { iconKey: 'pin', text: 'Πεδίο: Κύριο Πεδίο - Metropolis' },
+      { iconKey: 'gauge', text: 'ΒΔ: 6c+' },
+      { iconKey: 'users', text: 'Συμμετέχοντες: 2 άτομα' },
+    ],
     status: 'official',
     rockCompletion: 'repeat',
   },

@@ -161,3 +161,105 @@ export function submitExpeditionActivity(
     body: JSON.stringify(payload),
   })
 }
+
+// ── Activity history response types ────────────────────────────────────────────
+
+export type HikingDetailResponse = {
+  mountain: string
+  startPoint: string
+  endPoint: string
+  maxAltitude: number
+  totalElevationGain: number
+  distanceLength: number
+  /** Backend values: "normal" | "winter_conditions" | "ski_mountaineering" */
+  fieldType: string
+  /** Backend values: "hiking" | "F-" … "AD+" */
+  difficultyGrade: string
+  participantsNum: number
+}
+
+export type ClimbingDetailResponse = {
+  routeName: string
+  mountainOrArea: string
+  climbingField: string
+  /** Backend values: "summer" | "winter" */
+  season: string
+  /** Backend values: "repeat" | "new" */
+  repetitionType: string
+  altitude: number
+  routeLength: number
+  difficultyScale: string | null
+  difficultyGrade: string | null
+  mixedClimbing: string | null
+  mappedScale: string | null
+  mappedGrade: string | null
+  participantsNum: number
+  participantsText: string | null
+  /** Backend values: "on_sight" | "flash" | "red_point" | "top_rope" | null */
+  completionType: string | null
+}
+
+export type ExpeditionDetailResponse = {
+  country: string
+  mountainRange: string
+  mountain: string
+  summit: string
+  routeName: string
+  /** Backend values: "summer" | "winter" */
+  season: string
+  altitude: number
+  totalElevationGain: number
+  /** Backend values: "hiking" | "F-" … "ED+" */
+  difficultyGrade: string
+  participantsNum: number
+  /** Backend values: "no" | "europe" | "africa" | "other_continents" */
+  organizationType: string
+}
+
+/** Full activity record as returned by GET /activities and GET /activities/:id */
+export type ActivityListItem = {
+  id: string
+  /** Backend values: "hiking" | "climbing" | "expedition" */
+  category: string
+  isOfficial: boolean
+  points: number | null
+  /** ISO date: YYYY-MM-DD */
+  date: string
+  privateNotes: string | null
+  publicNotes: string | null
+  hikingDetail: HikingDetailResponse | null
+  climbingDetail: ClimbingDetailResponse | null
+  expeditionDetail: ExpeditionDetailResponse | null
+}
+
+/**
+ * Fetch activity history for a user.
+ *
+ * TODO: replace `userId` query param with JWT-decoded user context.
+ *
+ * @param userId Temporary dev user ID (replaced by JWT later).
+ * @param category Optional backend category filter: "hiking" | "climbing" | "expedition"
+ */
+export function getActivities(
+  userId: string,
+  category?: string,
+): Promise<ActivityListItem[]> {
+  const params = new URLSearchParams({ userId })
+  if (category) params.set('category', category)
+  return apiFetch<ActivityListItem[]>(`/activities?${params.toString()}`)
+}
+
+/**
+ * Fetch a single activity with its detail object.
+ *
+ * Backend returns 404 if the activity doesn't belong to the requesting user.
+ *
+ * TODO: replace `userId` query param with JWT-decoded user context.
+ */
+export function getActivityById(
+  id: string,
+  userId: string,
+): Promise<ActivityListItem> {
+  const params = new URLSearchParams({ userId })
+  return apiFetch<ActivityListItem>(`/activities/${id}?${params.toString()}`)
+}

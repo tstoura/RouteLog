@@ -1,12 +1,19 @@
-import { useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { HistoryActivityCard } from '../../components/history/HistoryActivityCard.tsx'
 import { HistoryPillFilterSection } from '../../components/history/HistoryPillFilterSection.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
-import { mockHistoryCards } from '../../data/mockHistoryCards.ts'
+import { getActivities, type ActivityListItem } from '../../api/activities.ts'
+import { DEV_USER_ID } from '../../lib/devUser.ts'
+import {
+  categoryToLabel,
+  completionTypeToLabel,
+  formatDateLabel,
+  resolveKnownDifficultyLabel,
+} from '../../lib/activityLabels.ts'
+import type { HistoryInfoRow } from '../../types/historyCard.ts'
 import { sortHistoryCardsByActivityDateDesc } from '../../lib/historyCardDateSort.ts'
 import {
   matchesEntryStatusFilter,
@@ -14,8 +21,15 @@ import {
   type HistoryEntryStatusFilter,
   type RockCompletionFilterKey,
 } from '../../lib/historyRockFilters.ts'
+import type { HistoryCard } from '../../types/historyCard.ts'
 import type { ActivityKind } from '../../types/activity.ts'
 
+// ── Category filter bar ────────────────────────────────────────────────────────
+
+/**
+ * URL uses `rock_climbing` to match existing `ActivityKind` type.
+ * When calling the backend, `rock_climbing` is mapped to `climbing`.
+ */
 const categoryFilters: { kind: ActivityKind | 'all'; label: string }[] = [
   { kind: 'all', label: 'Όλες' },
   { kind: 'hiking', label: 'Ορειβασία / Ορειβατικό Σκι' },
@@ -36,12 +50,98 @@ const entryStatusPillOptions: { value: HistoryEntryStatusFilter; label: string }
   { value: 'personal', label: 'Προσωπικές' },
 ]
 
+function participantsText(n: number): string {
+  return n === 1 ? `Άτομο: 1` : `Άτομα: ${n}`
+}
+
+// ── Backend → HistoryCard mapper ───────────────────────────────────────────────
+
+function buildHistoryCard(item: ActivityListItem): HistoryCard {
+  const dateLabel = formatDateLabel(item.date)
+  // Backend uses "climbing"; frontend ActivityKind uses "rock_climbing" for card tinting.
+  const kind: ActivityKind =
+    item.category === 'climbing' ? 'rock_climbing' : (item.category as ActivityKind)
+  const status = item.isOfficial ? ('official' as const) : ('personal' as const)
+  const catLabel = categoryToLabel(item.category)
+
+  if (item.category === 'hiking' && item.hikingDetail) {
+    const h = item.hikingDetail
+    const rows: HistoryInfoRow[] = [
+      { iconKey: 'pin', text: `${h.startPoint} → ${h.endPoint}` },
+      { iconKey: 'mountain', text: `Μέγιστο υψόμετρο: ${h.maxAltitude} m` },
+    ]
+    if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })
+    rows.push({ iconKey: 'users', text: participantsText(h.participantsNum) })
+    return {
+      id: item.id, kind, categoryLabel: catLabel, dateLabel, title: h.mountain,
+      difficultyBadge: resolveKnownDifficultyLabel(h.difficultyGrade),
+      infoRows: rows, status, detailSlug: item.id,
+    }
+  }
+
+  if (item.category === 'climbing' && item.climbingDetail) {
+    const c = item.climbingDetail
+    // Badge: prefer mappedGrade, then difficultyGrade, then mixedClimbing
+    const gradeBadge = c.mappedGrade ?? c.difficultyGrade ?? c.mixedClimbing ?? undefined
+    const rows: HistoryInfoRow[] = [
+      { iconKey: 'pin', text: `${c.climbingField} · ${c.mountainOrArea}` },
+      { iconKey: 'mountain', text: `Υψόμετρο: ${c.altitude} m` },
+      { iconKey: 'ruler', text: `Ανάπτυγμα: ${c.routeLength} m` },
+    ]
+    if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })
+    rows.push({ iconKey: 'users', text: participantsText(c.participantsNum) })
+    return {
+      id: item.id, kind, categoryLabel: catLabel, dateLabel, title: c.routeName,
+      difficultyBadge: gradeBadge ? resolveKnownDifficultyLabel(gradeBadge) : undefined,
+      infoRows: rows, status, detailSlug: item.id,
+      rockCompletion: (c.completionType ?? undefined) as HistoryCard['rockCompletion'],
+      styleBadge: c.completionType ? completionTypeToLabel(c.completionType) : undefined,
+    }
+  }
+
+  if (item.category === 'expedition' && item.expeditionDetail) {
+    const e = item.expeditionDetail
+    const rows: HistoryInfoRow[] = [
+      { iconKey: 'pin', text: `${e.country} · ${e.mountainRange}` },
+      { iconKey: 'mountain', text: `Υψόμετρο: ${e.altitude} m` },
+    ]
+    if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })
+    rows.push({ iconKey: 'users', text: participantsText(e.participantsNum) })
+    return {
+      id: item.id, kind, categoryLabel: catLabel, dateLabel, title: e.mountain,
+      difficultyBadge: resolveKnownDifficultyLabel(e.difficultyGrade),
+      infoRows: rows, status, detailSlug: item.id,
+    }
+  }
+
+  // Fallback for unknown category or missing detail
+  return {
+    id: item.id, kind: 'hiking', categoryLabel: catLabel, dateLabel,
+    title: 'Δραστηριότητα', infoRows: [], status, detailSlug: item.id,
+  }
+}
+
+/** Map frontend `ActivityKind` to backend category string. */
+function kindToBackendCategory(kind: ActivityKind | 'all'): string | undefined {
+  if (kind === 'all') return undefined
+  if (kind === 'rock_climbing') return 'climbing'
+  return kind
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
+
 export function HistoryPage() {
   const { search } = useLocation()
+
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('all')
   const [rockCompletion, setRockCompletion] = useState<RockCompletionFilterKey>('all')
   const [entryStatus, setEntryStatus] = useState<HistoryEntryStatusFilter>('all')
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [allCards, setAllCards] = useState<HistoryCard[]>([])
 
   const activeKind = useMemo((): ActivityKind | 'all' => {
     const sp = new URLSearchParams(search)
@@ -50,38 +150,78 @@ export function HistoryPage() {
     return 'all'
   }, [search])
 
+  // Fetch from backend when activeKind changes
+  useEffect(() => {
+    if (!DEV_USER_ID) {
+      setLoadError('Ορίστε VITE_DEV_USER_ID στο .env για να δείτε το ιστορικό.')
+      return
+    }
+
+    setIsLoading(true)
+    setLoadError(null)
+
+    const backendCategory = kindToBackendCategory(activeKind)
+
+    // TODO: replace DEV_USER_ID with JWT-decoded userId
+    getActivities(DEV_USER_ID, backendCategory)
+      .then((items) => {
+        setAllCards(sortHistoryCardsByActivityDateDesc(items.map(buildHistoryCard)))
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Σφάλμα φόρτωσης ιστορικού.'
+        setLoadError(msg)
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }, [activeKind])
+
+  // Dynamic year options derived from loaded data
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>()
+    for (const c of allCards) {
+      const parts = c.dateLabel.split('/')
+      if (parts.length === 3 && parts[2]) years.add(parts[2])
+    }
+    return [...years].sort((a, b) => b.localeCompare(a))
+  }, [allCards])
+
+  // Client-side filter on top of loaded data
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const rcFilter: RockCompletionFilterKey = activeKind === 'rock_climbing' ? rockCompletion : 'all'
-    const stFilter: HistoryEntryStatusFilter = activeKind === 'rock_climbing' ? entryStatus : 'all'
-    const list = mockHistoryCards
-      .filter((c) => (activeKind === 'all' ? true : c.kind === activeKind))
+    const rcFilter: RockCompletionFilterKey =
+      activeKind === 'rock_climbing' ? rockCompletion : 'all'
+    const stFilter: HistoryEntryStatusFilter =
+      activeKind === 'rock_climbing' ? entryStatus : 'all'
+
+    return allCards
       .filter((c) => {
         if (!q) return true
-        const blob = [c.title, c.locationLine, c.metricLine, c.peopleLine, c.styleBadge, c.categoryLabel]
+        return [c.title, c.difficultyBadge, c.styleBadge, c.categoryLabel, ...c.infoRows.map((r) => r.text)]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
-        return blob.includes(q)
+          .includes(q)
       })
       .filter((c) => {
         if (year === 'all') return true
         const parts = c.dateLabel.split('/')
-        const y = parts.length === 3 ? parts[2] : ''
-        return y === year
+        return parts.length === 3 && parts[2] === year
       })
       .filter((c) => {
         if (activeKind !== 'rock_climbing') return true
         return matchesRockCompletionFilter(c, rcFilter) && matchesEntryStatusFilter(c, stFilter)
       })
-
-    return sortHistoryCardsByActivityDateDesc(list)
-  }, [activeKind, query, year, rockCompletion, entryStatus])
+  }, [allCards, activeKind, query, year, rockCompletion, entryStatus])
 
   return (
     <div className="flex flex-col gap-8">
-      <AppPageHeading title="Ιστορικό Δραστηριοτήτων" description="Δείτε και διαχειριστείτε τις καταχωρήσεις σας" />
+      <AppPageHeading
+        title="Ιστορικό Δραστηριοτήτων"
+        description="Δείτε και διαχειριστείτε τις καταχωρήσεις σας"
+      />
 
+      {/* Category filter */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-[#4c616c]">Κατηγορία</h2>
         <div className="flex flex-wrap gap-2">
@@ -106,9 +246,12 @@ export function HistoryPage() {
         </div>
       </section>
 
+      {/* Rock climbing sub-filters */}
       {activeKind === 'rock_climbing' ? (
         <div className="space-y-6">
-          <p className="text-xs font-extrabold uppercase tracking-[2px] text-[#64748b]">ΕΜΦΑΝΙΣΗ: ΑΝΑΡΡΙΧΗΣΗ ΒΡΑΧΟΥ</p>
+          <p className="text-xs font-extrabold uppercase tracking-[2px] text-[#64748b]">
+            ΕΜΦΑΝΙΣΗ: ΑΝΑΡΡΙΧΗΣΗ ΒΡΑΧΟΥ
+          </p>
           <HistoryPillFilterSection
             title="Τρόπος ολοκλήρωσης"
             value={rockCompletion}
@@ -126,6 +269,7 @@ export function HistoryPage() {
         </div>
       ) : null}
 
+      {/* Search and year filter row */}
       <section className="flex flex-col gap-4 rounded-xl bg-transparent sm:flex-row sm:items-stretch">
         <div className="relative min-w-[150px] flex-1">
           <Select
@@ -135,11 +279,15 @@ export function HistoryPage() {
             aria-label="Έτος"
           >
             <option value="all">Όλα τα έτη</option>
-            <option value="2026">2026</option>
-            <option value="2025">2025</option>
-            <option value="2023">2023</option>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
           </Select>
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">
+            ▾
+          </span>
         </div>
         <div className="relative min-w-[250px] flex-[1.5]">
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#4c616c]">
@@ -159,57 +307,42 @@ export function HistoryPage() {
         </div>
       </section>
 
-      {filtered.length === 0 ? (
+      {/* Loading state */}
+      {isLoading ? (
         <p className="rounded-xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-10 text-center text-sm text-[#64748b]">
-          Δεν βρέθηκαν καταχωρήσεις για τα επιλεγμένα φίλτρα.
+          Φόρτωση καταχωρήσεων...
+        </p>
+      ) : loadError ? (
+        /* Error state */
+        <p
+          role="alert"
+          className="rounded-xl border border-[#fca5a5] bg-[#fef2f2] p-6 text-sm text-[#b91c1c]"
+        >
+          {loadError}
+        </p>
+      ) : filtered.length === 0 ? (
+        /* Empty state */
+        <p className="rounded-xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-10 text-center text-sm text-[#64748b]">
+          {allCards.length === 0
+            ? 'Δεν υπάρχουν καταχωρήσεις ακόμα. Προσθέστε μια νέα δραστηριότητα!'
+            : 'Δεν βρέθηκαν καταχωρήσεις για τα επιλεγμένα φίλτρα.'}
         </p>
       ) : (
-        <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((entry) => (
-            <li key={entry.id}>
-              <HistoryActivityCard entry={entry} />
-            </li>
-          ))}
-        </ul>
+        /* Results */
+        <>
+          <p className="text-xs font-semibold text-[#94a3b8]">
+            {filtered.length} {filtered.length === 1 ? 'καταχώρηση' : 'καταχωρήσεις'}
+          </p>
+          <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((entry) => (
+              <li key={entry.id}>
+                <HistoryActivityCard entry={entry} />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
-
-      <nav className="flex justify-center gap-2 pb-8 pt-4" aria-label="Σελιδοποίηση">
-        <PaginationButton label="Προηγούμενη σελίδα" disabled>
-          ‹
-        </PaginationButton>
-        <PaginationButton active>1</PaginationButton>
-        <PaginationButton>2</PaginationButton>
-        <PaginationButton>3</PaginationButton>
-        <PaginationButton label="Επόμενη σελίδα">›</PaginationButton>
-      </nav>
     </div>
   )
 }
 
-function PaginationButton({
-  children,
-  active,
-  disabled,
-  label,
-}: {
-  children: ReactNode
-  active?: boolean
-  disabled?: boolean
-  label?: string
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-label={label}
-      className={[
-        'flex size-10 items-center justify-center rounded-lg text-sm font-semibold transition',
-        active
-          ? 'cursor-default bg-[#00453e] text-white'
-          : 'cursor-pointer bg-[#f3f3f6] text-[#475569] hover:bg-[#e8e8ec] disabled:cursor-not-allowed disabled:opacity-40',
-      ].join(' ')}
-    >
-      {children}
-    </button>
-  )
-}

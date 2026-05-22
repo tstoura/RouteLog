@@ -3,9 +3,9 @@ import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { ExportDataModal } from '../../components/admin/ExportDataModal.tsx'
-import { mockAdminUsers } from '../../data/mockAdminUsers.ts'
 import { mockOfficialActivities } from '../../data/mockOfficialActivities.ts'
 import { formatAdminDateDisplay } from '../../lib/formatAdminDate.ts'
+import { DEV_CLUB_ID, DEV_USER_ID } from '../../lib/devUser.ts'
 
 function OfficialBadge() {
   return (
@@ -25,7 +25,6 @@ export function AdminDashboardPage() {
     setExportOpen(true)
   }
 
-  const memberCount = mockAdminUsers.length
   const officialCount = mockOfficialActivities.length
 
   const recent = useMemo(
@@ -57,7 +56,7 @@ export function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-5 shadow-[0px_4px_14px_-4px_rgba(0,69,62,0.08)]">
           <p className="text-xs font-bold uppercase tracking-wide text-[#64748b]">Μέλη Συλλόγου</p>
-          <p className="mt-2 font-heading text-3xl font-extrabold text-[#00453e]">{memberCount}</p>
+          <p className="mt-2 font-heading text-3xl font-extrabold text-[#00453e]">—</p>
           <p className="mt-1 text-xs text-[#94a3b8]">Ενεργά προφίλ στο σύστημα</p>
         </Card>
         <Card className="p-5 shadow-[0px_4px_14px_-4px_rgba(0,69,62,0.08)]">
@@ -112,14 +111,14 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
+      {/* TODO: replace DEV_CLUB_ID / DEV_USER_ID with JWT-decoded club and user context. */}
       <ExportDataModal
         key={exportModalKey}
         open={exportOpen}
-        users={mockAdminUsers}
         onClose={() => setExportOpen(false)}
-        onConfirmExport={() => {
-          handleExportDone()
-        }}
+        onConfirmExport={handleExportDone}
+        clubId={DEV_CLUB_ID}
+        requesterUserId={DEV_USER_ID}
       />
     </div>
   )
