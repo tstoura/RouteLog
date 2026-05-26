@@ -58,6 +58,35 @@ export class ClimbingRoutesService {
     })
   }
 
+  /**
+   * Returns public activity reviews for a route — climbing activities linked to
+   * this route where publicNotes is non-empty.
+   * privateNotes are never exposed here.
+   */
+  getActivityReviews(routeId: string) {
+    return this.prisma.activity.findMany({
+      where: {
+        climbingDetail: { routeId },
+        publicNotes: { not: null },
+        NOT: { publicNotes: '' },
+      },
+      select: {
+        id: true,
+        date: true,
+        publicNotes: true,
+        climbingDetail: {
+          select: {
+            completionType: true,
+            difficultyGrade: true,
+            mappedGrade: true,
+            mixedClimbing: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    })
+  }
+
   // ── Create ────────────────────────────────────────────────────────────────
 
   /**

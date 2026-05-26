@@ -133,6 +133,25 @@ export function resolveKnownDifficultyLabel(
 }
 
 /**
+ * Backend scale key → Greek display label.
+ *   french → Γαλλική κλίμακα
+ *   uiaa   → UIAA
+ *   alpine → Alpine
+ */
+export function scaleToLabel(scale: string | null | undefined): string {
+  switch (scale) {
+    case 'french':
+      return 'Γαλλική κλίμακα'
+    case 'uiaa':
+      return 'UIAA'
+    case 'alpine':
+      return 'Alpine'
+    default:
+      return scale ?? '—'
+  }
+}
+
+/**
  * ISO date string → DD/MM/YYYY (display format).
  * Handles both "YYYY-MM-DD" and full datetime "YYYY-MM-DDTHH:mm:ss.sssZ".
  */

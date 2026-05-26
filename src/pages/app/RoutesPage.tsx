@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { RouteCard } from '../../components/routes/RouteCard.tsx'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
@@ -6,11 +6,51 @@ import { CreateRouteModal } from '../../components/forms/CreateRouteModal.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
 import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
-import { mockRoutes } from '../../data/mockRoutes.ts'
-import { climbingFormRecordToRoute } from '../../lib/climbingFormRecordToRoute.ts'
-import { sortRoutesByUpdatedAtDesc } from '../../lib/historyCardDateSort.ts'
+import {
+  createClimbingRoute,
+  listClimbingRoutes,
+  type ClimbingRouteResponse,
+} from '../../api/climbingRoutes.ts'
+import { ApiError } from '../../api/client.ts'
+import { scaleKeyFromGreek } from '../../constants/climbingFormOptions.ts'
 import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
 import type { Route, RouteActivityKind } from '../../types/route.ts'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function routeResponseToRoute(r: ClimbingRouteResponse): Route {
+  return {
+    id: r.id,
+    slug: r.id,
+    name: r.name,
+    sector: r.climbingField,
+    mountain: r.mountainOrArea,
+    difficultyLabel: r.defaultGrade ?? undefined,
+    activityKind: 'rock_climbing',
+    updatedAt: new Date().toISOString().slice(0, 10),
+  }
+}
+
+function deduped(primary: Route[], extra: Route[]): Route[] {
+  const seen = new Set(primary.map((r) => r.id))
+  return [...primary, ...extra.filter((r) => !seen.has(r.id))]
+}
+
+function distinct<T>(values: (T | undefined)[]): T[] {
+  const out: T[] = []
+  const seen = new Set<T>()
+  for (const v of values) {
+    if (v !== undefined && v !== null && !seen.has(v)) {
+      seen.add(v)
+      out.push(v)
+    }
+  }
+  return out
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 12
 
 const categoryTabs: { kind: RouteActivityKind; label: string }[] = [
   { kind: 'hiking', label: 'Ορειβασία / Ορειβατικό Σκι' },
@@ -18,35 +58,58 @@ const categoryTabs: { kind: RouteActivityKind; label: string }[] = [
   { kind: 'expedition', label: 'Αποστολές Εξωτερικού' },
 ]
 
-const FIELD_LABELS: Record<string, string> = {
+/**
+ * Maps URL ?field= param key → display label in the page eyebrow.
+ * This is kept for backward compat with the climbing activity form's
+ * "View routes in this field" link (?category=climbing&field=metropolis).
+ */
+const URL_FIELD_LABELS: Record<string, string> = {
   metropolis: 'ΚΥΡΙΟ ΠΕΔΙΟ - METROPOLIS',
   panagia: 'ΠΑΝΑΓΙΑ',
   galazio: 'ΣΤΡΟΦΙΛΙΑ - ΓΑΛΑΖΙΟ ΟΝΕΙΡΟ',
 }
 
+/**
+ * Maps URL ?field= key → climbingField substring forwarded to the backend.
+ * Used only when arriving from the activity form context.
+ */
+const URL_FIELD_KEYWORDS: Record<string, string> = {
+  metropolis: 'metropolis',
+  panagia: 'παναγ',
+  galazio: 'γαλάζ',
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function RoutesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [kindFilter, setKindFilter] = useState<RouteActivityKind>('rock_climbing')
-  const [fieldPlace, setFieldPlace] = useState('')
-  const [gradePlace, setGradePlace] = useState('')
-  const [mountainPlace, setMountainPlace] = useState('')
-  const [newRoutesFromModal, setNewRoutesFromModal] = useState<Route[]>([])
+
+  // Data-driven dropdown filter values (actual route field values, not keys)
+  const [dropdownField, setDropdownField] = useState('')
+  const [dropdownGrade, setDropdownGrade] = useState('')
+  const [dropdownMountain, setDropdownMountain] = useState('')
+
+  const [page, setPage] = useState(1)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [createModalNonce, setCreateModalNonce] = useState(0)
 
-  const openCreateRouteModal = useCallback(() => {
-    setCreateModalNonce((n) => n + 1)
-    setCreateModalOpen(true)
-  }, [])
+  // Backend fetch state
+  const [fetchedRoutes, setFetchedRoutes] = useState<Route[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
 
-  const handleSaveNewRouteFromList = useCallback((r: ClimbingRouteFormRecord) => {
-    setNewRoutesFromModal((prev) => [...prev, climbingFormRecordToRoute(r)])
-    setCreateModalOpen(false)
-  }, [])
+  // Routes created this session — prepended to the list immediately after creation
+  const [createdRoutes, setCreatedRoutes] = useState<Route[]>([])
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── URL params ─────────────────────────────────────────────────────────────
 
   const urlCategory = searchParams.get('category')
-  const urlFieldRaw = searchParams.get('field')
+  const urlFieldKey = searchParams.get('field')
   const urlKindResolved: RouteActivityKind | null =
     urlCategory === 'climbing'
       ? 'rock_climbing'
@@ -55,56 +118,129 @@ export function RoutesPage() {
         : urlCategory === 'expedition'
           ? 'expedition'
           : null
-  const urlFieldNormalized =
-    urlFieldRaw === 'metropolis' || urlFieldRaw === 'panagia' || urlFieldRaw === 'galazio' ? urlFieldRaw : null
 
   const filterKind = urlKindResolved ?? kindFilter
-  const filterField = urlFieldNormalized ?? fieldPlace
-
-  const fromActivityContext = urlCategory === 'climbing' && urlFieldRaw === 'metropolis'
+  const fromActivityContext = urlCategory === 'climbing' && urlFieldKey != null
+  const urlContextFieldKeyword = urlFieldKey ? (URL_FIELD_KEYWORDS[urlFieldKey] ?? urlFieldKey) : undefined
+  const fieldEyebrow = urlFieldKey ? (URL_FIELD_LABELS[urlFieldKey] ?? urlFieldKey.toUpperCase()) : null
 
   const showNewRouteCta = filterKind === 'rock_climbing'
-  const showFieldFilter = filterKind === 'rock_climbing'
 
-  const clearSearchAndPersist = () => {
-    setSearchParams({}, { replace: true })
-  }
+  const clearUrlParams = () => setSearchParams({}, { replace: true })
 
-  const routeSource = useMemo(() => [...mockRoutes, ...newRoutesFromModal], [newRoutesFromModal])
+  // ── Fetch from backend ─────────────────────────────────────────────────────
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const list = routeSource
-      .filter((r) => r.activityKind === filterKind)
-      .filter((r) => {
-        if (!filterField || r.activityKind !== 'rock_climbing') return true
-        return r.fieldKey === filterField
-      })
-      .filter((r) => {
-        if (!gradePlace || gradePlace === 'all-grades') return true
-        const g = (r.difficultyLabel ?? '').toLowerCase()
-        if (gradePlace === '6c') return g.includes('6c') && !g.includes('6c+')
-        if (gradePlace === '7a') return g.includes('7a')
-        if (gradePlace === '7b') return g.includes('7b') || g.includes('8')
-        return true
-      })
-      .filter((r) => {
-        if (!mountainPlace) return true
-        const m = (r.mountain ?? '').toLowerCase()
-        if (mountainPlace === 'kleisoura') return m.includes('κλεισούρα')
-        if (mountainPlace === 'kalogria') return m.includes('καλόγρια')
-        if (mountainPlace === 'olympos') return m.includes('όλυμπο')
-        return true
-      })
-      .filter((r) => {
-        if (!q) return true
-        const blob = [r.name, r.region, r.sector, r.mountain, r.difficultyLabel].filter(Boolean).join(' ').toLowerCase()
-        return blob.includes(q)
-      })
-    return sortRoutesByUpdatedAtDesc(list)
-  }, [query, filterKind, filterField, gradePlace, mountainPlace, routeSource])
+  useEffect(() => {
+    if (filterKind !== 'rock_climbing') {
+      setFetchedRoutes([])
+      setFetchError(null)
+      return
+    }
 
-  const fieldEyebrow = fromActivityContext ? FIELD_LABELS.metropolis : filterField ? FIELD_LABELS[filterField] : null
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    debounceRef.current = setTimeout(() => {
+      setIsLoading(true)
+      setFetchError(null)
+      listClimbingRoutes({
+        q: query.trim() || undefined,
+        // When coming from the activity form context, pre-filter by field
+        climbingField: urlContextFieldKeyword,
+        take: 100,
+      })
+        .then((results) => {
+          setFetchedRoutes(results.map(routeResponseToRoute))
+          setPage(1)
+        })
+        .catch(() => setFetchError('Σφάλμα φόρτωσης διαδρομών. Δοκιμάστε ξανά.'))
+        .finally(() => setIsLoading(false))
+    }, 350)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+    // urlContextFieldKeyword is derived from URL params — intentionally not reactive:
+    // it changes only when user navigates here from the activity form, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, filterKind, urlContextFieldKeyword])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [dropdownField, dropdownGrade, dropdownMountain])
+
+  // ── All routes (fetched + session-created, deduped) ────────────────────────
+
+  const allRoutes = useMemo(
+    () => deduped(fetchedRoutes, createdRoutes),
+    [fetchedRoutes, createdRoutes],
+  )
+
+  // ── Derive filter options from the full fetched set (pre-client-filter) ────
+
+  const fieldOptions = useMemo(
+    () => distinct(allRoutes.map((r) => r.sector)).sort((a, b) => a.localeCompare(b, 'el')),
+    [allRoutes],
+  )
+  const mountainOptions = useMemo(
+    () => distinct(allRoutes.map((r) => r.mountain)).sort((a, b) => a.localeCompare(b, 'el')),
+    [allRoutes],
+  )
+  const gradeOptions = useMemo(
+    () => distinct(allRoutes.map((r) => r.difficultyLabel)).sort(),
+    [allRoutes],
+  )
+
+  // ── Client-side filter ─────────────────────────────────────────────────────
+
+  const filtered = useMemo(
+    () =>
+      allRoutes
+        .filter((r) => !dropdownField || r.sector === dropdownField)
+        .filter((r) => !dropdownMountain || r.mountain === dropdownMountain)
+        .filter((r) => !dropdownGrade || r.difficultyLabel === dropdownGrade),
+    [allRoutes, dropdownField, dropdownMountain, dropdownGrade],
+  )
+
+  // ── Pagination ─────────────────────────────────────────────────────────────
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pageSlice = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  // ── Modal handlers ─────────────────────────────────────────────────────────
+
+  const openCreateRouteModal = useCallback(() => {
+    setCreateModalNonce((n) => n + 1)
+    setCreateError(null)
+    setCreateModalOpen(true)
+  }, [])
+
+  const handleSaveNewRouteFromList = useCallback(async (r: ClimbingRouteFormRecord) => {
+    setCreateError(null)
+    const scaleKey = scaleKeyFromGreek(r.difficultyScale) || 'french'
+    try {
+      const res = await createClimbingRoute({
+        name: r.name,
+        climbingField: r.field,
+        mountainOrArea: r.mountainOrArea,
+        defaultScale: scaleKey,
+        defaultGrade: r.difficultyGrade,
+        altitude: r.altitude ? Number(r.altitude) : undefined,
+        routeLength: r.routeLength ? Number(r.routeLength) : undefined,
+      })
+      setCreatedRoutes((prev) => [routeResponseToRoute(res), ...prev])
+      setCreateModalOpen(false)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setCreateError('Η διαδρομή υπάρχει ήδη στη βάση. Αναζητήστε την παραπάνω.')
+      } else {
+        setCreateError('Σφάλμα αποθήκευσης διαδρομής. Δοκιμάστε ξανά.')
+      }
+    }
+  }, [])
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col gap-8">
@@ -117,6 +253,13 @@ export function RoutesPage() {
           onSave={handleSaveNewRouteFromList}
         />
       ) : null}
+
+      {createError ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {createError}
+        </div>
+      ) : null}
+
       {fromActivityContext && fieldEyebrow ? (
         <div className="space-y-2">
           <p className="text-xs font-extrabold uppercase tracking-[2.2px] text-[#64748b]">ΠΕΔΙΟ: {fieldEyebrow}</p>
@@ -126,6 +269,7 @@ export function RoutesPage() {
         <AppPageHeading title="Διαδρομές" description="Αναζήτησε και εξερεύνησε διαδρομές" />
       )}
 
+      {/* Search */}
       <div className="relative">
         <span className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-[#64748b]">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -137,12 +281,13 @@ export function RoutesPage() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Αναζήτηση διαδρομής, πεδίου ή βουνού"
+          placeholder="Αναζήτηση διαδρομής"
           className="h-12 w-full rounded-xl border border-[#e8e8ed] bg-white py-3 pl-12 pr-4 text-sm shadow-sm placeholder:text-[#94a3b8]"
           aria-label="Αναζήτηση διαδρομών"
         />
       </div>
 
+      {/* Category tabs + New Route CTA */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Κατηγορία διαδρομής">
           {categoryTabs.map((t) => {
@@ -155,7 +300,7 @@ export function RoutesPage() {
                 aria-selected={active}
                 onClick={() => {
                   setKindFilter(t.kind)
-                  clearSearchAndPersist()
+                  clearUrlParams()
                 }}
                 className={[
                   'cursor-pointer rounded-full px-4 py-2.5 text-sm font-semibold transition',
@@ -177,79 +322,116 @@ export function RoutesPage() {
               onClick={openCreateRouteModal}
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#00453e] px-5 py-3 text-sm font-semibold text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition hover:bg-[#003a32]"
             >
-              <span className="text-lg leading-none" aria-hidden>
-                +
-              </span>
+              <span className="text-lg leading-none" aria-hidden>+</span>
               Νέα Διαδρομή
             </button>
-            <p className="text-center text-xs text-[#64748b] sm:text-right">Δεν βρίσκεις τη διαδρομή; Πρόσθεσέ τη στη βάση.</p>
+            <p className="text-center text-xs text-[#64748b] sm:text-right">
+              Δεν βρίσκεις τη διαδρομή; Πρόσθεσέ τη στη βάση.
+            </p>
           </div>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        {showFieldFilter ? (
-          <div className="relative min-w-[140px] flex-1 sm:max-w-[200px]">
-            <Select
-              value={filterField}
-              onChange={(e) => {
-                setFieldPlace(e.target.value)
-                clearSearchAndPersist()
-              }}
-              className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
-              aria-label="Πεδίο (φίλτρο)"
-            >
-              <option value="">Πεδίο</option>
-              <option value="metropolis">Κύριο Πεδίο - Metropolis</option>
-              <option value="panagia">Παναγιά</option>
-              <option value="galazio">Στροφιλιά - Γαλάζιο Όνειρο</option>
-            </Select>
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
-          </div>
-        ) : null}
-        <div className="relative min-w-[140px] flex-1 sm:max-w-[200px]">
-          <Select
-            value={gradePlace}
-            onChange={(e) => setGradePlace(e.target.value)}
-            className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
-            aria-label="Βαθμός δυσκολίας (φίλτρο)"
-          >
-            <option value="">Βαθμός Δυσκολίας</option>
-            <option value="all-grades">Όλοι</option>
-            <option value="6c">6C</option>
-            <option value="7a">7A</option>
-            <option value="7b">7B+</option>
-          </Select>
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
-        </div>
-        <div className="relative min-w-[140px] flex-1 sm:max-w-[220px]">
-          <Select
-            value={mountainPlace}
-            onChange={(e) => setMountainPlace(e.target.value)}
-            className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
-            aria-label="Βουνό / περιοχή (φίλτρο)"
-          >
-            <option value="">Βουνό / Περιοχή</option>
-            <option value="kleisoura">Κλεισούρα</option>
-            <option value="kalogria">Καλόγρια</option>
-            <option value="olympos">Όλυμπος</option>
-          </Select>
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
-        </div>
-      </div>
+      {/* Data-driven dropdowns — only shown for rock_climbing with actual routes loaded */}
+      {filterKind === 'rock_climbing' && allRoutes.length > 0 ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          {fieldOptions.length > 0 ? (
+            <div className="relative min-w-[160px] flex-1 sm:max-w-[240px]">
+              <Select
+                value={dropdownField}
+                onChange={(e) => setDropdownField(e.target.value)}
+                className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
+                aria-label="Πεδίο (φίλτρο)"
+              >
+                <option value="">Πεδίο</option>
+                {fieldOptions.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </Select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
+            </div>
+          ) : null}
 
+          {mountainOptions.length > 0 ? (
+            <div className="relative min-w-[160px] flex-1 sm:max-w-[240px]">
+              <Select
+                value={dropdownMountain}
+                onChange={(e) => setDropdownMountain(e.target.value)}
+                className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
+                aria-label="Βουνό / Περιοχή (φίλτρο)"
+              >
+                <option value="">Βουνό / Περιοχή</option>
+                {mountainOptions.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </Select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
+            </div>
+          ) : null}
+
+          {gradeOptions.length > 0 ? (
+            <div className="relative min-w-[140px] flex-1 sm:max-w-[180px]">
+              <Select
+                value={dropdownGrade}
+                onChange={(e) => setDropdownGrade(e.target.value)}
+                className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
+                aria-label="Βαθμός δυσκολίας (φίλτρο)"
+              >
+                <option value="">Βαθμός Δυσκολίας</option>
+                {gradeOptions.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </Select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Active filter chips */}
+      {(dropdownField || dropdownGrade || dropdownMountain) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {dropdownField ? (
+            <FilterChip label={dropdownField} onRemove={() => setDropdownField('')} />
+          ) : null}
+          {dropdownMountain ? (
+            <FilterChip label={dropdownMountain} onRemove={() => setDropdownMountain('')} />
+          ) : null}
+          {dropdownGrade ? (
+            <FilterChip label={dropdownGrade} onRemove={() => setDropdownGrade('')} />
+          ) : null}
+          <button
+            type="button"
+            onClick={() => { setDropdownField(''); setDropdownMountain(''); setDropdownGrade('') }}
+            className="text-xs text-[#64748b] hover:underline cursor-pointer"
+          >
+            Καθαρισμός φίλτρων
+          </button>
+        </div>
+      ) : null}
+
+      {/* Routes list */}
       <section className="space-y-4" aria-labelledby="routes-list-heading">
-        <h2 id="routes-list-heading" className="sr-only">
-          Λίστα διαδρομών
-        </h2>
+        <h2 id="routes-list-heading" className="sr-only">Λίστα διαδρομών</h2>
 
-        {filtered.length === 0 ? (
+        {fetchError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {fetchError}
+          </div>
+        ) : isLoading ? (
+          <div className="py-12 text-center text-sm text-[#64748b]">Φόρτωση διαδρομών…</div>
+        ) : filterKind !== 'rock_climbing' ? (
+          <EmptyState
+            title="Σύντομα διαθέσιμο"
+            description="Οι διαδρομές για αυτήν την κατηγορία δεν είναι ακόμα διαθέσιμες."
+          />
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="Δεν βρέθηκαν διαδρομές"
             description={
               showNewRouteCta
-                ? 'Δοκιμάστε άλλη αναζήτηση ή αλλάξτε κατηγορία. Μπορείτε να προσθέσετε νέα διαδρομή με το κουμπί παραπάνω.'
-                : 'Δοκιμάστε άλλη αναζήτηση ή αλλάξτε κατηγορία.'
+                ? 'Δοκιμάστε άλλη αναζήτηση ή αλλάξτε φίλτρα. Μπορείτε να προσθέσετε νέα διαδρομή με το κουμπί παραπάνω.'
+                : 'Δοκιμάστε άλλη αναζήτηση ή αλλάξτε φίλτρα.'
             }
             action={
               showNewRouteCta ? (
@@ -264,55 +446,62 @@ export function RoutesPage() {
             }
           />
         ) : (
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-            {filtered.map((r) => (
-              <li key={r.id}>
-                <RouteCard route={r} />
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+              {pageSlice.map((r) => (
+                <li key={r.id}>
+                  <RouteCard route={r} />
+                </li>
+              ))}
+            </ul>
+
+            {/* Pagination — only shown when there are multiple pages */}
+            {totalPages > 1 ? (
+              <nav className="flex items-center justify-center gap-2 pt-4" aria-label="Σελιδοποίηση">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="flex size-10 cursor-pointer items-center justify-center rounded-lg bg-[#f3f3f6] text-sm font-semibold text-[#475569] transition hover:bg-[#e8e8ec] disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Προηγούμενη σελίδα"
+                >
+                  ‹
+                </button>
+                <span className="min-w-[6rem] text-center text-sm font-medium text-[#475569]">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex size-10 cursor-pointer items-center justify-center rounded-lg bg-[#f3f3f6] text-sm font-semibold text-[#475569] transition hover:bg-[#e8e8ec] disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Επόμενη σελίδα"
+                >
+                  ›
+                </button>
+              </nav>
+            ) : null}
+          </>
         )}
       </section>
-
-      {filtered.length > 0 ? (
-        <nav className="flex justify-center gap-2 pb-4 pt-2" aria-label="Σελιδοποίηση">
-          <PaginationButton label="Προηγούμενη σελίδα" disabled>
-            ‹
-          </PaginationButton>
-          <PaginationButton active>1</PaginationButton>
-          <PaginationButton>2</PaginationButton>
-          <PaginationButton>3</PaginationButton>
-          <PaginationButton label="Επόμενη σελίδα">›</PaginationButton>
-        </nav>
-      ) : null}
     </div>
   )
 }
 
-function PaginationButton({
-  children,
-  active,
-  disabled,
-  label,
-}: {
-  children: ReactNode
-  active?: boolean
-  disabled?: boolean
-  label?: string
-}) {
+// ── FilterChip ─────────────────────────────────────────────────────────────────
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-label={label}
-      className={[
-        'flex size-10 items-center justify-center rounded-lg text-sm font-semibold transition',
-        active
-          ? 'cursor-default bg-[#00453e] text-white'
-          : 'cursor-pointer bg-[#f3f3f6] text-[#475569] hover:bg-[#e8e8ec] disabled:cursor-not-allowed disabled:opacity-40',
-      ].join(' ')}
-    >
-      {children}
-    </button>
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e0f2f1] px-3 py-1 text-xs font-semibold text-[#0f766e]">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="cursor-pointer rounded-full hover:text-[#134e4a]"
+        aria-label={`Αφαίρεση φίλτρου ${label}`}
+      >
+        ×
+      </button>
+    </span>
   )
 }

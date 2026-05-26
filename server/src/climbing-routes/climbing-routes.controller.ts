@@ -47,4 +47,13 @@ export class ClimbingRoutesController {
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.climbingRoutesService.findByIdOrThrow(id)
   }
+
+  /**
+   * Returns public activity reviews for the route — climbing activities where
+   * publicNotes is non-empty. privateNotes are never included.
+   */
+  @Get(':id/activity-reviews')
+  getActivityReviews(@Param('id', ParseUUIDPipe) id: string) {
+    return this.climbingRoutesService.getActivityReviews(id)
+  }
 }

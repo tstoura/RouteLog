@@ -36,10 +36,10 @@ import {
   scaleKeyToGreek,
 } from '../../constants/climbingFormOptions.ts'
 import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
-import { mapRouteToClimbingFormValues } from '../../lib/activityRoutePrefill.ts'
 import { AUTO_FILL_EDITABLE_HELPER, AUTO_FILL_ROUTE_HELPER } from './activityAutofillCopy.ts'
 import {
   createClimbingRoute,
+  getClimbingRouteById,
   searchClimbingRoutes,
   type ClimbingRouteResponse,
 } from '../../api/climbingRoutes.ts'
@@ -92,46 +92,31 @@ export type RockClimbingActivityFormProps = {
   onActivityTabSelect: (kind: ActivityFormTabKind) => void
 }
 
-// ── Initial state from prefill slug ───────────────────────────────────────────
+// ── Initial state ─────────────────────────────────────────────────────────────
+// Route prefill from ?route=<uuid> is handled asynchronously by a useEffect
+// after mount. The form always starts with empty route fields; the UUID fetch
+// populates them once the backend responds.
 
-function buildStateFromRouteSlug(slug: string | null) {
-  const mapped = slug ? mapRouteToClimbingFormValues(slug) : undefined
-  if (!mapped) {
-    return {
-      routeId: '',
-      routeName: '',
-      mountain: '',
-      fieldSector: '',
-      scaleKey: 'french' as string,
-      gradeVal: '',
-      altitude: '',
-      routeLength: '',
-      autofill: false,
-      autofillHadAlt: false,
-      autofillHadLen: false,
-    }
-  }
+function buildStateFromRouteSlug(_slug: string | null) {
   return {
-    // Mock/prefill routes don't have backend IDs; only real UUIDs get used as routeId
-    routeId: mapped.id.startsWith('temp-') || mapped.id.startsWith('r-') ? '' : mapped.id,
-    routeName: mapped.name,
-    mountain: mapped.mountainOrArea,
-    fieldSector: mapped.field,
-    scaleKey: scaleKeyFromGreek(mapped.difficultyScale) || 'french',
-    gradeVal: (() => {
-      const sk = scaleKeyFromGreek(mapped.difficultyScale) || 'french'
-      const raw = mapped.difficultyGrade?.trim() ?? ''
-      const hit = getGradeOptionsForScale(sk).find(
-        (o) => o.value !== '' && o.value.toLowerCase() === raw.toLowerCase(),
-      )
-      return hit?.value ?? raw
-    })(),
-    altitude: mapped.altitude ?? '',
-    routeLength: mapped.routeLength ?? '',
-    autofill: true,
-    autofillHadAlt: Boolean(mapped.altitude),
-    autofillHadLen: Boolean(mapped.routeLength),
+    routeId: '',
+    routeName: '',
+    mountain: '',
+    fieldSector: '',
+    scaleKey: 'french' as string,
+    gradeVal: '',
+    altitude: '',
+    routeLength: '',
+    autofill: false,
+    autofillHadAlt: false,
+    autofillHadLen: false,
   }
+}
+
+/** Returns true when the string is a valid UUID (v4 shape). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+function isUUID(s: string): boolean {
+  return UUID_RE.test(s)
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -258,6 +243,18 @@ export function RockClimbingActivityForm({
     setLockedRouteName(r.name)
     setRouteError(null)
   }, [])
+
+  // When ?route=<uuid> is passed from the Routes detail page, fetch the route
+  // from the backend and apply it. Mock-slug prefill (legacy) is handled
+  // synchronously via buildStateFromRouteSlug above; UUIDs are async.
+  useEffect(() => {
+    if (!initialRouteSlug || !isUUID(initialRouteSlug)) return
+    getClimbingRouteById(initialRouteSlug)
+      .then((res) => applyRoute(routeResponseToFormRecord(res)))
+      .catch(() => {
+        // Silently ignore — form starts empty and user can search manually
+      })
+  }, [initialRouteSlug, applyRoute])
 
   const handleRouteComboboxChange = useCallback(
     (v: string) => {
