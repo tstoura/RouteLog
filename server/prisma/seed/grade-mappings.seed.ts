@@ -39,19 +39,48 @@ type GradeMapping = {
 }
 
 /**
- * Verified French → UIAA/Alpine grade mappings.
+ * Conservative MVP French → UIAA grade mappings.
  *
- * Currently empty — awaiting review and approval of an authoritative
- * French-to-UIAA conversion table before any entries are added.
+ * ── SCOPE ────────────────────────────────────────────────────────────────────
+ * These are the minimum mappings required to score official climbing activities
+ * for the current Patras/demo route set.  They are NOT intended to cover the
+ * full French sport-climbing grade spectrum.
  *
- * TODO: populate this array after the conversion table has been verified
- *       and approved. Document the source table in a comment above each entry
- *       or entry group.
+ * ── MAPPING SOURCE ───────────────────────────────────────────────────────────
+ * Derived from a widely-used French sport grade → UIAA comparison table.
+ * Scoring coefficients come from the EOOA Excel UIAA Β.Δ. coefficient table.
+ *
+ * ── APPROXIMATION DISCLAIMER ─────────────────────────────────────────────────
+ * French ↔ UIAA conversion is inherently approximate.  Different authoritative
+ * sources (UIAA, national federations, published charts) disagree on specific
+ * half-grade values (e.g. 7a+, 7b+).  These mappings represent the application
+ * team's best-effort MVP assumption for the Patras/demo route set.
+ *
+ * ── FUTURE WORK ──────────────────────────────────────────────────────────────
+ * Expand this mapping with an approved authoritative source, or make it
+ * admin-maintainable via a dedicated back-office endpoint.
+ *
+ * ── TARGET GRADE VERIFICATION ────────────────────────────────────────────────
+ * All targetGrade values below have been confirmed present in:
+ *   CLIMBING_UIAA_GRADES  (climbing.constants.ts)
+ *   CLIMBING_UIAA_COEFFICIENTS  (climbing.constants.ts)
+ * with the following coefficients:
+ *   V+    = 8   │  VII-  = 12  │  VII+  = 14  │  VIII- = 15  │  VIII  = 16
+ *   VIII+ = 18  │  IX-   = 20  │  X-    = 26  │  X     = 28  │  X+    = 30
  */
 const VERIFIED_GRADE_MAPPINGS: GradeMapping[] = [
-  // Add verified French → UIAA mappings here after approval.
-  // Example format (do not uncomment without verification):
-  //   { sourceScale: 'french', sourceGrade: '6c', targetScale: 'uiaa', targetGrade: 'VII+' },
+  // ── Conservative MVP mappings for the Patras/demo route set ──────────────
+  { sourceScale: 'french', sourceGrade: '5a+', targetScale: 'uiaa', targetGrade: 'V+' },
+  { sourceScale: 'french', sourceGrade: '6a',  targetScale: 'uiaa', targetGrade: 'VII-' },
+  { sourceScale: 'french', sourceGrade: '6c',  targetScale: 'uiaa', targetGrade: 'VII+' },
+  { sourceScale: 'french', sourceGrade: '6c+', targetScale: 'uiaa', targetGrade: 'VIII-' },
+  { sourceScale: 'french', sourceGrade: '7a',  targetScale: 'uiaa', targetGrade: 'VIII' },
+  { sourceScale: 'french', sourceGrade: '7a+', targetScale: 'uiaa', targetGrade: 'VIII+' },
+  { sourceScale: 'french', sourceGrade: '7b+', targetScale: 'uiaa', targetGrade: 'IX-' },
+  { sourceScale: 'french', sourceGrade: '8a',  targetScale: 'uiaa', targetGrade: 'X-' },
+  { sourceScale: 'french', sourceGrade: '8a+', targetScale: 'uiaa', targetGrade: 'X-' },
+  { sourceScale: 'french', sourceGrade: '8b',  targetScale: 'uiaa', targetGrade: 'X' },
+  { sourceScale: 'french', sourceGrade: '8b+', targetScale: 'uiaa', targetGrade: 'X+' },
 ]
 
 export async function seedGradeMappings(prisma: PrismaClient): Promise<void> {

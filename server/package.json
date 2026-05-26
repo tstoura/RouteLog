@@ -14,7 +14,7 @@
     "prisma:generate": "node_modules/.bin/prisma generate",
     "prisma:migrate:dev": "node_modules/.bin/prisma migrate dev",
     "prisma:migrate:deploy": "node_modules/.bin/prisma migrate deploy",
-    "prisma:seed": "./node_modules/.bin/ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed/index.ts",
+    "prisma:seed": "./node_modules/.bin/ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed/index.ts",
     "prisma:studio": "node_modules/.bin/prisma studio"
   },
   "dependencies": {
