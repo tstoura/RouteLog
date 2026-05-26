@@ -15,12 +15,14 @@ import {
 import {
   CLIMBING_COMPLETION_TYPES,
   CLIMBING_DIFFICULTY_SCALES,
+  CLIMBING_FRENCH_GRADES,
   CLIMBING_MIXED_GRADES,
   CLIMBING_REPETITION_TYPES,
   CLIMBING_SEASONS,
   CLIMBING_UIAA_GRADES,
   ClimbingCompletionType,
   ClimbingDifficultyScale,
+  ClimbingFrenchGrade,
   ClimbingMixedGrade,
   ClimbingRepetitionType,
   ClimbingSeason,
@@ -142,8 +144,8 @@ export class ActivitiesService {
         hikingDetail: {
           create: {
             mountain: dto.mountain,
-            startPoint: dto.startPoint,
-            endPoint: dto.endPoint,
+            startPoint: dto.startPoint ?? '',
+            endPoint: dto.endPoint ?? '',
             maxAltitude: dto.maxAltitude,
             totalElevationGain: dto.totalElevationGain,
             distanceLength: dto.distanceLength,
@@ -251,10 +253,11 @@ export class ActivitiesService {
       }
 
       // altitude and route_length must be > 0 for official.
-      if (dto.altitude <= 0) {
+      // They are required for official (DTO validates presence); assert non-null here.
+      if (!dto.altitude || dto.altitude <= 0) {
         throw new UnprocessableEntityException('altitude must be greater than 0 for official climbing records.')
       }
-      if (dto.routeLength <= 0) {
+      if (!dto.routeLength || dto.routeLength <= 0) {
         throw new UnprocessableEntityException('route_length must be greater than 0 for official climbing records.')
       }
 
@@ -318,8 +321,8 @@ export class ActivitiesService {
       // ── Calculate points (§3.13) ─────────────────────────────────────────
       try {
         const rawPoints = await this.scoring.calculateClimbingPoints({
-          altitude: dto.altitude,
-          routeLength: dto.routeLength,
+          altitude: dto.altitude!,
+          routeLength: dto.routeLength!,
           season: dto.season,
           repetitionType: dto.repetitionType,
           participantsNum: dto.participantsNum,
@@ -337,16 +340,42 @@ export class ActivitiesService {
       }
     } else {
       // ── Personal: validate difficulty fields if present ──────────────────
-      // Validate difficultyScale only if the user provides one.
-      if (hasRegularDifficulty && dto.difficultyScale) {
-        if (!CLIMBING_DIFFICULTY_SCALES.includes(dto.difficultyScale as ClimbingDifficultyScale)) {
+      // Personal records may omit difficulty entirely. If provided, values
+      // must still come from the same allowed sets as official records.
+
+      // Regular difficulty — both parts must be present together (already
+      // checked above via the universal pairing guard).
+      if (hasRegularDifficulty) {
+        // Validate scale.
+        if (!CLIMBING_DIFFICULTY_SCALES.includes(dto.difficultyScale! as ClimbingDifficultyScale)) {
           throw new UnprocessableEntityException(
             `difficulty_scale "${dto.difficultyScale}" is not valid. ` +
             `Allowed values: ${CLIMBING_DIFFICULTY_SCALES.join(', ')}.`,
           )
         }
+
+        // Validate grade against the correct allowed list for the given scale.
+        if (dto.difficultyScale === 'french') {
+          // French: validate against the static French grade list.
+          // (No DB lookup is performed for personal records.)
+          if (!CLIMBING_FRENCH_GRADES.includes(dto.difficultyGrade! as ClimbingFrenchGrade)) {
+            throw new UnprocessableEntityException(
+              `difficulty_grade "${dto.difficultyGrade}" is not a valid French grade. ` +
+              `Allowed values: ${CLIMBING_FRENCH_GRADES.join(', ')}.`,
+            )
+          }
+        } else {
+          // uiaa / alpine: validate against the shared UIAA/Alpine grade list.
+          if (!CLIMBING_UIAA_GRADES.includes(dto.difficultyGrade! as ClimbingUiaaGrade)) {
+            throw new UnprocessableEntityException(
+              `difficulty_grade "${dto.difficultyGrade}" is not a valid UIAA/Alpine grade. ` +
+              `Allowed values include: IV, IV+, V, V+, VI, VI+, VII, VII+, VIII, D, TD, ED, etc.`,
+            )
+          }
+        }
       }
-      // Validate mixed_climbing grade if provided.
+
+      // Mixed difficulty — validate grade if provided.
       if (hasMixedDifficulty) {
         if (!CLIMBING_MIXED_GRADES.includes(dto.mixedClimbing! as ClimbingMixedGrade)) {
           throw new UnprocessableEntityException(
@@ -379,8 +408,11 @@ export class ActivitiesService {
             // ── Activity-specific values ───────────────────────────────────
             season: dto.season,
             repetitionType: dto.repetitionType,
-            altitude: dto.altitude,
-            routeLength: dto.routeLength,
+            // TODO (Phase B): once altitude and routeLength columns are made nullable via
+            //   Prisma migration, replace ?? 0 with ?? null so personal records without
+            //   these values store NULL instead of the sentinel 0.
+            altitude: dto.altitude ?? 0,
+            routeLength: dto.routeLength ?? 0,
             participantsNum: dto.participantsNum,
             participantsText: dto.participantsText ?? '',
             completionType: dto.completionType ?? null,
@@ -429,6 +461,17 @@ export class ActivitiesService {
       throw new NotFoundException(`User with id ${dto.userId} not found`)
     }
 
+    // ── Validate difficultyGrade if provided (both official and personal) ─────
+    // Official: always required and validated (checked again inside official block).
+    // Personal: optional; if a non-empty value is sent it must be from the allowed list
+    //           so arbitrary custom strings are rejected even for personal records.
+    if (dto.difficultyGrade && !EXPEDITION_DIFFICULTY_GRADES.includes(dto.difficultyGrade as ExpeditionDifficultyGrade)) {
+      throw new UnprocessableEntityException(
+        `difficulty_grade "${dto.difficultyGrade}" is not valid. ` +
+        `Allowed values: ${EXPEDITION_DIFFICULTY_GRADES.join(', ')}.`,
+      )
+    }
+
     // ── Validate season (both official and personal — fixed allowed set) ─────
     if (!EXPEDITION_SEASONS.includes(dto.season as ExpeditionSeason)) {
       throw new UnprocessableEntityException(
@@ -457,20 +500,20 @@ export class ActivitiesService {
         throw new NotFoundException(`Club with id ${dto.clubId} not found`)
       }
 
-      // difficulty_grade must be from the EOOA expedition table (§4.3).
-      // IMPORTANT: expedition uses a different coefficient table than hiking.
-      if (!EXPEDITION_DIFFICULTY_GRADES.includes(dto.difficultyGrade as ExpeditionDifficultyGrade)) {
+      // difficulty_grade is required for official records (personal may omit it).
+      // Allowed-value validation runs earlier for all records when a value is provided.
+      if (!dto.difficultyGrade) {
         throw new UnprocessableEntityException(
-          `difficulty_grade "${dto.difficultyGrade}" is not valid for official expedition activities. ` +
-          `Allowed values: ${EXPEDITION_DIFFICULTY_GRADES.join(', ')}.`,
+          'difficulty_grade is required for official expedition activities.',
         )
       }
 
       // altitude and total_elevation_gain must be > 0 for official (§4.4).
-      if (dto.altitude <= 0) {
+      // They are required for official (DTO validates presence); assert non-null here.
+      if (!dto.altitude || dto.altitude <= 0) {
         throw new UnprocessableEntityException('altitude must be greater than 0 for official expedition activities.')
       }
-      if (dto.totalElevationGain <= 0) {
+      if (dto.totalElevationGain === undefined || dto.totalElevationGain <= 0) {
         throw new UnprocessableEntityException('total_elevation_gain must be greater than 0 for official expedition activities.')
       }
 
@@ -508,14 +551,17 @@ export class ActivitiesService {
         expeditionDetail: {
           create: {
             country: dto.country,
-            mountainRange: dto.mountainRange,
+            mountainRange: dto.mountainRange ?? '',
             mountain: dto.mountain,
-            summit: dto.summit,
-            routeName: dto.routeName,
+            summit: dto.summit ?? '',
+            routeName: dto.routeName ?? '',
             season: dto.season,
-            altitude: dto.altitude,
-            totalElevationGain: dto.totalElevationGain,
-            difficultyGrade: dto.difficultyGrade,
+            // TODO (Phase B): once altitude and totalElevationGain columns are made nullable
+            //   via Prisma migration, replace ?? 0 with ?? null so personal records without
+            //   these values store NULL instead of the sentinel 0.
+            altitude: dto.altitude ?? 0,
+            totalElevationGain: dto.totalElevationGain ?? 0,
+            difficultyGrade: dto.difficultyGrade ?? '',
             participantsNum: dto.participantsNum,
             organizationType: dto.organizationType,
           },

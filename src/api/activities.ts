@@ -73,8 +73,16 @@ export type ClimbingActivityPayload = {
    * UI labels:       Νέα    | Επανάληψη
    */
   repetitionType: string
-  altitude: number
-  routeLength: number
+  /**
+   * Official: required, >= 1.
+   * Personal: optional. Omit when not provided; backend stores 0 as Phase A sentinel.
+   */
+  altitude?: number
+  /**
+   * Official: required, >= 0.01.
+   * Personal: optional. Omit when not provided; backend stores 0 as Phase A sentinel.
+   */
+  routeLength?: number
   /** Required when isOfficial = true. */
   participantsNum: number
   /** Required when isOfficial = true. Free-form list of participants. */
@@ -122,25 +130,31 @@ export type ExpeditionActivityPayload = {
   /** ISO date: YYYY-MM-DD */
   date: string
   country: string
-  mountainRange: string
+  /** Optional for personal records — stored as "" when omitted. */
+  mountainRange?: string
   mountain: string
-  summit: string
-  routeName: string
+  /** Optional for personal records — stored as "" when omitted. */
+  summit?: string
+  /** Optional for personal records — stored as "" when omitted. */
+  routeName?: string
   /**
    * Backend values: "summer" | "winter"
    * NOTE: No ski_mountaineering option for expeditions — ski mountaineering
    *       conditions are treated as winter.
    */
   season: string
-  altitude: number
-  totalElevationGain: number
+  /** Required for official records. Optional for personal — omit when unknown. */
+  altitude?: number
+  /** Required for official records. Optional for personal — omit when unknown. */
+  totalElevationGain?: number
   /**
    * Backend values: "hiking" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" |
    *                 "AD-" | "AD" | "AD+" | "D-" | "D" | "D+" | "TD-" | "TD" |
    *                 "TD+" | "ED-" | "ED" | "ED+"
    * UI label for "hiking": Πεζοπορία
+   * Optional for personal records — omit when unknown.
    */
-  difficultyGrade: string
+  difficultyGrade?: string
   participantsNum: number
   /**
    * Backend values: "no" | "europe" | "africa" | "other_continents"

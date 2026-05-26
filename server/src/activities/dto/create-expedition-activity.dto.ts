@@ -67,29 +67,41 @@ export class CreateExpeditionActivityDto {
   @MaxLength(255)
   country: string
 
-  /** Mountain range / massif. Example: "Ιμαλάια". */
+  /**
+   * Mountain range / massif. Example: "Ιμαλάια".
+   * Required for official activities; optional for personal (stored as "" when absent).
+   */
+  @ValidateIf((o) => o.isOfficial === true || Boolean(o.mountainRange))
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  mountainRange: string
+  mountainRange?: string
 
-  /** Mountain name. Example: "Έβερεστ". */
+  /** Mountain name. Example: "Έβερεστ". Always required. */
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   mountain: string
 
-  /** Summit / peak reached. Example: "Κορυφή Χίλαρι". */
+  /**
+   * Summit / peak reached. Example: "Κορυφή Χίλαρι".
+   * Required for official activities; optional for personal (stored as "" when absent).
+   */
+  @ValidateIf((o) => o.isOfficial === true || Boolean(o.summit))
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  summit: string
+  summit?: string
 
-  /** Route name / description. Example: "Νοτιοδυτική Ράχη". */
+  /**
+   * Route name / description. Example: "Νοτιοδυτική Ράχη".
+   * Required for official activities; optional for personal (stored as "" when absent).
+   */
+  @ValidateIf((o) => o.isOfficial === true || Boolean(o.routeName))
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  routeName: string
+  routeName?: string
 
   /**
    * Season.
@@ -103,23 +115,27 @@ export class CreateExpeditionActivityDto {
 
   /**
    * Summit altitude in metres.
-   * Official: must be > 0 (checked in service).
-   * Personal: must be >= 1.
+   * Official: required, must be > 0 (service enforces).
+   * Personal: optional. If provided, must be >= 1.
+   *           If omitted, stored as 0 (Phase A compromise; Phase B will make column nullable).
    */
+  @ValidateIf((o) => o.isOfficial === true || o.altitude !== undefined)
   @IsInt()
   @Min(1)
   @Type(() => Number)
-  altitude: number
+  altitude?: number
 
   /**
    * Total elevation gain for the expedition (metres).
-   * Official: must be > 0 (checked in service).
-   * Personal: must be >= 0.
+   * Official: required, must be > 0 (service enforces).
+   * Personal: optional. If provided, must be >= 0.
+   *           If omitted, stored as 0 (Phase A compromise; Phase B will make column nullable).
    */
+  @ValidateIf((o) => o.isOfficial === true || o.totalElevationGain !== undefined)
   @IsInt()
   @Min(0)
   @Type(() => Number)
-  totalElevationGain: number
+  totalElevationGain?: number
 
   /**
    * Difficulty grade.
@@ -127,12 +143,13 @@ export class CreateExpeditionActivityDto {
    *                          D-, D, D+, TD-, TD, TD+, ED-, ED, ED+
    *   (validated in service against EXPEDITION_DIFFICULTY_GRADES).
    * Note: expedition difficulty uses DIFFERENT coefficients from hiking.
-   * Personal: any non-empty string accepted by the DTO.
+   * Personal: optional. If provided must still be a valid grade. Stored as "" when absent.
    */
+  @ValidateIf((o) => o.isOfficial === true || Boolean(o.difficultyGrade))
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  difficultyGrade: string
+  difficultyGrade?: string
 
   /**
    * Number of participants.

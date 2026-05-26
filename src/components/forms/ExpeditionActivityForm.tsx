@@ -161,8 +161,9 @@ export function ExpeditionActivityForm({
         summit: summit.trim(),
         routeName: routeName.trim(),
         season,
-        altitude: Number(altitude) || 0,
-        totalElevationGain: Number(totalElevationGain) || 0,
+        // Official: always send (required). Personal: omit when empty — backend stores 0 as Phase A sentinel.
+        altitude: isOfficial ? Number(altitude) || 0 : (Number(altitude) > 0 ? Number(altitude) : undefined),
+        totalElevationGain: isOfficial ? Number(totalElevationGain) || 0 : (Number(totalElevationGain) > 0 ? Number(totalElevationGain) : undefined),
         difficultyGrade,
         participantsNum,
         organizationType: organizationType || 'no',
@@ -291,10 +292,10 @@ export function ExpeditionActivityForm({
           <FormSection title="ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ" icon={<SectionIconTechnical />}>
             <div className="flex flex-col gap-8">
               <label className="flex flex-col gap-3">
-                <FieldLabel>ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
+                <FieldLabel>{isOfficial ? 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)' : 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M) (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
                 <Input
                   type="number"
-                  min="0"
+                  min="1"
                   value={altitude}
                   onChange={(e) => setAltitude(e.target.value)}
                   placeholder="π.χ. 5364"
@@ -306,7 +307,7 @@ export function ExpeditionActivityForm({
               </label>
 
               <label className="flex flex-col gap-3">
-                <FieldLabel>ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ</FieldLabel>
+                <FieldLabel>{isOfficial ? 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ' : 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
                 <Input
                   type="number"
                   min="0"
@@ -324,11 +325,11 @@ export function ExpeditionActivityForm({
 
               <div className="flex flex-col gap-3">
                 <SelectFieldControlled
-                  label="ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ"
+                  label={isOfficial ? 'ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ' : 'ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ (ΠΡΟΑΙΡΕΤΙΚΟ)'}
                   options={EXPEDITION_GRADE_SELECT_OPTIONS}
                   value={difficultyGrade}
                   onChange={setDifficultyGrade}
-                  disabledValues={['']}
+                  disabledValues={isOfficial ? [''] : []}
                 />
                 <FieldHints>
                   <FieldHint>{EXPEDITION_DIFFICULTY_GRADE_HELPER}</FieldHint>
@@ -371,18 +372,20 @@ export function ExpeditionActivityForm({
                 </FieldHints>
               </div>
 
-              <div className="flex flex-col gap-3">
-                <SelectFieldControlled
-                  label="ΟΡΓΑΝΩΣΗ"
-                  options={EXPEDITION_ORG_SELECT_OPTIONS}
-                  value={organizationType}
-                  onChange={setOrganizationType}
-                  disabledValues={['']}
-                />
-                <FieldHints>
-                  <FieldHint>{EXPEDITION_ORGANIZATION_HELPER}</FieldHint>
-                </FieldHints>
-              </div>
+              {isOfficial ? (
+                <div className="flex flex-col gap-3">
+                  <SelectFieldControlled
+                    label="ΟΡΓΑΝΩΣΗ"
+                    options={EXPEDITION_ORG_SELECT_OPTIONS}
+                    value={organizationType}
+                    onChange={setOrganizationType}
+                    disabledValues={['']}
+                  />
+                  <FieldHints>
+                    <FieldHint>{EXPEDITION_ORGANIZATION_HELPER}</FieldHint>
+                  </FieldHints>
+                </div>
+              ) : null}
             </div>
           </FormSection>
 

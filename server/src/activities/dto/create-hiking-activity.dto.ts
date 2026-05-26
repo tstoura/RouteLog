@@ -69,17 +69,25 @@ export class CreateHikingActivityDto {
   @MaxLength(255)
   mountain: string
 
-  /** Starting location. Example: "Αράχωβα". */
+  /**
+   * Starting location. Example: "Αράχωβα".
+   * Required for official activities; optional for personal (stored as "" when absent).
+   */
+  @ValidateIf((o) => o.isOfficial === true || Boolean(o.startPoint))
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  startPoint: string
+  startPoint?: string
 
-  /** Summit or finishing point. Example: "Λιακούρα". */
+  /**
+   * Summit or finishing point. Example: "Λιακούρα".
+   * Required for official activities; optional for personal (stored as "" when absent).
+   */
+  @ValidateIf((o) => o.isOfficial === true || Boolean(o.endPoint))
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  endPoint: string
+  endPoint?: string
 
   /**
    * Maximum altitude reached (metres).

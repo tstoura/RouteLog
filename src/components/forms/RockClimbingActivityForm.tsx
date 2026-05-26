@@ -388,10 +388,9 @@ export function RockClimbingActivityForm({
       }
     }
 
-    // TODO: for personal records, determine which fields become optional once
-    //       the backend supports relaxed personal-record validation (later phase).
-
     setIsSubmitting(true)
+    const altitudeVal = Number(altitude)
+    const routeLengthVal = Number(routeLength)
     try {
       const result = await submitClimbingActivity({
         userId: DEV_USER_ID,
@@ -401,8 +400,15 @@ export function RockClimbingActivityForm({
         date,
         season,
         repetitionType: repeat,
-        altitude: Number(altitude) || 1,
-        routeLength: Number(routeLength) || 0.01,
+        // Official: sentinel 1/0.01 preserved as a safety floor (service validates).
+        // Personal: omit when empty so the backend stores the 0 sentinel rather than
+        //           a forced minimum value the user never entered.
+        altitude: isOfficial
+          ? altitudeVal || 1
+          : altitudeVal >= 1 ? altitudeVal : undefined,
+        routeLength: isOfficial
+          ? routeLengthVal || 0.01
+          : routeLengthVal >= 0.01 ? routeLengthVal : undefined,
         participantsNum,
         participantsText: participantsText.trim() || undefined,
         difficultyScale: hasRegularDifficulty ? scaleKey : undefined,

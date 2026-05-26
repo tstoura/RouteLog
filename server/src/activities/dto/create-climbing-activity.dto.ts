@@ -103,24 +103,28 @@ export class CreateClimbingActivityDto {
   /**
    * Altitude of the climb in metres.
    * Non-nullable in DB.
-   * Official: must be > 0 (checked in service).
-   * Personal: must be >= 1.
+   * Official: required, must be > 0 (checked in service).
+   * Personal: optional. If provided must be >= 1.
+   *           If omitted, stored as 0 (Phase A sentinel; Phase B migration will make column nullable).
    */
+  @ValidateIf((o) => o.isOfficial === true || o.altitude !== undefined)
   @IsInt()
   @Min(1)
   @Type(() => Number)
-  altitude: number
+  altitude?: number
 
   /**
    * Route development / route length in metres.
    * Non-nullable in DB.
-   * Official: must be > 0 (checked in service).
-   * Personal: must be >= 0.01.
+   * Official: required, must be > 0 (checked in service).
+   * Personal: optional. If provided must be >= 0.01.
+   *           If omitted, stored as 0 (Phase A sentinel; Phase B migration will make column nullable).
    */
+  @ValidateIf((o) => o.isOfficial === true || o.routeLength !== undefined)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   @Type(() => Number)
-  routeLength: number
+  routeLength?: number
 
   /** Number of participants. Must be >= 1. */
   @IsInt()

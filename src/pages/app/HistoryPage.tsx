@@ -66,10 +66,26 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
 
   if (item.category === 'hiking' && item.hikingDetail) {
     const h = item.hikingDetail
-    const rows: HistoryInfoRow[] = [
-      { iconKey: 'pin', text: `${h.startPoint} → ${h.endPoint}` },
-      { iconKey: 'mountain', text: `Μέγιστο υψόμετρο: ${h.maxAltitude} m` },
-    ]
+    const rows: HistoryInfoRow[] = []
+
+    // Route line — only render when at least one endpoint is present; never show " → " alone.
+    const hasStart = Boolean(h.startPoint)
+    const hasEnd = Boolean(h.endPoint)
+    if (hasStart && hasEnd) {
+      rows.push({ iconKey: 'pin', text: `Αφετηρία: ${h.startPoint} → Τερματισμός: ${h.endPoint}` })
+    } else if (hasStart) {
+      rows.push({ iconKey: 'pin', text: `Αφετηρία: ${h.startPoint}` })
+    } else if (hasEnd) {
+      rows.push({ iconKey: 'pin', text: `Τερματισμός: ${h.endPoint}` })
+    }
+    // Both missing → omit the route row entirely.
+
+    // Altitude — always show for official; for personal only show when meaningfully > 0
+    // (Phase A stores 0 when the user left the field empty on a personal record).
+    if (item.isOfficial || h.maxAltitude > 0) {
+      rows.push({ iconKey: 'mountain', text: `Μέγιστο υψόμετρο: ${h.maxAltitude} m` })
+    }
+
     if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })
     rows.push({ iconKey: 'users', text: participantsText(h.participantsNum) })
     return {
@@ -85,9 +101,13 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
     const gradeBadge = c.mappedGrade ?? c.difficultyGrade ?? c.mixedClimbing ?? undefined
     const rows: HistoryInfoRow[] = [
       { iconKey: 'pin', text: `${c.climbingField} · ${c.mountainOrArea}` },
-      { iconKey: 'mountain', text: `Υψόμετρο: ${c.altitude} m` },
-      { iconKey: 'ruler', text: `Ανάπτυγμα: ${c.routeLength} m` },
     ]
+    if (item.isOfficial || c.altitude > 0) {
+      rows.push({ iconKey: 'mountain', text: `Υψόμετρο: ${c.altitude} m` })
+    }
+    if (item.isOfficial || c.routeLength > 0) {
+      rows.push({ iconKey: 'ruler', text: `Ανάπτυγμα: ${c.routeLength} m` })
+    }
     if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })
     rows.push({ iconKey: 'users', text: participantsText(c.participantsNum) })
     return {
@@ -103,8 +123,12 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
     const e = item.expeditionDetail
     const rows: HistoryInfoRow[] = [
       { iconKey: 'pin', text: `${e.country} · ${e.mountainRange}` },
-      { iconKey: 'mountain', text: `Υψόμετρο: ${e.altitude} m` },
     ]
+    // Altitude: always show for official; for personal only show when meaningfully > 0
+    // (Phase A stores 0 when the user left the field empty on a personal record).
+    if (item.isOfficial || e.altitude > 0) {
+      rows.push({ iconKey: 'mountain', text: `Υψόμετρο: ${e.altitude} m` })
+    }
     if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })
     rows.push({ iconKey: 'users', text: participantsText(e.participantsNum) })
     return {

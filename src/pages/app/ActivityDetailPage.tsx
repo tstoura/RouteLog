@@ -46,8 +46,8 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
   if (item.category === 'hiking' && item.hikingDetail) {
     const h = item.hikingDetail
     const basics: DetailInfoRow[] = [
-      { label: 'Αφετηρία', value: h.startPoint },
-      { label: 'Τερματισμός / Κορυφή', value: h.endPoint },
+      { label: 'Αφετηρία', value: h.startPoint || '—' },
+      { label: 'Τερματισμός / Κορυφή', value: h.endPoint || '—' },
       { label: 'Βουνό', value: h.mountain },
       { label: 'Ημερομηνία', value: dateLabel },
       { label: 'Είδος πεδίου', value: fieldTypeToLabel(h.fieldType) },
@@ -64,7 +64,10 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       title: h.mountain,
       kind,
       historyCardId: item.id,
-      fieldLabel: `${h.startPoint} → ${h.endPoint}`,
+      fieldLabel:
+        h.startPoint && h.endPoint
+          ? `${h.startPoint} → ${h.endPoint}`
+          : h.startPoint || h.endPoint || '—',
       mountainLabel: h.mountain,
       dateLabel,
       status,
@@ -103,8 +106,8 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
     ]
     const technical: DetailInfoRow[] = [
       { label: 'Ανάβαση', value: repetitionTypeToLabel(c.repetitionType) },
-      { label: 'Υψόμετρο', value: `${c.altitude} m` },
-      { label: 'Ανάπτυγμα', value: `${c.routeLength} m` },
+      { label: 'Υψόμετρο', value: c.altitude > 0 ? `${c.altitude} m` : '—' },
+      { label: 'Ανάπτυγμα', value: c.routeLength > 0 ? `${c.routeLength} m` : '—' },
       { label: 'Κλίμακα', value: scaleDisplay },
       { label: 'Βαθμός', value: gradeDisplay },
     ]
@@ -148,17 +151,17 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
     const e = item.expeditionDetail
     const basics: DetailInfoRow[] = [
       { label: 'Χώρα', value: e.country },
-      { label: 'Οροσειρά', value: e.mountainRange },
+      { label: 'Οροσειρά', value: e.mountainRange || '—' },
       { label: 'Βουνό', value: e.mountain },
-      { label: 'Κορυφή', value: e.summit },
-      { label: 'Διαδρομή', value: e.routeName },
+      { label: 'Κορυφή', value: e.summit || '—' },
+      { label: 'Διαδρομή', value: e.routeName || '—' },
       { label: 'Ημερομηνία', value: dateLabel },
     ]
     const technical: DetailInfoRow[] = [
       { label: 'Εποχή', value: seasonToLabel(e.season) },
-      { label: 'Μέγιστο Υψόμετρο', value: `${e.altitude} m` },
-      { label: 'Σ.Υ.Α.', value: `${e.totalElevationGain} m` },
-      { label: 'Βαθμός Δυσκολίας', value: difficultyGradeToLabel(e.difficultyGrade) },
+      { label: 'Μέγιστο Υψόμετρο', value: e.altitude > 0 ? `${e.altitude} m` : '—' },
+      { label: 'Σ.Υ.Α.', value: e.totalElevationGain > 0 ? `${e.totalElevationGain} m` : '—' },
+      { label: 'Βαθμός Δυσκολίας', value: difficultyGradeToLabel(e.difficultyGrade) || '—' },
       { label: 'Οργάνωση', value: organizationTypeToLabel(e.organizationType) },
       { label: 'Καταγραφή', value: status === 'official' ? 'Επίσημη' : 'Προσωπική' },
     ]
@@ -167,8 +170,8 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       title: e.mountain,
       kind,
       historyCardId: item.id,
-      fieldLabel: e.routeName,
-      mountainLabel: `${e.mountainRange}, ${e.country}`,
+      fieldLabel: e.routeName || '—',
+      mountainLabel: e.mountainRange ? `${e.mountainRange}, ${e.country}` : e.country,
       dateLabel,
       status,
       basics,
