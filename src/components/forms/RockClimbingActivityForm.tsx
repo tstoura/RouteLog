@@ -27,10 +27,11 @@ import { RouteCombobox } from './RouteCombobox.tsx'
 import {
   CLIMBING_COMPLETION_OPTIONS,
   CLIMBING_REPETITION_OPTIONS,
-  CLIMBING_SCALE_FORM_OPTIONS,
+  CLIMBING_SCALE_ACTIVITY_OPTIONS,
   CLIMBING_SEASON_OPTIONS,
   MIXED_CLIMBING_HELPER,
   MIXED_CLIMBING_OPTIONS,
+  NO_REGULAR_DIFFICULTY_OPTION,
   getGradeOptionsForScale,
   scaleKeyFromGreek,
   scaleKeyToGreek,
@@ -188,11 +189,17 @@ export function RockClimbingActivityForm({
   const [scaleKey, setScaleKey] = useState(seed.scaleKey)
   const [gradeVal, setGradeVal] = useState(seed.gradeVal)
   const [mixedClimbing, setMixedClimbing] = useState('')
-  const gradeOptions = useMemo(() => getGradeOptionsForScale(scaleKey), [scaleKey])
+  // When scale is '-' (no regular difficulty), show a single locked '—' option.
+  const gradeOptions = useMemo(
+    () => (scaleKey === '-' ? [NO_REGULAR_DIFFICULTY_OPTION] : getGradeOptionsForScale(scaleKey)),
+    [scaleKey],
+  )
 
   const handleScaleChange = useCallback((newScale: string) => {
     setScaleKey(newScale)
-    setGradeVal('') // reset grade — scales have different valid grades
+    // "-" sentinel means no regular difficulty (mixed/ice only); grade follows automatically.
+    // Any real scale resets grade to empty so the user must choose from valid options.
+    setGradeVal(newScale === '-' ? '-' : '')
   }, [])
 
   // ── Technical ──────────────────────────────────────────────────────────────
@@ -270,12 +277,15 @@ export function RockClimbingActivityForm({
 
   const openCreateModal = useCallback(
     (extra?: Partial<ClimbingRouteFormRecord>) => {
+      // Don't carry the '-' sentinel into the CreateRouteModal — it expects a real scale.
+      const modalScale =
+        scaleKey && scaleKey !== '-' ? scaleKeyToGreek(scaleKey) : undefined
       setModalSeed({
         name: routeName,
         field: fieldSector,
         mountainOrArea: mountain,
-        difficultyScale: scaleKeyToGreek(scaleKey || 'french'),
-        difficultyGrade: gradeVal,
+        difficultyScale: modalScale,
+        difficultyGrade: gradeVal !== '-' ? gradeVal : undefined,
         altitude: altitude || undefined,
         routeLength: routeLength || undefined,
         ...extra,
@@ -343,6 +353,10 @@ export function RockClimbingActivityForm({
       return
     }
 
+    // True when the user has selected a real scale+grade (not the '-' sentinel)
+    const hasRegularDifficulty =
+      Boolean(scaleKey) && scaleKey !== '-' && Boolean(gradeVal) && gradeVal !== '-'
+
     if (isOfficial) {
       if (!altitude || Number(altitude) < 1) {
         setSubmitError('Το υψόμετρο είναι υποχρεωτικό για επίσημη καταγραφή.')
@@ -356,15 +370,19 @@ export function RockClimbingActivityForm({
         setSubmitError('Απαιτείται τουλάχιστον 1 άτομο.')
         return
       }
-      if (!participantsText.trim()) {
+      // participantsText is required only when climbing with others (participantsNum > 1).
+      // When participantsNum = 1 the user climbed alone; no partner list is needed.
+      // TODO (Auth phase): export should prepend the authenticated user's display name
+      //   automatically, so participantsText will only need to list additional partners.
+      if (participantsNum > 1 && !participantsText.trim()) {
         setSubmitError(
-          'Ο κατάλογος σχοινοσυντρόφων είναι υποχρεωτικός για επίσημη καταγραφή.',
+          'Καταχωρήστε τους σχοινοσυντρόφους για επίσημη καταγραφή με περισσότερα από 1 άτομα.',
         )
         return
       }
-      if (!mixedClimbing && (!scaleKey || !gradeVal)) {
+      if (!mixedClimbing && !hasRegularDifficulty) {
         setSubmitError(
-          'Απαιτείται βαθμός δυσκολίας (κλίμακα + βαθμός) ή βαθμός ΜΙΚΤΑ για επίσημη καταγραφή.',
+          'Απαιτείται βαθμός δυσκολίας ή βαθμός ΜΙΚΤΑ για επίσημη καταγραφή.',
         )
         return
       }
@@ -387,8 +405,8 @@ export function RockClimbingActivityForm({
         routeLength: Number(routeLength) || 0.01,
         participantsNum,
         participantsText: participantsText.trim() || undefined,
-        difficultyScale: scaleKey && gradeVal ? scaleKey : undefined,
-        difficultyGrade: scaleKey && gradeVal ? gradeVal : undefined,
+        difficultyScale: hasRegularDifficulty ? scaleKey : undefined,
+        difficultyGrade: hasRegularDifficulty ? gradeVal : undefined,
         mixedClimbing: mixedClimbing || undefined,
         completionType: completionType || undefined,
         privateNotes: privateNotes.trim() || undefined,
@@ -590,7 +608,7 @@ export function RockClimbingActivityForm({
                   <div className="flex flex-col gap-3">
                     <FieldLabel>ΚΛΙΜΑΚΑ ΔΥΣΚΟΛΙΑΣ</FieldLabel>
                     <SelectFieldControlled
-                      options={CLIMBING_SCALE_FORM_OPTIONS}
+                      options={CLIMBING_SCALE_ACTIVITY_OPTIONS}
                       value={scaleKey}
                       onChange={handleScaleChange}
                       selectClassName="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
@@ -600,7 +618,7 @@ export function RockClimbingActivityForm({
                       <FieldHint>
                         {autofill
                           ? AUTO_FILL_EDITABLE_HELPER
-                          : 'Επιλέξτε το σύστημα βαθμολόγησης που προτιμάτε.'}
+                          : 'Επιλέξτε το σύστημα βαθμολόγησης ή "—" για μόνο ΜΙΚΤΑ.'}
                       </FieldHint>
                     </FieldHints>
                   </div>
@@ -612,6 +630,7 @@ export function RockClimbingActivityForm({
                       value={gradeVal}
                       onChange={setGradeVal}
                       selectClassName="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+                      disabled={scaleKey === '-'}
                       disabledValues={['']}
                     />
                     {autofill ? <AutoFilledBadge /> : null}
@@ -745,9 +764,9 @@ export function RockClimbingActivityForm({
                   </div>
                   <FieldHints>
                     <FieldHint>
-                      Καταχώρησε τα άτομα που συμμετείχαν στην ανάβαση.
-                      <br />
-                      <span className="italic">Πρώτο όνομα: το δικό σου. Στη συνέχεια πρόσθεσε τους υπόλοιπους σχοινοσυντρόφους.</span>
+                      {participantsNum > 1
+                        ? 'Καταχώρησε τα ονόματα των υπόλοιπων σχοινοσυντρόφων (χωρίς εσένα).'
+                        : 'Αν αναρριχήθηκες μόνος/η, αφήστε αυτό το πεδίο κενό.'}
                     </FieldHint>
                   </FieldHints>
                 </div>

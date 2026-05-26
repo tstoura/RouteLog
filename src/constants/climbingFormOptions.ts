@@ -36,6 +36,22 @@ export const CLIMBING_SCALE_FORM_OPTIONS: ClimbingSelectOption[] =
   CLIMBING_SCALE_OPTIONS.filter((o) => o.value !== '')
 
 /**
+ * Scale options for the Rock Climbing *activity* form.
+ * Prepends a "-" sentinel meaning "no regular difficulty — mixed/ice only".
+ * This value must never be sent to the backend; the form converts it to undefined.
+ */
+export const CLIMBING_SCALE_ACTIVITY_OPTIONS: ClimbingSelectOption[] = [
+  { value: '-', label: '— (μόνο ΜΙΚΤΑ)' },
+  ...CLIMBING_SCALE_FORM_OPTIONS,
+]
+
+/**
+ * Synthetic grade option shown when scale is set to the "-" sentinel.
+ * Only used by the activity form grade dropdown when scale === '-'.
+ */
+export const NO_REGULAR_DIFFICULTY_OPTION: ClimbingSelectOption = { value: '-', label: '—' }
+
+/**
  * Warning shown when the user selects French scale for an official record.
  * French-to-UIAA grade mappings are not yet verified; the backend returns 422
  * for French scale submissions until mappings are added to grade_mappings.

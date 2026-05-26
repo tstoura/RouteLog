@@ -133,7 +133,7 @@ export function resolveKnownDifficultyLabel(
 }
 
 /**
- * Backend scale key → Greek display label.
+ * Backend scale key → verbose Greek display label (used on route detail page).
  *   french → Γαλλική κλίμακα
  *   uiaa   → UIAA
  *   alpine → Alpine
@@ -142,6 +142,25 @@ export function scaleToLabel(scale: string | null | undefined): string {
   switch (scale) {
     case 'french':
       return 'Γαλλική κλίμακα'
+    case 'uiaa':
+      return 'UIAA'
+    case 'alpine':
+      return 'Alpine'
+    default:
+      return scale ?? '—'
+  }
+}
+
+/**
+ * Backend scale key → compact display label (used on activity detail technical tiles).
+ *   french → French
+ *   uiaa   → UIAA
+ *   alpine → Alpine
+ */
+export function climbingScaleDisplayLabel(scale: string | null | undefined): string {
+  switch (scale) {
+    case 'french':
+      return 'French'
     case 'uiaa':
       return 'UIAA'
     case 'alpine':

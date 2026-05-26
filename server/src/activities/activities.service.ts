@@ -242,9 +242,12 @@ export class ActivitiesService {
         throw new NotFoundException(`Club with id ${dto.clubId} not found`)
       }
 
-      // participants_text required for official records (Excel ΣΥΜ/ΝΤΕΣ column).
-      if (!dto.participantsText) {
-        throw new UnprocessableEntityException('participants_text is required for official climbing records.')
+      // participants_text required for official records when there are additional partners
+      // (participantsNum > 1). participantsNum = 1 means solo; text is not required.
+      // TODO (Auth phase): export should prepend the authenticated user's display name
+      //   automatically, so participantsText only needs additional partners' names.
+      if (dto.participantsNum > 1 && !dto.participantsText) {
+        throw new UnprocessableEntityException('participants_text is required for official climbing records when participantsNum > 1.')
       }
 
       // altitude and route_length must be > 0 for official.

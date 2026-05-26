@@ -129,10 +129,19 @@ export class CreateClimbingActivityDto {
   participantsNum: number
 
   /**
-   * Comma-separated or free-text participant names.
-   * Required for official records (Excel column ΣΥΜ/ΝΤΕΣ). Does not affect scoring.
+   * Comma-separated or free-text participant names (additional climbing partners).
+   * The current user is NOT included here — participantsNum=1 means solo.
+   *
+   * Required when isOfficial=true AND participantsNum > 1 (there are other partners
+   * to name for the EOOA export column ΣΥΜ/ΝΤΕΣ).
+   * Optional when isOfficial=true AND participantsNum = 1 (climbed alone).
+   * Optional for personal records.
+   *
+   * TODO (Auth phase): once JWT auth is implemented, the export service should
+   * automatically prepend the authenticated user's display name so participantsText
+   * only needs to contain the additional partners' names.
    */
-  @ValidateIf((o) => o.isOfficial === true || o.participantsText !== undefined)
+  @ValidateIf((o) => (o.isOfficial === true && o.participantsNum > 1) || o.participantsText !== undefined)
   @IsString()
   @IsNotEmpty()
   @MaxLength(1000)

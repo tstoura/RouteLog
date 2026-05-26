@@ -5,6 +5,7 @@ import { getActivityById, type ActivityListItem } from '../../api/activities.ts'
 import { DEV_USER_ID } from '../../lib/devUser.ts'
 import {
   categoryToLabel,
+  climbingScaleDisplayLabel,
   completionTypeToLabel,
   difficultyGradeToLabel,
   fieldTypeToLabel,
@@ -86,7 +87,11 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
     const c = item.climbingDetail
     const grade = c.mappedGrade ?? c.difficultyGrade
     const gradeDisplay = grade ?? c.mixedClimbing ?? '—'
-    const scaleDisplay = c.difficultyScale ?? (c.mixedClimbing ? 'Μεικτό/Πάγος' : '—')
+    const scaleDisplay = c.difficultyScale
+      ? climbingScaleDisplayLabel(c.difficultyScale)
+      : c.mixedClimbing
+        ? 'Μεικτό/Πάγος'
+        : '—'
 
     const basics: DetailInfoRow[] = [
       { label: 'Διαδρομή', value: c.routeName },

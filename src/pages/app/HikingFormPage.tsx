@@ -19,8 +19,9 @@ export function HikingFormPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleBannerNewRoute = () => {
+  const handleNewActivity = () => {
     setShowSuccess(false)
+    setLastPoints(null)
     navigate('/app/new/hiking', { replace: true })
     setFormKey((k) => k + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -47,7 +48,8 @@ export function HikingFormPage() {
       beforeContent={
         showSuccess ? (
           <ActivitySuccessBanner
-            onNewRoute={handleBannerNewRoute}
+            newActivityLabel="Καταχώρηση Νέας Δράσης"
+            onNewActivity={handleNewActivity}
             onViewHistory={() => navigate('/app/history')}
           />
         ) : null
