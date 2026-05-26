@@ -43,11 +43,16 @@ import {
  *   userId is included in the body until JWT auth is implemented in a later phase.
  */
 export class CreateClimbingActivityDto {
-  // ── Auth (temporary until JWT phase) ───────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
 
-  /** Will be replaced by the JWT-decoded user id once auth guards are added. */
+  /**
+   * Kept for backward compatibility during Phase 11C.
+   * The controller ignores this field and uses req.user.sub (JWT) instead.
+   * TODO (Phase 11E): remove once frontend stops sending DEV_USER_ID.
+   */
+  @IsOptional()
   @IsUUID()
-  userId: string
+  userId?: string
 
   // ── Activity base fields ───────────────────────────────────────────────────
 
@@ -60,10 +65,12 @@ export class CreateClimbingActivityDto {
   date: string
 
   /**
-   * Required when isOfficial = true.
-   * Optional when isOfficial = false.
+   * Kept for backward compatibility during Phase 11C.
+   * The service ignores this field — clubId is inferred from the authenticated
+   * user's ClubMembership for official activities.
+   * TODO (Phase 11E): remove once frontend stops sending clubId.
    */
-  @ValidateIf((o) => o.isOfficial === true || o.clubId !== undefined)
+  @IsOptional()
   @IsUUID()
   clubId?: string
 

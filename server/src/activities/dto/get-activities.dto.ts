@@ -12,11 +12,13 @@ import { ACTIVITY_CATEGORIES } from '../activities.constants'
  */
 export class GetActivitiesDto {
   /**
-   * ID of the user whose activities to retrieve.
-   * Temporary — will be replaced by the JWT-decoded user id.
+   * Kept for backward compatibility during Phase 11C.
+   * The controller ignores this field and uses req.user.sub (JWT) instead.
+   * TODO (Phase 11E): remove once frontend stops sending DEV_USER_ID.
    */
+  @IsOptional()
   @IsUUID()
-  userId: string
+  userId?: string
 
   /**
    * Optional category filter.

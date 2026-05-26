@@ -48,41 +48,88 @@ export class ActivitiesService {
     private readonly scoring: ScoringService,
   ) {}
 
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Resolves the authenticated user's club ID for official activity creation.
+   *
+   * MVP rule: one primary club per user.
+   *   - 0 memberships → 422 (official activities require club membership).
+   *   - 1 membership  → returns that club's id.
+   *   - 2+ memberships → 422 (edge case from dev data; admin must resolve).
+   *
+   * The caller must pass the JWT-verified user id.
+   * The DTO's clubId is intentionally ignored here — it comes from the user's
+   * verified membership, not from untrusted request input.
+   */
+  private async resolveOfficialClubId(callerUserId: string): Promise<string> {
+    const memberships = await this.prisma.clubMembership.findMany({
+      where: { userId: callerUserId },
+    })
+
+    if (memberships.length === 0) {
+      throw new UnprocessableEntityException(
+        'Official activities require a club membership. ' +
+        'Your account is not a member of any club. ' +
+        'Register with a club or contact an administrator.',
+      )
+    }
+
+    if (memberships.length > 1) {
+      // MVP assumes one primary club. Multiple memberships from dev/seed data
+      // should be resolved manually. Phase 12 will add a "primary club" concept.
+      throw new UnprocessableEntityException(
+        'Your account has multiple club memberships. ' +
+        'The current MVP supports one primary club per user. ' +
+        'Contact an administrator to set your primary club.',
+      )
+    }
+
+    return memberships[0].clubId
+  }
+
+  // ── Create endpoints ────────────────────────────────────────────────────────
+
   /**
    * Creates a Hiking / Ski Mountaineering activity.
+   *
+   * @param dto      Request body (validated by DTO). dto.userId and dto.clubId
+   *                 are present for backward compatibility but are IGNORED.
+   * @param callerUserId  JWT-verified user id from req.user.sub. This is the
+   *                 only trusted source of ownership.
    *
    * Creates both `activities` and `hiking_activity_details` in a single Prisma
    * nested write (treated as an implicit transaction).
    *
    * Official activities (is_official = true):
-   *   - club_id is required and must resolve to an existing club.
+   *   - clubId is inferred from the user's ClubMembership (not from dto.clubId).
+   *   - Users without a club membership cannot create official activities.
    *   - field_type must be one of the EOOA-recognised values.
    *   - difficulty_grade must be one of the EOOA-recognised hiking grades.
    *   - max_altitude and total_elevation_gain must be > 0.
    *   - Points are calculated via ScoringService and rounded to 2 d.p.
    *
    * Personal activities (is_official = false):
-   *   - club_id is optional.
+   *   - clubId is always null (never inferred from membership).
    *   - field_type and difficulty_grade can be any non-empty string.
    *   - Numeric ranges are more relaxed (see DTO).
    *   - Points remain null.
    */
-  async createHiking(dto: CreateHikingActivityDto) {
-    // ── Validate user exists ─────────────────────────────────────────────────
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } })
+  async createHiking(dto: CreateHikingActivityDto, callerUserId: string) {
+    // ── Validate caller exists (safety net for deleted users with valid tokens) ─
+    const user = await this.prisma.user.findUnique({ where: { id: callerUserId } })
     if (!user) {
-      throw new NotFoundException(`User with id ${dto.userId} not found`)
+      throw new NotFoundException(`User with id ${callerUserId} not found`)
     }
 
     // ── Official-activity business rules ────────────────────────────────────
     let points: number | null = null
+    let officialClubId: string | null = null
 
     if (dto.isOfficial) {
-      // club_id is required — DTO validates it's a UUID; service checks existence.
-      const club = await this.prisma.club.findUnique({ where: { id: dto.clubId! } })
-      if (!club) {
-        throw new NotFoundException(`Club with id ${dto.clubId} not found`)
-      }
+      // clubId is inferred from the user's membership.
+      // dto.clubId is intentionally ignored.
+      officialClubId = await this.resolveOfficialClubId(callerUserId)
 
       // field_type must match EOOA-allowed values.
       if (!HIKING_FIELD_TYPES.includes(dto.fieldType as HikingFieldType)) {
@@ -100,7 +147,7 @@ export class ActivitiesService {
         )
       }
 
-      // Numeric constraints for official activities (§2.6 eooa-rules-alignment.md).
+      // Numeric constraints for official activities.
       if (dto.maxAltitude <= 0) {
         throw new UnprocessableEntityException('max_altitude must be greater than 0 for official activities.')
       }
@@ -108,7 +155,7 @@ export class ActivitiesService {
         throw new UnprocessableEntityException('total_elevation_gain must be greater than 0 for official activities.')
       }
 
-      // Calculate EOOA points using the ScoringService (Phase 6).
+      // Calculate EOOA points.
       try {
         const rawPoints = this.scoring.calculateHikingPoints({
           maxAltitude: dto.maxAltitude,
@@ -118,7 +165,6 @@ export class ActivitiesService {
           difficultyGrade: dto.difficultyGrade,
           participantsNum: dto.participantsNum,
         })
-        // Round to 2 decimal places before storing in Decimal(10,2).
         points = Math.round(rawPoints * 100) / 100
       } catch (err) {
         if (err instanceof ScoringError) {
@@ -129,12 +175,11 @@ export class ActivitiesService {
     }
 
     // ── Create activity + detail in a single nested write ───────────────────
-    // Prisma wraps nested creates in an implicit transaction — both rows are
-    // either committed together or rolled back together.
     const activity = await this.prisma.activity.create({
       data: {
-        userId: dto.userId,
-        clubId: dto.clubId ?? null,
+        userId: callerUserId,
+        // Official: inferred from membership. Personal: always null.
+        clubId: officialClubId,
         date: new Date(dto.date),
         category: 'hiking',
         isOfficial: dto.isOfficial,
@@ -164,8 +209,8 @@ export class ActivitiesService {
   /**
    * Creates a Rock Climbing activity.
    *
-   * Creates both `activities` and `climbing_activity_details` in a single Prisma
-   * nested write (implicit transaction).
+   * @param dto      Request body. dto.userId and dto.clubId are IGNORED.
+   * @param callerUserId  JWT-verified user id from req.user.sub.
    *
    * Route snapshot (§3.2, docs/eooa-rules-alignment.md):
    *   The selected Route's identity fields (routeName, mountainOrArea, climbingField)
@@ -176,29 +221,26 @@ export class ActivitiesService {
    *
    * French scale (§3.6):
    *   If difficultyScale = "french", ScoringService.resolveClimbingGrade() queries
-   *   the grade_mappings table. Since grade_mappings is currently empty (Phase 3 TODO),
-   *   any French submission will fail with 422 until verified mappings are added.
-   *   When a mapping is found, mappedScale and mappedGrade are persisted.
+   *   the grade_mappings table. Unmapped French grades will fail with 422.
    *
    * Difficulty validation (§3.8):
    *   Official: at least one of (difficultyScale + difficultyGrade) OR mixedClimbing.
    *   Scoring: finalDifficultyCoefficient = max(regular, mixed).
    */
-  async createClimbing(dto: CreateClimbingActivityDto) {
-    // ── Validate user exists ─────────────────────────────────────────────────
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } })
+  async createClimbing(dto: CreateClimbingActivityDto, callerUserId: string) {
+    // ── Validate caller exists ───────────────────────────────────────────────
+    const user = await this.prisma.user.findUnique({ where: { id: callerUserId } })
     if (!user) {
-      throw new NotFoundException(`User with id ${dto.userId} not found`)
+      throw new NotFoundException(`User with id ${callerUserId} not found`)
     }
 
     // ── Fetch and validate route ─────────────────────────────────────────────
-    // route_id is always required (official and personal).
     const route = await this.prisma.route.findUnique({ where: { id: dto.routeId } })
     if (!route) {
       throw new NotFoundException(`Route with id ${dto.routeId} not found`)
     }
 
-    // ── Validate season and repetition_type (non-nullable in DB) ────────────
+    // ── Validate season and repetition_type ─────────────────────────────────
     if (!CLIMBING_SEASONS.includes(dto.season as ClimbingSeason)) {
       throw new UnprocessableEntityException(
         `season "${dto.season}" is not valid. Allowed values: ${CLIMBING_SEASONS.join(', ')}.`,
@@ -210,7 +252,7 @@ export class ActivitiesService {
       )
     }
 
-    // ── Validate completion_type (optional, both official and personal) ──────
+    // ── Validate completion_type ─────────────────────────────────────────────
     if (dto.completionType !== undefined) {
       if (!CLIMBING_COMPLETION_TYPES.includes(dto.completionType as ClimbingCompletionType)) {
         throw new UnprocessableEntityException(
@@ -224,7 +266,7 @@ export class ActivitiesService {
     const hasRegularDifficulty = !!(dto.difficultyScale && dto.difficultyGrade)
     const hasMixedDifficulty = !!dto.mixedClimbing
 
-    // Validate that difficultyScale and difficultyGrade are always paired.
+    // scale and grade must always be paired.
     if (!!dto.difficultyScale !== !!dto.difficultyGrade) {
       throw new UnprocessableEntityException(
         'difficulty_scale and difficulty_grade must be provided together. ' +
@@ -236,24 +278,19 @@ export class ActivitiesService {
     let points: number | null = null
     let mappedScale: string | null = null
     let mappedGrade: string | null = null
+    let officialClubId: string | null = null
 
     if (dto.isOfficial) {
-      // club_id required for official.
-      const club = await this.prisma.club.findUnique({ where: { id: dto.clubId! } })
-      if (!club) {
-        throw new NotFoundException(`Club with id ${dto.clubId} not found`)
-      }
+      // clubId is inferred from the user's membership.
+      // dto.clubId is intentionally ignored.
+      officialClubId = await this.resolveOfficialClubId(callerUserId)
 
-      // participants_text required for official records when there are additional partners
-      // (participantsNum > 1). participantsNum = 1 means solo; text is not required.
-      // TODO (Auth phase): export should prepend the authenticated user's display name
-      //   automatically, so participantsText only needs additional partners' names.
+      // participants_text required for official records when there are additional partners.
       if (dto.participantsNum > 1 && !dto.participantsText) {
         throw new UnprocessableEntityException('participants_text is required for official climbing records when participantsNum > 1.')
       }
 
       // altitude and route_length must be > 0 for official.
-      // They are required for official (DTO validates presence); assert non-null here.
       if (!dto.altitude || dto.altitude <= 0) {
         throw new UnprocessableEntityException('altitude must be greater than 0 for official climbing records.')
       }
@@ -289,10 +326,7 @@ export class ActivitiesService {
         }
       }
 
-      // ── French scale resolution (§3.6) ──────────────────────────────────
-      // Resolve French grade → UIAA/Alpine via grade_mappings table.
-      // This will throw ScoringError while grade_mappings is empty (Phase 3 TODO).
-      // When a mapping is found, persist mapped_scale and mapped_grade.
+      // French scale resolution (§3.6).
       if (hasRegularDifficulty && dto.difficultyScale === 'french') {
         try {
           const resolved = await this.scoring.resolveClimbingGrade(dto.difficultyGrade!)
@@ -306,8 +340,7 @@ export class ActivitiesService {
         }
       }
 
-      // ── Validate UIAA/Alpine grade value (when not French) ───────────────
-      // When difficultyScale is "uiaa" (includes Alpine grades), validate the grade.
+      // Validate UIAA/Alpine grade when not French.
       if (hasRegularDifficulty && dto.difficultyScale !== 'french') {
         const gradeToCheck = dto.difficultyGrade!
         if (!CLIMBING_UIAA_GRADES.includes(gradeToCheck as ClimbingUiaaGrade)) {
@@ -318,7 +351,7 @@ export class ActivitiesService {
         }
       }
 
-      // ── Calculate points (§3.13) ─────────────────────────────────────────
+      // Calculate points.
       try {
         const rawPoints = await this.scoring.calculateClimbingPoints({
           altitude: dto.altitude!,
@@ -340,13 +373,7 @@ export class ActivitiesService {
       }
     } else {
       // ── Personal: validate difficulty fields if present ──────────────────
-      // Personal records may omit difficulty entirely. If provided, values
-      // must still come from the same allowed sets as official records.
-
-      // Regular difficulty — both parts must be present together (already
-      // checked above via the universal pairing guard).
       if (hasRegularDifficulty) {
-        // Validate scale.
         if (!CLIMBING_DIFFICULTY_SCALES.includes(dto.difficultyScale! as ClimbingDifficultyScale)) {
           throw new UnprocessableEntityException(
             `difficulty_scale "${dto.difficultyScale}" is not valid. ` +
@@ -354,10 +381,7 @@ export class ActivitiesService {
           )
         }
 
-        // Validate grade against the correct allowed list for the given scale.
         if (dto.difficultyScale === 'french') {
-          // French: validate against the static French grade list.
-          // (No DB lookup is performed for personal records.)
           if (!CLIMBING_FRENCH_GRADES.includes(dto.difficultyGrade! as ClimbingFrenchGrade)) {
             throw new UnprocessableEntityException(
               `difficulty_grade "${dto.difficultyGrade}" is not a valid French grade. ` +
@@ -365,7 +389,6 @@ export class ActivitiesService {
             )
           }
         } else {
-          // uiaa / alpine: validate against the shared UIAA/Alpine grade list.
           if (!CLIMBING_UIAA_GRADES.includes(dto.difficultyGrade! as ClimbingUiaaGrade)) {
             throw new UnprocessableEntityException(
               `difficulty_grade "${dto.difficultyGrade}" is not a valid UIAA/Alpine grade. ` +
@@ -375,7 +398,6 @@ export class ActivitiesService {
         }
       }
 
-      // Mixed difficulty — validate grade if provided.
       if (hasMixedDifficulty) {
         if (!CLIMBING_MIXED_GRADES.includes(dto.mixedClimbing! as ClimbingMixedGrade)) {
           throw new UnprocessableEntityException(
@@ -386,12 +408,11 @@ export class ActivitiesService {
     }
 
     // ── Create activity + detail in a single nested write ───────────────────
-    // Route identity fields are snapshotted from the canonical Route (§3.2).
-    // The client payload does NOT include routeName, mountainOrArea, climbingField.
     const activity = await this.prisma.activity.create({
       data: {
-        userId: dto.userId,
-        clubId: dto.clubId ?? null,
+        userId: callerUserId,
+        // Official: inferred from membership. Personal: always null.
+        clubId: officialClubId,
         date: new Date(dto.date),
         category: 'climbing',
         isOfficial: dto.isOfficial,
@@ -401,11 +422,9 @@ export class ActivitiesService {
         climbingDetail: {
           create: {
             routeId: dto.routeId,
-            // ── Route identity snapshot (read-only fields from the Route) ──
             routeName: route.name,
             mountainOrArea: route.mountainOrArea,
             climbingField: route.climbingField,
-            // ── Activity-specific values ───────────────────────────────────
             season: dto.season,
             repetitionType: dto.repetitionType,
             // TODO (Phase B): once altitude and routeLength columns are made nullable via
@@ -416,7 +435,6 @@ export class ActivitiesService {
             participantsNum: dto.participantsNum,
             participantsText: dto.participantsText ?? '',
             completionType: dto.completionType ?? null,
-            // ── Difficulty ─────────────────────────────────────────────────
             difficultyScale: dto.difficultyScale ?? null,
             difficultyGrade: dto.difficultyGrade ?? null,
             mappedScale: mappedScale,
@@ -434,37 +452,30 @@ export class ActivitiesService {
   /**
    * Creates an Expeditions Abroad activity.
    *
-   * Creates both `activities` and `expedition_activity_details` in a single Prisma
-   * nested write (implicit transaction).
+   * @param dto      Request body. dto.userId and dto.clubId are IGNORED.
+   * @param callerUserId  JWT-verified user id from req.user.sub.
    *
    * Official activities (is_official = true):
-   *   - club_id is required and must resolve to an existing club.
-   *   - season must be "summer" or "winter" (ski mountaineering ⇒ use "winter").
+   *   - clubId is inferred from the user's ClubMembership (not from dto.clubId).
+   *   - season must be "summer" or "winter".
    *   - altitude and total_elevation_gain must be > 0.
-   *   - difficulty_grade must be one of the EOOA expedition grades (different table
-   *     from hiking — do NOT mix up the coefficient tables).
+   *   - difficulty_grade must be one of the EOOA expedition grades.
    *   - organization_type must be one of: no, europe, africa, other_continents.
    *   - Points are calculated via ScoringService and rounded to 2 d.p.
-   *   - No minimum participants restriction (§4.5).
    *
    * Personal activities (is_official = false):
-   *   - club_id optional.
-   *   - difficulty_grade can be any non-empty string.
-   *   - season and organization_type are still validated against allowed values
-   *     because all DB columns are non-nullable and the allowed sets are fixed.
+   *   - clubId is always null.
+   *   - difficulty_grade optional.
    *   - Points remain null.
    */
-  async createExpedition(dto: CreateExpeditionActivityDto) {
-    // ── Validate user exists ─────────────────────────────────────────────────
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } })
+  async createExpedition(dto: CreateExpeditionActivityDto, callerUserId: string) {
+    // ── Validate caller exists ───────────────────────────────────────────────
+    const user = await this.prisma.user.findUnique({ where: { id: callerUserId } })
     if (!user) {
-      throw new NotFoundException(`User with id ${dto.userId} not found`)
+      throw new NotFoundException(`User with id ${callerUserId} not found`)
     }
 
-    // ── Validate difficultyGrade if provided (both official and personal) ─────
-    // Official: always required and validated (checked again inside official block).
-    // Personal: optional; if a non-empty value is sent it must be from the allowed list
-    //           so arbitrary custom strings are rejected even for personal records.
+    // ── Validate difficultyGrade if provided ─────────────────────────────────
     if (dto.difficultyGrade && !EXPEDITION_DIFFICULTY_GRADES.includes(dto.difficultyGrade as ExpeditionDifficultyGrade)) {
       throw new UnprocessableEntityException(
         `difficulty_grade "${dto.difficultyGrade}" is not valid. ` +
@@ -472,7 +483,7 @@ export class ActivitiesService {
       )
     }
 
-    // ── Validate season (both official and personal — fixed allowed set) ─────
+    // ── Validate season ──────────────────────────────────────────────────────
     if (!EXPEDITION_SEASONS.includes(dto.season as ExpeditionSeason)) {
       throw new UnprocessableEntityException(
         `season "${dto.season}" is not valid for expeditions. ` +
@@ -481,7 +492,7 @@ export class ActivitiesService {
       )
     }
 
-    // ── Validate organization_type (both — fixed allowed set) ───────────────
+    // ── Validate organization_type ───────────────────────────────────────────
     if (!EXPEDITION_ORGANIZATION_TYPES.includes(dto.organizationType as ExpeditionOrganizationType)) {
       throw new UnprocessableEntityException(
         `organization_type "${dto.organizationType}" is not valid. ` +
@@ -492,24 +503,21 @@ export class ActivitiesService {
 
     // ── Official-activity business rules ────────────────────────────────────
     let points: number | null = null
+    let officialClubId: string | null = null
 
     if (dto.isOfficial) {
-      // club_id required for official.
-      const club = await this.prisma.club.findUnique({ where: { id: dto.clubId! } })
-      if (!club) {
-        throw new NotFoundException(`Club with id ${dto.clubId} not found`)
-      }
+      // clubId is inferred from the user's membership.
+      // dto.clubId is intentionally ignored.
+      officialClubId = await this.resolveOfficialClubId(callerUserId)
 
-      // difficulty_grade is required for official records (personal may omit it).
-      // Allowed-value validation runs earlier for all records when a value is provided.
+      // difficulty_grade is required for official records.
       if (!dto.difficultyGrade) {
         throw new UnprocessableEntityException(
           'difficulty_grade is required for official expedition activities.',
         )
       }
 
-      // altitude and total_elevation_gain must be > 0 for official (§4.4).
-      // They are required for official (DTO validates presence); assert non-null here.
+      // altitude and total_elevation_gain must be > 0 for official.
       if (!dto.altitude || dto.altitude <= 0) {
         throw new UnprocessableEntityException('altitude must be greater than 0 for official expedition activities.')
       }
@@ -517,8 +525,7 @@ export class ActivitiesService {
         throw new UnprocessableEntityException('total_elevation_gain must be greater than 0 for official expedition activities.')
       }
 
-      // Calculate EOOA points (§4.7).
-      // No minimum participants restriction for expeditions (§4.5).
+      // Calculate EOOA points.
       try {
         const rawPoints = this.scoring.calculateExpeditionPoints({
           altitude: dto.altitude,
@@ -540,8 +547,9 @@ export class ActivitiesService {
     // ── Create activity + detail in a single nested write ───────────────────
     const activity = await this.prisma.activity.create({
       data: {
-        userId: dto.userId,
-        clubId: dto.clubId ?? null,
+        userId: callerUserId,
+        // Official: inferred from membership. Personal: always null.
+        clubId: officialClubId,
         date: new Date(dto.date),
         category: 'expedition',
         isOfficial: dto.isOfficial,
@@ -573,25 +581,23 @@ export class ActivitiesService {
     return activity
   }
 
-  // ── Activity retrieval (Phase 8) ────────────────────────────────────────────
+  // ── Activity retrieval ──────────────────────────────────────────────────────
 
   /**
-   * Returns all activities for a given user, with their detail relation included.
+   * Returns all activities for the authenticated user.
    *
-   * All three detail relations (hikingDetail, climbingDetail, expeditionDetail) are
-   * always included in the query. For each activity exactly one will be non-null;
-   * the others will be null. The client uses the non-null field to determine the
-   * category-specific data.
+   * @param dto          Query parameters (category filter, pagination).
+   *                     dto.userId is present for backward compat but IGNORED.
+   * @param callerUserId JWT-verified user id from req.user.sub.
    *
-   * Ordering: date descending (most recent first).
-   *
-   * Temporary auth note: userId comes from the query param until JWT auth is added.
-   * Once auth guards are implemented, userId will come from the decoded token.
+   * All three detail relations are always included; exactly one will be non-null
+   * per activity. Ordering: date descending (most recent first).
    */
-  findAllForUser(dto: GetActivitiesDto) {
+  findAllForUser(dto: GetActivitiesDto, callerUserId: string) {
     return this.prisma.activity.findMany({
       where: {
-        userId: dto.userId,
+        // Only activities that belong to the authenticated user.
+        userId: callerUserId,
         ...(dto.category ? { category: dto.category } : {}),
       },
       include: {
@@ -606,16 +612,16 @@ export class ActivitiesService {
   }
 
   /**
-   * Returns a single activity by id with its detail relation included.
+   * Returns a single activity by id — only if it belongs to the caller.
    *
-   * If userId is provided, the method verifies the activity belongs to that user.
-   * A non-matching userId returns 404 (not 403) to avoid leaking the existence of
-   * activities belonging to other users.
+   * @param id           Activity UUID.
+   * @param callerUserId JWT-verified user id from req.user.sub.
    *
-   * Temporary auth note: userId is an optional query param for now. Once JWT auth
-   * is implemented, the ownership check will use the decoded token user id instead.
+   * Returns 404 if the activity does not exist or belongs to a different user.
+   * Never returns 403 — to avoid revealing that the activity exists and
+   * belongs to a different user.
    */
-  async findById(id: string, userId?: string) {
+  async findById(id: string, callerUserId: string) {
     const activity = await this.prisma.activity.findUnique({
       where: { id },
       include: {
@@ -629,13 +635,12 @@ export class ActivitiesService {
       throw new NotFoundException(`Activity with id ${id} not found`)
     }
 
-    // Ownership check: if userId is provided, verify it matches.
-    // Returns 404 rather than 403 to avoid revealing that the activity exists
-    // and belongs to a different user.
-    if (userId && activity.userId !== userId) {
+    // Ownership check: different user → 404 (not 403) to avoid ownership leakage.
+    if (activity.userId !== callerUserId) {
       throw new NotFoundException(`Activity with id ${id} not found`)
     }
 
     return activity
   }
 }
+

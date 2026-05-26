@@ -20,7 +20,7 @@ import { Type } from 'class-transformer'
  *   - All hiking_activity_details fields are always required in this DTO because
  *     the DB columns are non-nullable. The service layer adds EOOA-specific
  *     allowed-value checks for official activities.
- *   - club_id is required only for official activities (via @ValidateIf).
+ *   - club_id is accepted from the client but ignored; service infers it from membership.
  *   - Basic type validators (@IsInt, @IsString, etc.) always run.
  *
  * Auth note:
@@ -28,14 +28,16 @@ import { Type } from 'class-transformer'
  *   At that point it will be read from the decoded token instead.
  */
 export class CreateHikingActivityDto {
-  // ── Auth (temporary until JWT phase) ───────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
 
   /**
-   * ID of the user submitting the activity.
-   * Will be replaced by the JWT-decoded user id once auth guards are added.
+   * Kept for backward compatibility during Phase 11C.
+   * The controller ignores this field and uses req.user.sub (JWT) instead.
+   * TODO (Phase 11E): remove this field once frontend stops sending DEV_USER_ID.
    */
+  @IsOptional()
   @IsUUID()
-  userId: string
+  userId?: string
 
   // ── Activity base fields ───────────────────────────────────────────────────
 
@@ -53,11 +55,12 @@ export class CreateHikingActivityDto {
   date: string
 
   /**
-   * Club this activity belongs to.
-   * Required when isOfficial = true (official activities must have a club).
-   * Optional when isOfficial = false (personal activities may be club-less).
+   * Kept for backward compatibility during Phase 11C.
+   * The service ignores this field entirely — clubId is inferred from the
+   * authenticated user's ClubMembership for official activities.
+   * TODO (Phase 11E): remove this field once frontend stops sending clubId.
    */
-  @ValidateIf((o) => o.isOfficial === true || o.clubId !== undefined)
+  @IsOptional()
   @IsUUID()
   clubId?: string
 
