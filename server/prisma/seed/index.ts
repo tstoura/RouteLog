@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { seedGradeMappings } from './grade-mappings.seed'
+import { seedDemoUsers } from './demo-users.seed'
 
 const prisma = new PrismaClient()
 
@@ -9,8 +10,8 @@ async function main() {
   // Phase 3: French → UIAA grade mappings (reference data for scoring).
   await seedGradeMappings(prisma)
 
-  // Clubs are NOT seeded with placeholder data.
-  // Add real club data here only when provided by the project owner.
+  // Phase 11A: Demo club, users, and memberships for Auth MVP development.
+  await seedDemoUsers(prisma)
 
   console.log('Seed: done.')
 }
