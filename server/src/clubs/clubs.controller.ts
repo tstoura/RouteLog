@@ -70,6 +70,33 @@ export class ClubsController {
   }
 
   /**
+   * List official activities for a club (admin view).
+   *
+   * Auth:  JWT required (401 without token).
+   * Authz: super_admin OR club_admin of the requested club (403 otherwise).
+   *
+   * Returns all is_official = true activities ordered by date desc.
+   * Each item includes the submitting user's basic info.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/activities')
+  async getClubActivities(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const caller = req.user
+    if (caller.systemRole !== 'super_admin') {
+      const isAdmin = await this.clubsService.isClubAdmin(caller.sub, id)
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Only club admins or super admins can view club activities.',
+        )
+      }
+    }
+    return this.clubsService.getClubOfficialActivities(id)
+  }
+
+  /**
    * Add a user to a club.
    * Body: { userId, role, registryNumber? }
    * Returns a 409 if the user is already a member of this club.

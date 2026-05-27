@@ -115,4 +115,26 @@ export class ClubsService {
     const role = await this.getUserRoleInClub(userId, clubId)
     return role === 'club_admin'
   }
+
+  /**
+   * Returns official activities for a club (admin view).
+   * Only is_official = true records are returned.
+   * Each row includes the owning user's basic info (id, firstName, lastName, email)
+   * so the admin table can display who submitted each activity.
+   */
+  getClubOfficialActivities(clubId: string) {
+    return this.prisma.activity.findMany({
+      where: {
+        clubId,
+        isOfficial: true,
+      },
+      include: {
+        hikingDetail: true,
+        climbingDetail: true,
+        expeditionDetail: true,
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { date: 'desc' },
+    })
+  }
 }

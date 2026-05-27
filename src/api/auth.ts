@@ -90,3 +90,71 @@ export function getMe(): Promise<AuthUser> {
 export function getClubMembers(clubId: string): Promise<ClubMember[]> {
   return apiFetch<ClubMember[]>(`/clubs/${clubId}/members`)
 }
+
+// ── Admin activity types ───────────────────────────────────────────────────
+
+export type AdminActivityItem = {
+  id: string
+  category: string
+  isOfficial: boolean
+  points: number | null
+  /** ISO datetime string from the backend, e.g. "2026-04-12T00:00:00.000Z" */
+  date: string
+  userId: string
+  clubId: string | null
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  hikingDetail: {
+    mountain: string
+    startPoint: string
+    endPoint: string
+    fieldType: string
+    difficultyGrade: string
+    maxAltitude: number
+    distanceLength: number
+    totalElevationGain: number
+  } | null
+  climbingDetail: {
+    routeId: string
+    routeName: string
+    mountainOrArea: string
+    climbingField: string
+    difficultyScale: string
+    difficultyGrade: string
+    mixedClimbing: string | null
+    completionType: string
+    repetitionType: string
+    altitude: number
+    routeLength: number
+    participantsNum: number
+    participantsText: string | null
+    season: string
+    mappedScale: string | null
+    mappedGrade: string | null
+  } | null
+  expeditionDetail: {
+    country: string
+    mountainRange: string
+    mountain: string
+    summit: string
+    routeName: string
+    season: string
+    altitude: number
+    totalElevationGain: number
+    difficultyGrade: string
+    participantsNum: number
+    organizationType: string
+  } | null
+}
+
+/**
+ * GET /clubs/:clubId/activities — returns official activities for a club (admin view).
+ * Requires JWT. Allowed only for super_admin or club_admin of the club (403 otherwise).
+ */
+export function getClubActivities(clubId: string): Promise<AdminActivityItem[]> {
+  return apiFetch<AdminActivityItem[]>(`/clubs/${clubId}/activities`)
+}
