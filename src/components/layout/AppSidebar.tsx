@@ -1,7 +1,9 @@
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { APP_LAYOUT_CREDIT } from '../../constants/appCredit.ts'
 import { ClockNavIcon, PlusNavIcon, RoutesNavIcon } from '../icons/AppNavIcons.tsx'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
+import { useAuth, isAdminUser } from '../../auth/AuthContext.tsx'
+import { LayoutDashboard } from 'lucide-react'
 
 function HelpIcon() {
   return (
@@ -43,10 +45,18 @@ const navItemActive =
  */
 export function AppSidebar() {
   const { pathname } = useLocation()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const recordingActive = pathname === '/app' || pathname.startsWith('/app/new')
   const routesActive = pathname.startsWith('/app/routes')
   const historyActive = pathname.startsWith('/app/history')
+  const userIsAdmin = isAdminUser(user)
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#e4e4e8] bg-[#eeeef0] px-4 py-8 md:flex">
@@ -82,6 +92,14 @@ export function AppSidebar() {
           <ClockNavIcon stroke={historyActive ? '#ffffff' : '#475569'} />
           Ιστορικό
         </NavLink>
+
+        {/* Cross-navigation to admin — only for admins */}
+        {userIsAdmin ? (
+          <Link to="/admin" className={navItemInactive}>
+            <LayoutDashboard className="size-5 shrink-0" strokeWidth={2} aria-hidden />
+            Πίνακας Διαχείρισης
+          </Link>
+        ) : null}
       </nav>
 
       <div className="mt-auto space-y-2 border-t border-[#dcdce0] pt-4">
@@ -90,10 +108,10 @@ export function AppSidebar() {
           <HelpIcon />
           Βοήθεια
         </button>
-        <Link to="/" className={navItemInactive}>
+        <button type="button" className={navItemInactive} onClick={handleLogout}>
           <LogoutIcon />
           Αποσύνδεση
-        </Link>
+        </button>
         <p className="px-1 pt-3 text-center text-[9px] font-bold uppercase leading-relaxed tracking-[0.12em] text-[#94a3b8]">
           {APP_LAYOUT_CREDIT}
         </p>

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { AuthController } from './auth.controller'
@@ -24,9 +24,10 @@ import { ClubsModule } from '../clubs/clubs.module'
         },
       }),
     }),
-    // ClubsModule is imported so AuthService can inject ClubsService
-    // to validate clubId at registration and fetch memberships.
-    ClubsModule,
+    // forwardRef(() => ClubsModule) breaks the circular dependency:
+    //   AuthModule → ClubsModule (ClubsService for AuthService)
+    //   ClubsModule → AuthModule (JwtAuthGuard for ClubsController)
+    forwardRef(() => ClubsModule),
   ],
   controllers: [AuthController],
   providers: [

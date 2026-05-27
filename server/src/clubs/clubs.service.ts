@@ -75,6 +75,18 @@ export class ClubsService {
     })
   }
 
+  /** Flat member list for export selection — no passwordHash exposed. */
+  async getClubMembersForExport(clubId: string) {
+    const memberships = await this.getMembershipsForClub(clubId)
+    return memberships.map((m) => ({
+      userId: m.userId,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      email: m.user.email,
+      role: m.role,
+    }))
+  }
+
   /** All memberships for a user — used by ActivitiesService to validate club_id. */
   getMembershipsForUser(userId: string) {
     return this.prisma.clubMembership.findMany({

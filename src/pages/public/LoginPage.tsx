@@ -1,15 +1,65 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Lock, Mountain, User } from 'lucide-react'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, Lock, Mountain, Mail } from 'lucide-react'
 import { AuthIconCircle } from '../../components/auth/AuthIconCircle.tsx'
 import { AuthLabeledField } from '../../components/auth/AuthLabeledField.tsx'
 import { AuthModalCard } from '../../components/auth/AuthModalCard.tsx'
 import { AuthPageShell } from '../../components/auth/AuthPageShell.tsx'
+import { useAuth, isAdminUser } from '../../auth/AuthContext.tsx'
+import { ApiError } from '../../api/client.ts'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login, isAuthenticated, isLoading, user } = useAuth()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [usernameOrEmail, setUsernameOrEmail] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Capture an explicit redirect target set by RequireAuth/RequireAdmin.
+  const explicitFrom = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
+
+  if (!isLoading && isAuthenticated) {
+    // Already logged in: send admins to /admin, members to /app.
+    return <Navigate to={isAdminUser(user) ? '/admin' : '/app'} replace />
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!email.trim() || !password) {
+      setError('Συμπληρώστε email και κωδικό πρόσβασης.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const loggedInUser = await login({ email: email.trim().toLowerCase(), password })
+      if (explicitFrom) {
+        // Honour the original destination (e.g. deep link before session expired).
+        navigate(explicitFrom, { replace: true })
+      } else {
+        // Default: admins go to /admin, members go to /app.
+        navigate(isAdminUser(loggedInUser) ? '/admin' : '/app', { replace: true })
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setError('Λάθος email ή κωδικός πρόσβασης.')
+        } else {
+          setError(err.message)
+        }
+      } else {
+        setError('Απρόσμενο σφάλμα. Παρακαλώ δοκιμάστε ξανά.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const modal = (
     <AuthModalCard>
@@ -18,26 +68,22 @@ export function LoginPage() {
           <Mountain className="size-7" strokeWidth={2} aria-hidden />
         </AuthIconCircle>
         <h1 className="mt-5 font-heading text-2xl font-bold tracking-tight text-[#022c22]">Σύνδεση</h1>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#64748b]">Αποκτήστε πρόσβαση στον λογαριασμό σας στο RouteLog</p>
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#64748b]">
+          Αποκτήστε πρόσβαση στον λογαριασμό σας στο RouteLog
+        </p>
       </div>
 
-      <form
-        className="mt-8 space-y-5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          const id = usernameOrEmail.trim().toLowerCase()
-          if (id === 'admin') navigate('/admin')
-          else navigate('/app')
-        }}
-      >
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
         <AuthLabeledField
-          label="ΟΝΟΜΑ ΧΡΗΣΤΗ Ή EMAIL"
-          leftIcon={<User className="size-[18px]" strokeWidth={2} aria-hidden />}
-          name="username"
-          autoComplete="username"
-          placeholder="π.χ. climber123 ή email@example.com"
-          value={usernameOrEmail}
-          onChange={(e) => setUsernameOrEmail(e.target.value)}
+          label="EMAIL"
+          leftIcon={<Mail className="size-[18px]" strokeWidth={2} aria-hidden />}
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="example@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={isSubmitting}
         />
         <AuthLabeledField
           label="ΚΩΔΙΚΟΣ ΠΡΟΣΒΑΣΗΣ"
@@ -46,6 +92,9 @@ export function LoginPage() {
           autoComplete="current-password"
           type={showPassword ? 'text' : 'password'}
           placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isSubmitting}
           rightSlot={
             <button
               type="button"
@@ -58,12 +107,19 @@ export function LoginPage() {
           }
         />
 
+        {error ? (
+          <p role="alert" className="rounded-xl border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">
+            {error}
+          </p>
+        ) : null}
+
         <button
           type="submit"
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#00453e] py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#003a32]"
+          disabled={isSubmitting}
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#00453e] py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#003a32] disabled:opacity-60"
         >
-          Σύνδεση
-          <span aria-hidden>→</span>
+          {isSubmitting ? 'Σύνδεση…' : 'Σύνδεση'}
+          {!isSubmitting && <span aria-hidden>→</span>}
         </button>
 
         <button
@@ -73,16 +129,6 @@ export function LoginPage() {
         >
           Ακύρωση
         </button>
-
-        <p className="pt-1 text-center">
-          <button
-            type="button"
-            className="cursor-pointer text-xs font-medium text-[#94a3b8] underline-offset-2 transition hover:text-[#64748b] hover:underline"
-            onClick={() => {}}
-          >
-            Ξεχάσατε τον κωδικό σας;
-          </button>
-        </p>
       </form>
 
       <div className="mt-6 space-y-3 border-t border-[#eef2f2] pt-6 text-center">

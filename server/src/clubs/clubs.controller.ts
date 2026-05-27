@@ -1,7 +1,20 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common'
+import { Request } from 'express'
 import { ClubsService } from './clubs.service'
 import { CreateClubDto } from './dto/create-club.dto'
 import { CreateMembershipDto } from './dto/create-membership.dto'
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { JwtPayload } from '../auth/auth.service'
 
 /**
  * NOTE: All endpoints here are currently UNPROTECTED for development convenience.
@@ -32,10 +45,28 @@ export class ClubsController {
     return this.clubsService.findByIdOrThrow(id)
   }
 
-  /** List all members of a club with their membership roles. */
+  /**
+   * List club members for export selection.
+   *
+   * Auth:  JWT required (401 without token).
+   * Authz: super_admin OR club_admin of the requested club (403 otherwise).
+   */
+  @UseGuards(JwtAuthGuard)
   @Get(':id/members')
-  getMembers(@Param('id', ParseUUIDPipe) id: string) {
-    return this.clubsService.getMembershipsForClub(id)
+  async getMembers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const caller = req.user
+    if (caller.systemRole !== 'super_admin') {
+      const isAdmin = await this.clubsService.isClubAdmin(caller.sub, id)
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Only club admins or super admins can list club members.',
+        )
+      }
+    }
+    return this.clubsService.getClubMembersForExport(id)
   }
 
   /**

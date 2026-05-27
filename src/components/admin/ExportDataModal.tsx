@@ -1,44 +1,104 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '../ui/Button.tsx'
 import { exportClubActivities, downloadBlob } from '../../api/export.ts'
 import { ApiError } from '../../api/client.ts'
+import { useAuth } from '../../auth/AuthContext.tsx'
+import { getClubMembers } from '../../api/auth.ts'
+import type { ClubMember } from '../../api/auth.ts'
 
 type Props = {
   open: boolean
   onClose: () => void
   /** Called after a successful export so the parent can show a success banner. */
   onConfirmExport: () => void
-  /**
-   * Club ID for the real export endpoint.
-   * TODO: replace with JWT-decoded clubId.
-   */
-  clubId: string
-  /**
-   * User ID of the requester (must be club_admin or super_admin).
-   * TODO: replace with JWT-decoded userId.
-   */
-  requesterUserId: string
 }
 
-export function ExportDataModal({
-  open,
-  onClose,
-  onConfirmExport,
-  clubId,
-  requesterUserId,
-}: Props) {
+export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
+  const { user } = useAuth()
   const currentYear = new Date().getFullYear()
+
   const [year, setYear] = useState<string>(String(currentYear))
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
 
+  // Member list state
+  const [members, setMembers] = useState<ClubMember[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [membersError, setMembersError] = useState<string | null>(null)
+
+  // Resolve club ID from the admin user's club_admin membership.
+  const adminMembership = user?.memberships.find((m) => m.role === 'club_admin')
+  const resolvedClubId =
+    user?.systemRole === 'super_admin' && !adminMembership
+      ? null
+      : (adminMembership?.clubId ?? null)
+
+  // Fetch members when the modal opens and we have a club.
+  useEffect(() => {
+    if (!open || !resolvedClubId) return
+
+    setMembersLoading(true)
+    setMembersError(null)
+
+    getClubMembers(resolvedClubId)
+      .then((result) => {
+        const list = Array.isArray(result) ? result : []
+        setMembers(list)
+        // Default: all members selected.
+        setSelectedIds(new Set(list.map((m) => m.userId)))
+      })
+      .catch((err) => {
+        const msg = err instanceof ApiError ? err.message : 'Αδυναμία φόρτωσης λίστας μελών.'
+        setMembersError(msg)
+        setMembers([])
+        setSelectedIds(new Set())
+      })
+      .finally(() => setMembersLoading(false))
+  }, [open, resolvedClubId])
+
   if (!open) return null
 
+  const toggleMember = (userId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selectedIds.size === members.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(members.map((m) => m.userId)))
+    }
+  }
+
   const handleExport = async () => {
+    if (!user) {
+      setExportError('Δεν είστε συνδεδεμένος.')
+      return
+    }
+    if (!resolvedClubId) {
+      setExportError(
+        'Δεν βρέθηκε σύλλογος για εξαγωγή. Ο λογαριασμός super_admin χρειάζεται επιλογή συλλόγου (υλοποίηση σε επόμενη φάση).',
+      )
+      return
+    }
+    if (membersError) {
+      setExportError('Δεν μπόρεσε να φορτωθεί η λίστα μελών. Κλείστε και ξανανοίξτε.')
+      return
+    }
     const parsedYear = parseInt(year, 10)
     if (!year || isNaN(parsedYear) || parsedYear < 2000 || parsedYear > currentYear + 1) {
       setExportError('Εισαγάγετε έγκυρο έτος (π.χ. 2026).')
+      return
+    }
+    if (selectedIds.size === 0) {
+      setExportError('Επιλέξτε τουλάχιστον ένα μέλος για εξαγωγή.')
       return
     }
 
@@ -46,17 +106,10 @@ export function ExportDataModal({
     setExportError(null)
 
     try {
-      /**
-       * TODO: replace requesterUserId with JWT-decoded userId.
-       * TODO: replace [requesterUserId] with real multi-user selection
-       *       once GET /clubs/:clubId/members endpoint is available.
-       */
-      const blob = await exportClubActivities(clubId, {
-        selectedUserIds: [requesterUserId],
-        requesterUserId,
+      const blob = await exportClubActivities(resolvedClubId, {
+        selectedUserIds: Array.from(selectedIds),
         year: parsedYear,
       })
-
       downloadBlob(blob, `routelog-export-${parsedYear}.xlsx`)
       onConfirmExport()
       onClose()
@@ -74,6 +127,9 @@ export function ExportDataModal({
     }
   }
 
+  const allSelected = members.length > 0 && selectedIds.size === members.length
+  const someSelected = selectedIds.size > 0 && !allSelected
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="presentation">
       <button
@@ -86,7 +142,7 @@ export function ExportDataModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-modal-title"
-        className="relative max-h-[min(90dvh,640px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#e8eef0] bg-white p-6 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)] sm:p-8"
+        className="relative max-h-[min(90dvh,680px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#e8eef0] bg-white p-6 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)] sm:p-8"
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -130,17 +186,79 @@ export function ExportDataModal({
           />
         </div>
 
-        {/* User info */}
-        <div className="mt-4 rounded-xl border border-[#e8eef0] bg-[#f8fafc] p-4">
+        {/* Member selection */}
+        <div className="mt-5 space-y-2">
           <p className="text-xs font-bold uppercase tracking-wide text-[#64748b]">Μέλη</p>
-          <p className="mt-1 text-sm text-[#475569]">
-            Εξαγωγή για τον τρέχοντα χρήστη (DEV_USER_ID).
+          <p className="text-xs text-[#64748b]">
+            Επιλέξτε τα μέλη των οποίων οι επίσημες δράσεις θα συμπεριληφθούν στην εξαγωγή.
           </p>
-          {/* TODO: replace with a multi-user checklist once GET /clubs/:clubId/members is available. */}
-          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            MVP: εξάγεται μόνο ο τρέχων χρήστης. Η πολλαπλή επιλογή μελών θα υλοποιηθεί
-            όταν είναι διαθέσιμο το endpoint λίστας μελών.
-          </p>
+
+          {/* Super admin without club */}
+          {!resolvedClubId ? (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Ο λογαριασμός super_admin χωρίς μέλος συλλόγου δεν μπορεί να εξάγει δεδομένα σε αυτή τη φάση.
+              Η επιλογή συλλόγου για super_admin θα υλοποιηθεί σε επόμενη φάση.
+            </p>
+          ) : membersLoading ? (
+            <p className="py-4 text-center text-sm text-[#94a3b8]">Φόρτωση μελών…</p>
+          ) : membersError ? (
+            <p className="rounded-xl border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">
+              {membersError}
+            </p>
+          ) : members.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] px-4 py-4 text-center text-sm text-[#64748b]">
+              Δεν βρέθηκαν μέλη στον σύλλογο.
+            </p>
+          ) : (
+            <div className="rounded-xl border border-[#e8eef0] bg-[#f8fafc]">
+              {/* Select-all header */}
+              <label className="flex cursor-pointer items-center gap-3 border-b border-[#e8eef0] px-4 py-3 hover:bg-[#f1f5f9]">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected
+                  }}
+                  onChange={toggleAll}
+                  className="size-4 cursor-pointer rounded accent-[#00453e]"
+                />
+                <span className="text-xs font-bold uppercase tracking-wide text-[#64748b]">
+                  {allSelected ? 'Αποεπιλογή όλων' : 'Επιλογή όλων'}
+                  {' '}
+                  <span className="font-normal normal-case">
+                    ({selectedIds.size}/{members.length})
+                  </span>
+                </span>
+              </label>
+
+              {/* Individual members */}
+              <ul className="max-h-52 overflow-y-auto">
+                {members.map((m) => (
+                  <li key={m.userId}>
+                    <label className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-[#f1f5f9]">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(m.userId)}
+                        onChange={() => toggleMember(m.userId)}
+                        className="size-4 cursor-pointer rounded accent-[#00453e]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[#022c22]">
+                          {m.firstName} {m.lastName}
+                        </p>
+                        <p className="truncate text-xs text-[#64748b]">{m.email}</p>
+                      </div>
+                      {m.role === 'club_admin' ? (
+                        <span className="shrink-0 rounded-full bg-[#d1fae5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#047857]">
+                          admin
+                        </span>
+                      ) : null}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Error message */}
@@ -168,7 +286,7 @@ export function ExportDataModal({
             type="button"
             className="h-11 min-w-[160px] bg-[#00453e]"
             onClick={handleExport}
-            disabled={isExporting}
+            disabled={isExporting || membersLoading || !!membersError || !resolvedClubId}
           >
             {isExporting ? 'Εξαγωγή...' : 'Εξαγωγή Excel'}
           </Button>

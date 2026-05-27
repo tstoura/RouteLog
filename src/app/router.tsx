@@ -18,6 +18,8 @@ import { AdminLayout } from '../components/admin/AdminLayout.tsx'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.tsx'
 import { AdminMembersPage } from '../pages/admin/AdminMembersPage.tsx'
 import { AdminActivitiesPage } from '../pages/admin/AdminActivitiesPage.tsx'
+import { RequireAuth } from '../components/auth/RequireAuth.tsx'
+import { RequireAdmin } from '../components/auth/RequireAdmin.tsx'
 
 export const router = createBrowserRouter([
   {
@@ -31,7 +33,11 @@ export const router = createBrowserRouter([
   { path: '/onboarding', element: <OnboardingPage /> },
   {
     path: '/app',
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <HomePage /> },
       { path: 'history/:activitySlug', element: <ActivityDetailPage /> },
@@ -46,7 +52,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin',
-    element: <AdminLayout />,
+    element: (
+      <RequireAdmin>
+        <AdminLayout />
+      </RequireAdmin>
+    ),
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: 'members', element: <AdminMembersPage /> },

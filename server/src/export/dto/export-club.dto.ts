@@ -30,10 +30,11 @@ export class ExportClubDto {
   year?: number
 
   /**
-   * TEMPORARY: required until JWT auth/guards are implemented.
-   * The service verifies this user is a club_admin for the target club or a super_admin.
-   * Will be replaced by the authenticated user extracted from the JWT token.
+   * DEPRECATED — kept for backward compatibility during Phase 11D.
+   * The service ignores this field; requester identity comes from the JWT token.
+   * TODO (Phase 11E): remove once frontend stops sending requesterUserId.
    */
+  @IsOptional()
   @IsUUID('4')
-  requesterUserId!: string
+  requesterUserId?: string
 }

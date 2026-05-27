@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { BarChart3, Check, Info, Lock, MessageSquare, Users } from 'lucide-react'
 import { getActivityById, type ActivityListItem } from '../../api/activities.ts'
-import { DEV_USER_ID } from '../../lib/devUser.ts'
 import {
   categoryToLabel,
   climbingScaleDisplayLabel,
@@ -223,17 +222,11 @@ export function ActivityDetailPage() {
       setIsLoading(false)
       return
     }
-    if (!DEV_USER_ID) {
-      setLoadError('Ορίστε VITE_DEV_USER_ID στο .env για να δείτε λεπτομέρειες.')
-      setIsLoading(false)
-      return
-    }
 
     setIsLoading(true)
     setLoadError(null)
 
-    // TODO: replace DEV_USER_ID with JWT-decoded userId
-    getActivityById(activitySlug, DEV_USER_ID)
+    getActivityById(activitySlug)
       .then((item) => {
         setData(buildDetailModel(item))
       })

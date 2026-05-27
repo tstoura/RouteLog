@@ -1,13 +1,15 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { ClubsController } from './clubs.controller'
 import { ClubsService } from './clubs.service'
+import { AuthModule } from '../auth/auth.module'
 
 @Module({
+  // forwardRef breaks the circular dependency:
+  //   AuthModule → ClubsModule (ClubsService needed by AuthService)
+  //   ClubsModule → AuthModule (JwtAuthGuard needed by ClubsController)
+  imports: [forwardRef(() => AuthModule)],
   controllers: [ClubsController],
   providers: [ClubsService],
-  // ClubsService is exported so ActivitiesModule can:
-  //   - validate that the submitted club_id belongs to the submitting user
-  //   - check isClubAdmin() when triggering exports
   exports: [ClubsService],
 })
 export class ClubsModule {}

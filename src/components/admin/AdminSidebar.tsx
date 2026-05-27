@@ -1,6 +1,7 @@
-import { Link, NavLink, useLocation } from 'react-router-dom'
-import { ClipboardList, LayoutDashboard, Users } from 'lucide-react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { ClipboardList, LayoutDashboard, Users, BookOpen } from 'lucide-react'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
+import { useAuth } from '../../auth/AuthContext.tsx'
 
 function HelpIcon() {
   return (
@@ -38,10 +39,17 @@ const navItemActive =
 
 export function AdminSidebar() {
   const { pathname } = useLocation()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
 
   const dashActive = pathname === '/admin' || pathname === '/admin/'
   const membersActive = pathname.startsWith('/admin/members')
   const activitiesActive = pathname.startsWith('/admin/activities')
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#e4e4e8] bg-[#eeeef0] px-4 py-8 md:flex">
@@ -76,6 +84,12 @@ export function AdminSidebar() {
           <ClipboardList className="size-5 shrink-0" strokeWidth={2} aria-hidden />
           Δράσεις
         </NavLink>
+
+        {/* Cross-navigation to the member-facing app */}
+        <Link to="/app" className={navItemInactive}>
+          <BookOpen className="size-5 shrink-0" strokeWidth={2} aria-hidden />
+          Μετάβαση στο Ημερολόγιο
+        </Link>
       </nav>
 
       <div className="mt-auto space-y-2 border-t border-[#dcdce0] pt-4">
@@ -83,10 +97,10 @@ export function AdminSidebar() {
           <HelpIcon />
           Βοήθεια
         </button>
-        <Link to="/login" className={navItemInactive}>
+        <button type="button" className={navItemInactive} onClick={handleLogout}>
           <LogoutIcon />
           Αποσύνδεση
-        </Link>
+        </button>
       </div>
     </aside>
   )

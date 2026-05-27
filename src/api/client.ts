@@ -5,6 +5,8 @@
  * Default: http://localhost:3001 (NestJS dev server).
  */
 
+import { getAccessToken } from '../auth/tokenStorage.ts'
+
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001'
 
 export class ApiError extends Error {
@@ -20,10 +22,17 @@ export class ApiError extends Error {
   }
 }
 
+function buildAuthHeaders(): Record<string, string> {
+  const token = getAccessToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
+
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...buildAuthHeaders(),
       ...options?.headers,
     },
     ...options,
@@ -55,6 +64,7 @@ export async function apiFetchBlob(path: string, options?: RequestInit): Promise
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...buildAuthHeaders(),
       ...options?.headers,
     },
     ...options,

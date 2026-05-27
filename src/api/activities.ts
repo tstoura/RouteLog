@@ -12,11 +12,7 @@ export type ActivityCreatedResponse = {
 // ── Hiking / Ski Mountaineering ────────────────────────────────────────────────
 
 export type HikingActivityPayload = {
-  /** Temporary: replaced by JWT-decoded userId in a later phase. */
-  userId: string
   isOfficial: boolean
-  /** Required when isOfficial = true. */
-  clubId?: string
   /** ISO date: YYYY-MM-DD */
   date: string
   mountain: string
@@ -54,11 +50,7 @@ export function submitHikingActivity(
 // ── Rock Climbing ──────────────────────────────────────────────────────────────
 
 export type ClimbingActivityPayload = {
-  /** Temporary: replaced by JWT-decoded userId in a later phase. */
-  userId: string
   isOfficial: boolean
-  /** Required when isOfficial = true. */
-  clubId?: string
   /** ISO date: YYYY-MM-DD */
   date: string
   /** ID of an existing climbing route. Always required. */
@@ -122,11 +114,7 @@ export function submitClimbingActivity(
 // ── Expeditions Abroad ─────────────────────────────────────────────────────────
 
 export type ExpeditionActivityPayload = {
-  /** Temporary: replaced by JWT-decoded userId in a later phase. */
-  userId: string
   isOfficial: boolean
-  /** Required when isOfficial = true. */
-  clubId?: string
   /** ISO date: YYYY-MM-DD */
   date: string
   country: string
@@ -247,33 +235,23 @@ export type ActivityListItem = {
 }
 
 /**
- * Fetch activity history for a user.
+ * Fetch activity history for the currently authenticated user.
+ * Identity is resolved server-side from the JWT Bearer token in the request.
  *
- * TODO: replace `userId` query param with JWT-decoded user context.
- *
- * @param userId Temporary dev user ID (replaced by JWT later).
  * @param category Optional backend category filter: "hiking" | "climbing" | "expedition"
  */
-export function getActivities(
-  userId: string,
-  category?: string,
-): Promise<ActivityListItem[]> {
-  const params = new URLSearchParams({ userId })
+export function getActivities(category?: string): Promise<ActivityListItem[]> {
+  const params = new URLSearchParams()
   if (category) params.set('category', category)
-  return apiFetch<ActivityListItem[]>(`/activities?${params.toString()}`)
+  const query = params.toString()
+  return apiFetch<ActivityListItem[]>(`/activities${query ? `?${query}` : ''}`)
 }
 
 /**
  * Fetch a single activity with its detail object.
- *
  * Backend returns 404 if the activity doesn't belong to the requesting user.
- *
- * TODO: replace `userId` query param with JWT-decoded user context.
+ * Identity is resolved server-side from the JWT Bearer token.
  */
-export function getActivityById(
-  id: string,
-  userId: string,
-): Promise<ActivityListItem> {
-  const params = new URLSearchParams({ userId })
-  return apiFetch<ActivityListItem>(`/activities/${id}?${params.toString()}`)
+export function getActivityById(id: string): Promise<ActivityListItem> {
+  return apiFetch<ActivityListItem>(`/activities/${id}`)
 }

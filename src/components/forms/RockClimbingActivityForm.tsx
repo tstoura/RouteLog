@@ -46,7 +46,7 @@ import {
 } from '../../api/climbingRoutes.ts'
 import { submitClimbingActivity } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
-import { DEV_CLUB_ID, DEV_USER_ID } from '../../lib/devUser.ts'
+import { useAuth } from '../../auth/AuthContext.tsx'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -128,6 +128,7 @@ export function RockClimbingActivityForm({
   lastSubmittedPoints,
   onActivityTabSelect,
 }: RockClimbingActivityFormProps) {
+  const { user } = useAuth()
   const seed = useMemo(() => buildStateFromRouteSlug(initialRouteSlug ?? null), [initialRouteSlug])
 
   // ── Official / personal toggle ─────────────────────────────────────────────
@@ -334,14 +335,14 @@ export function RockClimbingActivityForm({
     e.preventDefault()
     setSubmitError(null)
 
-    // TODO: replace DEV_USER_ID / DEV_CLUB_ID with JWT-decoded user context
-    //       once auth guards are implemented (later phase).
-    if (!DEV_USER_ID) {
-      setSubmitError('Δεν βρέθηκε αναγνωριστικό χρήστη. Ορίστε VITE_DEV_USER_ID στο .env.')
+    if (!user) {
+      setSubmitError('Δεν είστε συνδεδεμένος. Παρακαλώ συνδεθείτε ξανά.')
       return
     }
-    if (isOfficial && !DEV_CLUB_ID) {
-      setSubmitError('Δεν βρέθηκε αναγνωριστικό συλλόγου. Ορίστε VITE_DEV_CLUB_ID στο .env.')
+    if (isOfficial && user.memberships.length === 0) {
+      setSubmitError(
+        'Για επίσημη καταγραφή απαιτείται μέλος συλλόγου. Εγγραφείτε σε σύλλογο από τις ρυθμίσεις.',
+      )
       return
     }
 
@@ -393,9 +394,7 @@ export function RockClimbingActivityForm({
     const routeLengthVal = Number(routeLength)
     try {
       const result = await submitClimbingActivity({
-        userId: DEV_USER_ID,
         isOfficial,
-        clubId: isOfficial ? DEV_CLUB_ID : undefined,
         routeId,
         date,
         season,

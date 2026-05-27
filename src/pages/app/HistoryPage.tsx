@@ -6,7 +6,6 @@ import { HistoryPillFilterSection } from '../../components/history/HistoryPillFi
 import { Input } from '../../components/ui/Input.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { getActivities, type ActivityListItem } from '../../api/activities.ts'
-import { DEV_USER_ID } from '../../lib/devUser.ts'
 import {
   categoryToLabel,
   completionTypeToLabel,
@@ -176,18 +175,12 @@ export function HistoryPage() {
 
   // Fetch from backend when activeKind changes
   useEffect(() => {
-    if (!DEV_USER_ID) {
-      setLoadError('Ορίστε VITE_DEV_USER_ID στο .env για να δείτε το ιστορικό.')
-      return
-    }
-
     setIsLoading(true)
     setLoadError(null)
 
     const backendCategory = kindToBackendCategory(activeKind)
 
-    // TODO: replace DEV_USER_ID with JWT-decoded userId
-    getActivities(DEV_USER_ID, backendCategory)
+    getActivities(backendCategory)
       .then((items) => {
         setAllCards(sortHistoryCardsByActivityDateDesc(items.map(buildHistoryCard)))
       })

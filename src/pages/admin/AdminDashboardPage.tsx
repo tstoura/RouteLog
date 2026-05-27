@@ -5,7 +5,6 @@ import { Button } from '../../components/ui/Button.tsx'
 import { ExportDataModal } from '../../components/admin/ExportDataModal.tsx'
 import { mockOfficialActivities } from '../../data/mockOfficialActivities.ts'
 import { formatAdminDateDisplay } from '../../lib/formatAdminDate.ts'
-import { DEV_CLUB_ID, DEV_USER_ID } from '../../lib/devUser.ts'
 
 function OfficialBadge() {
   return (
@@ -111,14 +110,11 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* TODO: replace DEV_CLUB_ID / DEV_USER_ID with JWT-decoded club and user context. */}
       <ExportDataModal
         key={exportModalKey}
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         onConfirmExport={handleExportDone}
-        clubId={DEV_CLUB_ID}
-        requesterUserId={DEV_USER_ID}
       />
     </div>
   )
