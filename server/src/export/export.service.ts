@@ -123,23 +123,30 @@ export class ExportService {
   /**
    * Build and return an Excel buffer for official club activities.
    *
+   * @param clubId      Club to export (from route param — not inferred from membership).
+   * @param dto         Request body. dto.requesterUserId is present for backward compat
+   *                    but is IGNORED. callerUserId is the only trusted identity.
+   * @param callerUserId JWT-verified user id from req.user.sub.
+   *
+   * Authorization:
+   *   - super_admin → always allowed.
+   *   - club_admin of the requested club → allowed.
+   *   - anyone else (member, no membership, different club admin) → 403 Forbidden.
+   *   - JWT user not found in DB (deleted after token issued) → 404 Not Found.
+   *
    * All matching official activities are included regardless of count.
    * When the number of activities exceeds the template's pre-formatted rows,
    * additional rows are appended with styles copied from the last
    * pre-formatted row, keeping the sheet visually consistent.
-   *
-   * Authorization (TEMPORARY — no JWT yet):
-   *   requesterUserId is required. Verified as club_admin of the target club
-   *   or super_admin. Throws 403 otherwise.
-   *   TODO: replace with ClubAdminGuard + JwtAuthGuard once auth is implemented.
    */
-  async exportClub(clubId: string, dto: ExportClubDto): Promise<Buffer> {
+  async exportClub(clubId: string, dto: ExportClubDto, callerUserId: string): Promise<Buffer> {
     // 1. Verify club exists.
     const club = await this.prisma.club.findUnique({ where: { id: clubId } })
     if (!club) throw new NotFoundException(`Club ${clubId} not found`)
 
-    // 2. Authorization check (required until JWT is implemented).
-    await this.assertRequesterIsAuthorized(dto.requesterUserId, clubId)
+    // 2. Authorize the caller.
+    //    dto.requesterUserId is intentionally not used — callerUserId comes from JWT.
+    await this.assertRequesterIsAuthorized(callerUserId, clubId)
 
     // 3. Query official activities.
     const activities = await this.queryOfficialActivities(
@@ -160,21 +167,36 @@ export class ExportService {
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   /**
-   * Verifies that requesterUserId belongs to a super_admin OR a club_admin of
-   * the target club.  Always called — requesterUserId is required for every
-   * export request until JWT auth replaces it.
-   * Throws 404 if the user does not exist, 403 if not authorized.
+   * Verifies that callerUserId (from JWT) is authorized to export data for clubId.
+   *
+   * Allowed if:
+   *   A. systemRole = "super_admin"  (can export any club's data)
+   *   B. club_admin of the requested club  (scoped to their own club)
+   *
+   * Not allowed:
+   *   - regular "member" of the club
+   *   - member of a different club
+   *   - user with no memberships
+   *
+   * @throws NotFoundException (404) if the JWT user no longer exists in the DB.
+   * @throws ForbiddenException (403) if the user exists but lacks the required role.
+   *
+   * Note: 404 vs 401: We use 404 (not 401) for a JWT-verified user not found in DB
+   * because the JWT itself was valid — the user was simply deleted after token issuance.
+   * A true auth failure (bad/missing token) is handled upstream by JwtAuthGuard (401).
    */
   private async assertRequesterIsAuthorized(
-    requesterUserId: string,
+    callerUserId: string,
     clubId: string,
   ): Promise<void> {
+    // Fetch the user with only the membership for this club (if any).
     const user = await this.prisma.user.findUnique({
-      where: { id: requesterUserId },
+      where: { id: callerUserId },
       include: { memberships: { where: { clubId } } },
     })
 
-    if (!user) throw new NotFoundException(`Requester user ${requesterUserId} not found`)
+    // Safety net for tokens referencing deleted users.
+    if (!user) throw new NotFoundException(`User ${callerUserId} not found`)
 
     const isSuperAdmin = user.systemRole === 'super_admin'
     const isClubAdmin =
@@ -182,7 +204,7 @@ export class ExportService {
 
     if (!isSuperAdmin && !isClubAdmin) {
       throw new ForbiddenException(
-        'Only a club_admin of this club or a super_admin may export club data',
+        'Only a club_admin of this club or a super_admin may export club data.',
       )
     }
   }
