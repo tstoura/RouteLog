@@ -50,8 +50,10 @@ export function LoginPage() {
       if (err instanceof ApiError) {
         if (err.status === 401) {
           setError('Λάθος email ή κωδικός πρόσβασης.')
+        } else if (err.status === 422) {
+          setError('Συμπληρώστε σωστά τα πεδία email και κωδικού.')
         } else {
-          setError(err.message)
+          setError('Σφάλμα σύνδεσης. Παρακαλώ δοκιμάστε ξανά.')
         }
       } else {
         setError('Απρόσμενο σφάλμα. Παρακαλώ δοκιμάστε ξανά.')

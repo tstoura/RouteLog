@@ -52,10 +52,15 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       { label: 'Είδος πεδίου', value: fieldTypeToLabel(h.fieldType) },
       { label: 'Καταγραφή', value: status === 'official' ? 'Επίσημη' : 'Προσωπική' },
     ]
+    // For personal records Phase A stores 0 when the user left numeric fields empty.
+    // Show "—" instead of "0 m / 0 km" in those cases.
+    const showHikingAltitude = item.isOfficial || h.maxAltitude > 0
+    const showHikingElevation = item.isOfficial || h.totalElevationGain > 0
+    const showHikingDistance = item.isOfficial || h.distanceLength > 0
     const technical: DetailInfoRow[] = [
-      { label: 'Μέγιστο Υψόμετρο', value: `${h.maxAltitude} m` },
-      { label: 'Σ.Υ.Α.', value: `${h.totalElevationGain} m` },
-      { label: 'Απόσταση', value: `${h.distanceLength} km` },
+      { label: 'Μέγιστο Υψόμετρο', value: showHikingAltitude ? `${h.maxAltitude} m` : '—' },
+      { label: 'Σ.Υ.Α.', value: showHikingElevation ? `${h.totalElevationGain} m` : '—' },
+      { label: 'Απόσταση', value: showHikingDistance ? `${h.distanceLength} km` : '—' },
       { label: 'Βαθμός Δυσκολίας', value: difficultyGradeToLabel(h.difficultyGrade) },
     ]
     return {

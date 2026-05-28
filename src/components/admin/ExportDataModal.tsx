@@ -256,6 +256,13 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
           )}
         </div>
 
+        {/* Helper: no members selected */}
+        {resolvedClubId && !membersLoading && !membersError && members.length > 0 && selectedIds.size === 0 ? (
+          <p className="mt-3 text-xs text-amber-700">
+            Επιλέξτε τουλάχιστον ένα μέλος για να ενεργοποιηθεί η εξαγωγή.
+          </p>
+        ) : null}
+
         {/* Error message */}
         {exportError ? (
           <p
@@ -281,7 +288,13 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
             type="button"
             className="h-11 min-w-[160px] bg-[#00453e]"
             onClick={handleExport}
-            disabled={isExporting || membersLoading || !!membersError || !resolvedClubId}
+            disabled={
+              isExporting ||
+              membersLoading ||
+              !!membersError ||
+              !resolvedClubId ||
+              selectedIds.size === 0
+            }
           >
             {isExporting ? 'Εξαγωγή...' : 'Εξαγωγή Excel'}
           </Button>

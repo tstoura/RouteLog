@@ -66,8 +66,10 @@ export function RegisterPage() {
       if (err instanceof ApiError) {
         if (err.status === 409) {
           setError('Το email χρησιμοποιείται ήδη. Δοκιμάστε να συνδεθείτε.')
+        } else if (err.status === 422) {
+          setError('Ελέγξτε τα πεδία και δοκιμάστε ξανά.')
         } else {
-          setError(err.message)
+          setError('Σφάλμα εγγραφής. Παρακαλώ δοκιμάστε ξανά.')
         }
       } else {
         setError('Απρόσμενο σφάλμα. Παρακαλώ δοκιμάστε ξανά.')
@@ -166,7 +168,8 @@ export function RegisterPage() {
             ))}
           </select>
           <p className="text-xs text-[#94a3b8]">
-            Μπορείτε να επιλέξετε σύλλογο τώρα ή αργότερα από τις ρυθμίσεις.
+            Η εγγραφή σε σύλλογο σας ανθέτει ρόλο <strong>μέλους</strong> — όχι διαχειριστή.
+            Μπορείτε να επιλέξετε σύλλογο τώρα ή αργότερα.
           </p>
         </div>
 

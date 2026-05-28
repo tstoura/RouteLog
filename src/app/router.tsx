@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { NotFoundPage } from '../pages/public/NotFoundPage.tsx'
 import { PublicLayout } from '../components/layout/PublicLayout.tsx'
 import { AppLayout } from '../components/layout/AppLayout.tsx'
@@ -49,6 +49,8 @@ export const router = createBrowserRouter([
       { path: 'new/hiking', element: <HikingFormPage /> },
       { path: 'new/climbing', element: <RockClimbingFormPage /> },
       { path: 'new/expedition', element: <ExpeditionFormPage /> },
+      // Unknown /app/* child routes redirect back to /app home.
+      { path: '*', element: <Navigate to="/app" replace /> },
     ],
   },
   {
@@ -62,6 +64,8 @@ export const router = createBrowserRouter([
       { index: true, element: <AdminDashboardPage /> },
       { path: 'members', element: <AdminMembersPage /> },
       { path: 'activities', element: <AdminActivitiesPage /> },
+      // Unknown /admin/* child routes redirect back to /admin home.
+      { path: '*', element: <Navigate to="/admin" replace /> },
     ],
   },
   // Catch-all: any unmatched path renders the 404 page.

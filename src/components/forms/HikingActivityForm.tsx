@@ -110,11 +110,6 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
       }
     }
 
-    // ── TODO: for personal records, determine which fields can be omitted ───
-    // Currently all standard fields are required by the backend regardless of
-    // isOfficial. This will be revisited when personal record optional fields
-    // are clarified in a later phase.
-
     setIsSubmitting(true)
     try {
       const result = await submitHikingActivity({
