@@ -8,8 +8,13 @@ import { ClubsModule } from '../clubs/clubs.module'
 
 @Module({
   imports: [
+    // ConfigModule imported explicitly so ConfigService is available for injection
+    // into AuthService (needed for JWT_REFRESH_SECRET / JWT_REFRESH_EXPIRES_IN).
+    // ConfigModule is global, but listing it here makes the dependency explicit.
+    ConfigModule,
     // JwtModule configured from env vars (JWT_SECRET, JWT_EXPIRES_IN).
-    // ConfigModule is global, so ConfigService is available here.
+    // This governs access tokens only. Refresh tokens are signed manually via
+    // JwtService.sign(payload, { secret: JWT_REFRESH_SECRET, ... }) in AuthService.
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -18,13 +23,12 @@ import { ClubsModule } from '../clubs/clubs.module'
         signOptions: {
           // Cast to 'any' because ConfigService returns plain string but
           // @nestjs/jwt expects the ms-compatible StringValue type.
-          // The value is validated at runtime when the token is first signed.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '7d') as any,
+          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '15m') as any,
         },
       }),
     }),
-    // forwardRef(() => ClubsModule) breaks the circular dependency:
+    // forwardRef() breaks the circular dependency:
     //   AuthModule → ClubsModule (ClubsService for AuthService)
     //   ClubsModule → AuthModule (JwtAuthGuard for ClubsController)
     forwardRef(() => ClubsModule),

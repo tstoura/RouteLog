@@ -1,36 +1,29 @@
 /**
- * Thin wrapper around localStorage for the JWT access token.
+ * In-memory store for the JWT access token.
  *
- * Kept separate from AuthContext so that api/client.ts can import it
- * without creating a circular dependency.
+ * Phase 13+: The access token is kept only in memory (a module-level variable)
+ * and is never written to localStorage or any other persistent browser storage.
+ * This prevents XSS attacks from stealing long-lived credentials.
  *
- * TODO (production hardening): migrate from localStorage to httpOnly cookies
- * issued by the backend, or use a secure in-memory store with a refresh-token
- * cookie. localStorage is acceptable for this MVP.
+ * Session persistence is handled by the httpOnly refresh cookie:
+ *  - On every page load, AuthContext calls POST /auth/refresh.
+ *  - If the cookie is valid, a new access token is returned and stored here.
+ *  - If the cookie is missing/expired, the user is unauthenticated.
+ *
+ * Kept as a separate module (not inside AuthContext) so api/client.ts can
+ * import getAccessToken() without creating a circular dependency.
  */
 
-const TOKEN_KEY = 'routelog_access_token'
+let _accessToken: string | null = null
 
 export function getAccessToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY)
-  } catch {
-    return null
-  }
+  return _accessToken
 }
 
 export function setAccessToken(token: string): void {
-  try {
-    localStorage.setItem(TOKEN_KEY, token)
-  } catch {
-    // ignore — storage may be unavailable in some environments
-  }
+  _accessToken = token
 }
 
 export function clearAccessToken(): void {
-  try {
-    localStorage.removeItem(TOKEN_KEY)
-  } catch {
-    // ignore
-  }
+  _accessToken = null
 }

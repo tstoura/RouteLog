@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ClipboardList, LayoutDashboard, Users, BookOpen } from 'lucide-react'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
 import { useAuth } from '../../auth/AuthContext.tsx'
@@ -41,7 +41,6 @@ const navItemActive =
 export function AdminSidebar() {
   const { pathname } = useLocation()
   const { logout } = useAuth()
-  const navigate = useNavigate()
   const {
     isSuperAdmin,
     selectedClubId,
@@ -55,11 +54,6 @@ export function AdminSidebar() {
   const dashActive = pathname === '/admin' || pathname === '/admin/'
   const membersActive = pathname.startsWith('/admin/members')
   const activitiesActive = pathname.startsWith('/admin/activities')
-
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#e4e4e8] bg-[#eeeef0] px-4 py-8 md:flex">
@@ -138,7 +132,7 @@ export function AdminSidebar() {
           <HelpIcon />
           Βοήθεια
         </button>
-        <button type="button" className={navItemInactive} onClick={handleLogout}>
+        <button type="button" className={navItemInactive} onClick={logout}>
           <LogoutIcon />
           Αποσύνδεση
         </button>

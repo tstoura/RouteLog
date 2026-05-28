@@ -84,6 +84,24 @@ export function getMe(): Promise<AuthUser> {
 }
 
 /**
+ * POST /auth/refresh — exchanges the httpOnly refresh cookie for a new access token.
+ * Returns { accessToken, user } on success; throws ApiError(401) if the cookie is
+ * missing, invalid, or expired.
+ * credentials: "include" is set automatically by apiFetch.
+ */
+export function refresh(): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/auth/refresh', { method: 'POST' })
+}
+
+/**
+ * POST /auth/logout — clears the httpOnly refresh cookie server-side.
+ * Returns { ok: true }. Safe to call even if no cookie exists.
+ */
+export function logout(): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>('/auth/logout', { method: 'POST' })
+}
+
+/**
  * GET /clubs/:clubId/members — returns club members for export selection.
  * Requires JWT. Allowed only for super_admin or club_admin of the club (403 otherwise).
  */

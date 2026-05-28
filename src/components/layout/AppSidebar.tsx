@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { APP_LAYOUT_CREDIT } from '../../constants/appCredit.ts'
 import { ClockNavIcon, PlusNavIcon, RoutesNavIcon } from '../icons/AppNavIcons.tsx'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
@@ -46,17 +46,11 @@ const navItemActive =
 export function AppSidebar() {
   const { pathname } = useLocation()
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
 
   const recordingActive = pathname === '/app' || pathname.startsWith('/app/new')
   const routesActive = pathname.startsWith('/app/routes')
   const historyActive = pathname.startsWith('/app/history')
   const userIsAdmin = isAdminUser(user)
-
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#e4e4e8] bg-[#eeeef0] px-4 py-8 md:flex">
@@ -108,7 +102,7 @@ export function AppSidebar() {
           <HelpIcon />
           Βοήθεια
         </button>
-        <button type="button" className={navItemInactive} onClick={handleLogout}>
+        <button type="button" className={navItemInactive} onClick={logout}>
           <LogoutIcon />
           Αποσύνδεση
         </button>

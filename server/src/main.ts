@@ -1,10 +1,15 @@
 import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
+import * as cookieParser from 'cookie-parser'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
+
+  // Parse cookies so that controllers can read req.cookies.
+  // Required for the httpOnly refresh-token cookie (Phase 13+).
+  app.use(cookieParser())
 
   // Allow the Vite dev server (and any configured frontend origin) to call the API.
   // In production this should be locked down to the actual frontend domain.

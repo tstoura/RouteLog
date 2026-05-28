@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext.tsx'
 import { useAdminClub } from '../../admin/AdminClubContext.tsx'
@@ -7,7 +6,6 @@ import { useAdminClub } from '../../admin/AdminClubContext.tsx'
  *  and — for super_admin on mobile — the club selector dropdown. */
 export function AdminTopBar() {
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
   const {
     isSuperAdmin,
     selectedClubId,
@@ -16,11 +14,6 @@ export function AdminTopBar() {
     setSelectedClubId,
     clearSelectedClubId,
   } = useAdminClub()
-
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
-  }
 
   const displayName = user ? `${user.firstName} ${user.lastName}` : '—'
 
@@ -59,7 +52,7 @@ export function AdminTopBar() {
         </div>
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={logout}
           title="Αποσύνδεση"
           aria-label="Αποσύνδεση"
           className="flex items-center gap-1.5 rounded-full border border-[rgba(190,201,198,0.25)] bg-[#f3f3f6] px-3 py-1.5 text-xs font-semibold text-[#64748b] transition hover:bg-[#e8edf2] hover:text-[#022c22]"
