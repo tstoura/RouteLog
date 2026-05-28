@@ -2,6 +2,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { ClipboardList, LayoutDashboard, Users, BookOpen } from 'lucide-react'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
 import { useAuth } from '../../auth/AuthContext.tsx'
+import { useAdminClub } from '../../admin/AdminClubContext.tsx'
 
 function HelpIcon() {
   return (
@@ -41,6 +42,15 @@ export function AdminSidebar() {
   const { pathname } = useLocation()
   const { logout } = useAuth()
   const navigate = useNavigate()
+  const {
+    isSuperAdmin,
+    selectedClubId,
+    availableClubs,
+    isLoadingClubs,
+    clubError,
+    setSelectedClubId,
+    clearSelectedClubId,
+  } = useAdminClub()
 
   const dashActive = pathname === '/admin' || pathname === '/admin/'
   const membersActive = pathname.startsWith('/admin/members')
@@ -53,10 +63,41 @@ export function AdminSidebar() {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#e4e4e8] bg-[#eeeef0] px-4 py-8 md:flex">
-      <div className="mb-8">
+      <div className="mb-6">
         <RouteLogLogoMark to="/admin" size="sidebar" className="w-full" />
         <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#64748b]">Πίνακας διαχείρισης</p>
       </div>
+
+      {/* Club selector — visible only for super_admin on desktop */}
+      {isSuperAdmin && (
+        <div className="mb-4 space-y-1.5">
+          <p className="px-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748b]">
+            Σύλλογος
+          </p>
+          {isLoadingClubs ? (
+            <p className="px-1 text-xs text-[#94a3b8]">Φόρτωση συλλόγων…</p>
+          ) : clubError ? (
+            <p className="px-1 text-xs text-red-500">{clubError}</p>
+          ) : (
+            <select
+              value={selectedClubId ?? ''}
+              onChange={(e) => {
+                if (e.target.value) setSelectedClubId(e.target.value)
+                else clearSelectedClubId()
+              }}
+              className="w-full rounded-lg border border-[#e0e5e3] bg-white px-3 py-2 text-sm text-[#1a1c1e] shadow-sm focus:border-[#00453e] focus:outline-none focus:ring-1 focus:ring-[#00453e]"
+              aria-label="Επιλογή συλλόγου"
+            >
+              <option value="">— Επιλέξτε σύλλογο —</option>
+              {availableClubs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
       <nav className="flex flex-1 flex-col gap-2">
         <NavLink

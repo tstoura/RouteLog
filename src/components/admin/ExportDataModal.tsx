@@ -6,6 +6,7 @@ import { ApiError } from '../../api/client.ts'
 import { useAuth } from '../../auth/AuthContext.tsx'
 import { getClubMembers } from '../../api/auth.ts'
 import type { ClubMember } from '../../api/auth.ts'
+import { useAdminClub } from '../../admin/AdminClubContext.tsx'
 
 type Props = {
   open: boolean
@@ -16,6 +17,10 @@ type Props = {
 
 export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
   const { user } = useAuth()
+  // Resolved club ID from AdminClubContext:
+  //   - club_admin: their club_admin membership clubId (automatic)
+  //   - super_admin: the club they selected from the dropdown
+  const { selectedClubId: resolvedClubId } = useAdminClub()
   const currentYear = new Date().getFullYear()
 
   const [year, setYear] = useState<string>(String(currentYear))
@@ -27,13 +32,6 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState<string | null>(null)
-
-  // Resolve club ID from the admin user's club_admin membership.
-  const adminMembership = user?.memberships.find((m) => m.role === 'club_admin')
-  const resolvedClubId =
-    user?.systemRole === 'super_admin' && !adminMembership
-      ? null
-      : (adminMembership?.clubId ?? null)
 
   // Fetch members when the modal opens and we have a club.
   useEffect(() => {
@@ -83,9 +81,7 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
       return
     }
     if (!resolvedClubId) {
-      setExportError(
-        'Δεν βρέθηκε σύλλογος για εξαγωγή. Ο λογαριασμός super_admin χρειάζεται επιλογή συλλόγου (υλοποίηση σε επόμενη φάση).',
-      )
+      setExportError('Επιλέξτε σύλλογο από την αναπτυσσόμενη λίστα «Σύλλογος» πριν την εξαγωγή.')
       return
     }
     if (membersError) {
@@ -193,11 +189,10 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
             Επιλέξτε τα μέλη των οποίων οι επίσημες δράσεις θα συμπεριληφθούν στην εξαγωγή.
           </p>
 
-          {/* Super admin without club */}
+          {/* No club selected — super_admin must pick one from the sidebar */}
           {!resolvedClubId ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Ο λογαριασμός super_admin χωρίς μέλος συλλόγου δεν μπορεί να εξάγει δεδομένα σε αυτή τη φάση.
-              Η επιλογή συλλόγου για super_admin θα υλοποιηθεί σε επόμενη φάση.
+              Επιλέξτε σύλλογο από την αναπτυσσόμενη λίστα «Σύλλογος» για να φορτωθούν τα μέλη.
             </p>
           ) : membersLoading ? (
             <p className="py-4 text-center text-sm text-[#94a3b8]">Φόρτωση μελών…</p>

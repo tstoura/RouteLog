@@ -3,10 +3,10 @@ import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { ExportDataModal } from '../../components/admin/ExportDataModal.tsx'
-import { useAuth } from '../../auth/AuthContext.tsx'
 import { getClubActivities, getClubMembers } from '../../api/auth.ts'
 import type { AdminActivityItem, ClubMember } from '../../api/auth.ts'
 import { formatAdminDateDisplay } from '../../lib/formatAdminDate.ts'
+import { useAdminClub } from '../../admin/AdminClubContext.tsx'
 
 function OfficialBadge() {
   return (
@@ -43,7 +43,7 @@ function activityUserName(item: AdminActivityItem): string {
 }
 
 export function AdminDashboardPage() {
-  const { user } = useAuth()
+  const { selectedClubId } = useAdminClub()
   const [exportOpen, setExportOpen] = useState(false)
   const [exportModalKey, setExportModalKey] = useState(0)
   const [exportSuccess, setExportSuccess] = useState(false)
@@ -53,26 +53,21 @@ export function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Resolve the admin's club — prefer club_admin membership, fall back to null.
-  const adminClubId = user?.memberships.find((m) => m.role === 'club_admin')?.clubId ?? null
-  const isSuperAdminWithoutAdminClub =
-    user?.systemRole === 'super_admin' && adminClubId === null
-
   useEffect(() => {
-    if (!adminClubId) return
+    if (!selectedClubId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
-    Promise.all([
-      getClubActivities(adminClubId),
-      getClubMembers(adminClubId),
-    ])
+    Promise.all([getClubActivities(selectedClubId), getClubMembers(selectedClubId)])
       .then(([acts, mems]) => {
         setActivities(acts)
         setMembers(mems)
       })
       .catch(() => setError('Σφάλμα κατά τη φόρτωση δεδομένων. Δοκιμάστε ξανά.'))
       .finally(() => setLoading(false))
-  }, [adminClubId])
+  }, [selectedClubId])
 
   const openExportModal = () => {
     setExportModalKey((k) => k + 1)
@@ -84,16 +79,18 @@ export function AdminDashboardPage() {
     window.setTimeout(() => setExportSuccess(false), 6000)
   }
 
-  if (isSuperAdminWithoutAdminClub) {
+  if (!selectedClubId) {
     return (
       <div className="space-y-8">
         <AppPageHeading
           title="Πίνακας Διαχείρισης"
           description="Διαχείριση μελών και επίσημων δράσεων συλλόγου"
         />
-        <Card className="p-6 text-sm text-[#475569]">
-          Η επιλογή συλλόγου για super admin θα υλοποιηθεί σε επόμενη φάση. Ο λογαριασμός σας
-          δεν έχει ρόλο <strong>club_admin</strong> σε κάποιο σύλλογο.
+        <Card className="p-6 text-center text-sm text-[#475569]">
+          <p className="text-base font-semibold text-[#022c22]">Επιλέξτε σύλλογο</p>
+          <p className="mt-1 text-[#64748b]">
+            Χρησιμοποιήστε την αναπτυσσόμενη λίστα «Σύλλογος» για να επιλέξετε σύλλογο.
+          </p>
         </Card>
       </div>
     )

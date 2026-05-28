@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { useAuth } from '../../auth/AuthContext.tsx'
 
@@ -17,6 +17,7 @@ import { useAuth } from '../../auth/AuthContext.tsx'
  */
 export function RequireAdmin({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth()
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -27,7 +28,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   const isAdmin =

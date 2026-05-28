@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom'
+import { NotFoundPage } from '../pages/public/NotFoundPage.tsx'
 import { PublicLayout } from '../components/layout/PublicLayout.tsx'
 import { AppLayout } from '../components/layout/AppLayout.tsx'
 import { LandingPage } from '../pages/public/LandingPage.tsx'
@@ -63,4 +64,6 @@ export const router = createBrowserRouter([
       { path: 'activities', element: <AdminActivitiesPage /> },
     ],
   },
+  // Catch-all: any unmatched path renders the 404 page.
+  { path: '*', element: <NotFoundPage /> },
 ])

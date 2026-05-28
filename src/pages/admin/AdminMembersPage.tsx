@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { Card } from '../../components/ui/Card.tsx'
-import { useAuth } from '../../auth/AuthContext.tsx'
 import { getClubMembers } from '../../api/auth.ts'
 import type { ClubMember } from '../../api/auth.ts'
+import { useAdminClub } from '../../admin/AdminClubContext.tsx'
 
 function roleBadge(role: string) {
   const isAdmin = role === 'club_admin'
@@ -21,26 +21,25 @@ function roleBadge(role: string) {
 }
 
 export function AdminMembersPage() {
-  const { user } = useAuth()
+  const { selectedClubId } = useAdminClub()
   const [query, setQuery] = useState('')
 
   const [members, setMembers] = useState<ClubMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const adminClubId = user?.memberships.find((m) => m.role === 'club_admin')?.clubId ?? null
-  const isSuperAdminWithoutAdminClub =
-    user?.systemRole === 'super_admin' && adminClubId === null
-
   useEffect(() => {
-    if (!adminClubId) return
+    if (!selectedClubId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
-    getClubMembers(adminClubId)
+    getClubMembers(selectedClubId)
       .then(setMembers)
       .catch(() => setError('Σφάλμα κατά τη φόρτωση μελών. Δοκιμάστε ξανά.'))
       .finally(() => setLoading(false))
-  }, [adminClubId])
+  }, [selectedClubId])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -51,12 +50,15 @@ export function AdminMembersPage() {
     })
   }, [query, members])
 
-  if (isSuperAdminWithoutAdminClub) {
+  if (!selectedClubId) {
     return (
       <div className="space-y-6">
         <AppPageHeading title="Μέλη Συλλόγου" description="Κατάλογος μελών" />
-        <Card className="p-6 text-sm text-[#475569]">
-          Η επιλογή συλλόγου για super admin θα υλοποιηθεί σε επόμενη φάση.
+        <Card className="p-6 text-center text-sm text-[#475569]">
+          <p className="text-base font-semibold text-[#022c22]">Επιλέξτε σύλλογο</p>
+          <p className="mt-1 text-[#64748b]">
+            Χρησιμοποιήστε την αναπτυσσόμενη λίστα «Σύλλογος» για να επιλέξετε σύλλογο.
+          </p>
         </Card>
       </div>
     )

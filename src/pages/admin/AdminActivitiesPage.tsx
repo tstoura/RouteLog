@@ -4,10 +4,10 @@ import { Card } from '../../components/ui/Card.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { ExportDataModal } from '../../components/admin/ExportDataModal.tsx'
-import { useAuth } from '../../auth/AuthContext.tsx'
 import { getClubActivities } from '../../api/auth.ts'
 import type { AdminActivityItem } from '../../api/auth.ts'
 import { formatAdminDateDisplay } from '../../lib/formatAdminDate.ts'
+import { useAdminClub } from '../../admin/AdminClubContext.tsx'
 
 function OfficialBadge() {
   return (
@@ -44,7 +44,7 @@ function activityUserName(item: AdminActivityItem): string {
 }
 
 export function AdminActivitiesPage() {
-  const { user } = useAuth()
+  const { selectedClubId } = useAdminClub()
   const [year, setYear] = useState<string>('all')
   const [month, setMonth] = useState<string>('all')
   const [exportOpen, setExportOpen] = useState(false)
@@ -55,19 +55,18 @@ export function AdminActivitiesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const adminClubId = user?.memberships.find((m) => m.role === 'club_admin')?.clubId ?? null
-  const isSuperAdminWithoutAdminClub =
-    user?.systemRole === 'super_admin' && adminClubId === null
-
   useEffect(() => {
-    if (!adminClubId) return
+    if (!selectedClubId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
-    getClubActivities(adminClubId)
+    getClubActivities(selectedClubId)
       .then(setActivities)
       .catch(() => setError('Σφάλμα κατά τη φόρτωση δράσεων. Δοκιμάστε ξανά.'))
       .finally(() => setLoading(false))
-  }, [adminClubId])
+  }, [selectedClubId])
 
   const openExportModal = () => {
     setExportModalKey((k) => k + 1)
@@ -97,15 +96,15 @@ export function AdminActivitiesPage() {
     return list
   }, [activities, year, month])
 
-  if (isSuperAdminWithoutAdminClub) {
+  if (!selectedClubId) {
     return (
       <div className="space-y-6">
-        <AppPageHeading
-          title="Δράσεις Μελών"
-          description="Επίσημες καταγραφές"
-        />
-        <Card className="p-6 text-sm text-[#475569]">
-          Η επιλογή συλλόγου για super admin θα υλοποιηθεί σε επόμενη φάση.
+        <AppPageHeading title="Δράσεις Μελών" description="Επίσημες καταγραφές" />
+        <Card className="p-6 text-center text-sm text-[#475569]">
+          <p className="text-base font-semibold text-[#022c22]">Επιλέξτε σύλλογο</p>
+          <p className="mt-1 text-[#64748b]">
+            Χρησιμοποιήστε την αναπτυσσόμενη λίστα «Σύλλογος» για να επιλέξετε σύλλογο.
+          </p>
         </Card>
       </div>
     )

@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import { getMe, login as apiLogin, register as apiRegister } from '../api/auth.ts'
 import type { AuthUser, LoginPayload, RegisterPayload } from '../api/auth.ts'
 import { clearAccessToken, getAccessToken, setAccessToken } from './tokenStorage.ts'
+import { clearAdminClubId } from '../admin/adminClubStorage.ts'
 
 // ── Context shape ──────────────────────────────────────────────────────────
 
@@ -81,6 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearAccessToken()
+    // Clear the super_admin selected club so the next session starts fresh.
+    clearAdminClubId()
     setUser(null)
   }, [])
 

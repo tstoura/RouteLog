@@ -17,21 +17,33 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { JwtPayload } from '../auth/auth.service'
 
 /**
- * NOTE: All endpoints here are currently UNPROTECTED for development convenience.
- * A later auth/authorization phase will add JWT guards and role checks:
- *   POST /clubs                      → restricted to super_admin
- *   GET  /clubs                      → authenticated users
- *   GET  /clubs/:id                  → authenticated users
- *   GET  /clubs/:id/members          → club_admin of that club or super_admin
- *   POST /clubs/:id/members          → club_admin of that club or super_admin
+ * Auth / Authz summary (Phase 11I):
+ *   POST /clubs                      → JWT required; super_admin only (403 otherwise)
+ *   GET  /clubs                      → public (used by register dropdown)
+ *   GET  /clubs/:id                  → public
+ *   GET  /clubs/:id/members          → JWT required; super_admin OR club_admin of that club
+ *   GET  /clubs/:id/activities       → JWT required; super_admin OR club_admin of that club
+ *   POST /clubs/:id/members          → JWT required; super_admin OR club_admin of that club
  */
 @Controller('clubs')
 export class ClubsController {
   constructor(private readonly clubsService: ClubsService) {}
 
-  /** Create a club — will be restricted to super_admin once auth guards are in place. */
+  /**
+   * Create a new club.
+   *
+   * Auth:  JWT required (401 without token).
+   * Authz: super_admin only (403 for all other roles).
+   */
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateClubDto) {
+  async create(
+    @Body() dto: CreateClubDto,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    if (req.user.systemRole !== 'super_admin') {
+      throw new ForbiddenException('Only super_admin can create clubs.')
+    }
     return this.clubsService.create(dto)
   }
 
@@ -98,14 +110,31 @@ export class ClubsController {
 
   /**
    * Add a user to a club.
+   *
+   * Auth:  JWT required (401 without token).
+   * Authz: super_admin OR club_admin of the target club (403 otherwise).
+   *
    * Body: { userId, role, registryNumber? }
+   * - role must be "member" or "club_admin" (validated by DTO).
+   * - does NOT change the target user's systemRole.
    * Returns a 409 if the user is already a member of this club.
    */
+  @UseGuards(JwtAuthGuard)
   @Post(':id/members')
-  createMembership(
+  async createMembership(
     @Param('id', ParseUUIDPipe) clubId: string,
     @Body() dto: CreateMembershipDto,
+    @Req() req: Request & { user: JwtPayload },
   ) {
+    const caller = req.user
+    if (caller.systemRole !== 'super_admin') {
+      const isAdmin = await this.clubsService.isClubAdmin(caller.sub, clubId)
+      if (!isAdmin) {
+        throw new ForbiddenException(
+          'Only club_admin of this club or super_admin can add members.',
+        )
+      }
+    }
     return this.clubsService.createMembership(clubId, dto)
   }
 }
