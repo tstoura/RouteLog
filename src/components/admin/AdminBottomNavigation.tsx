@@ -1,11 +1,14 @@
-import { NavLink } from 'react-router-dom'
-import { ClipboardList, LayoutDashboard, Users } from 'lucide-react'
+import { NavLink, Link } from 'react-router-dom'
+import { ClipboardList, LayoutDashboard, Users, BookOpen } from 'lucide-react'
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>
   [
     'flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition-colors',
     isActive ? 'text-[#005f56]' : 'text-[#64748b] hover:text-[#022c22]',
   ].join(' ')
+
+const staticItemClass =
+  'flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition-colors text-[#64748b] hover:text-[#022c22]'
 
 /** Admin bottom navigation for `/admin` on small screens. */
 export function AdminBottomNavigation() {
@@ -24,6 +27,12 @@ export function AdminBottomNavigation() {
           <ClipboardList className="size-[22px]" strokeWidth={2} aria-hidden />
           Δράσεις
         </NavLink>
+
+        {/* Cross-navigation back to the member-facing app */}
+        <Link to="/app" className={staticItemClass}>
+          <BookOpen className="size-[22px]" strokeWidth={2} aria-hidden />
+          Ημερολόγιο
+        </Link>
       </div>
     </nav>
   )

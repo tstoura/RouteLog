@@ -11,16 +11,19 @@ export function RockClimbingFormPage() {
   const routeSlug = searchParams.get('route')
   const [showSuccess, setShowSuccess] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const [lastPoints, setLastPoints] = useState<number | null>(null)
 
-  const handleMockSubmitSuccess = () => {
+  const handleSubmitSuccess = (points: number | null) => {
+    setLastPoints(points)
     setShowSuccess(true)
     navigate('/app/new/climbing', { replace: true })
     setFormKey((k) => k + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleBannerNewRoute = () => {
+  const handleNewActivity = () => {
     setShowSuccess(false)
+    setLastPoints(null)
     navigate('/app/new/climbing', { replace: true })
     setFormKey((k) => k + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -51,7 +54,8 @@ export function RockClimbingFormPage() {
       beforeContent={
         showSuccess ? (
           <ActivitySuccessBanner
-            onNewRoute={handleBannerNewRoute}
+            newActivityLabel="Καταχώρηση Νέας Ανάβασης"
+            onNewActivity={handleNewActivity}
             onViewHistory={() => navigate('/app/history')}
           />
         ) : null
@@ -60,7 +64,8 @@ export function RockClimbingFormPage() {
       <RockClimbingActivityForm
         key={`${formKey}-${routeSlug ?? ''}`}
         initialRouteSlug={routeSlug}
-        onMockSubmitSuccess={handleMockSubmitSuccess}
+        onSubmitSuccess={handleSubmitSuccess}
+        lastSubmittedPoints={lastPoints}
         onActivityTabSelect={handleActivityTabSelect}
       />
     </ActivityFormLayout>

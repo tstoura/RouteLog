@@ -1,11 +1,16 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
+import { LayoutDashboard } from 'lucide-react'
 import { ClockNavIcon, PlusNavIcon, RoutesNavIcon } from '../icons/AppNavIcons.tsx'
+import { useAuth, isAdminUser } from '../../auth/AuthContext.tsx'
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>
   [
     'flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition-colors',
     isActive ? 'text-[#005f56]' : 'text-[#64748b] hover:text-[#022c22]',
   ].join(' ')
+
+const staticItemClass =
+  'flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold transition-colors text-[#64748b] hover:text-[#022c22]'
 
 function IconHome({ active }: { active: boolean }) {
   const stroke = active ? '#005f56' : '#64748b'
@@ -35,6 +40,9 @@ function IconNew({ active }: { active: boolean }) {
 
 /** App bottom navigation — same chrome on all `/app` screens (mobile). */
 export function BottomNavigation() {
+  const { user } = useAuth()
+  const userIsAdmin = isAdminUser(user)
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#e2e8e0] bg-[#fbfdfb]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-12px_rgba(2,44,34,0.08)] backdrop-blur md:hidden">
       <div className="mx-auto flex max-w-lg justify-between px-2 pt-1">
@@ -70,6 +78,14 @@ export function BottomNavigation() {
             </>
           )}
         </NavLink>
+
+        {/* Admin cross-link — visible only for club_admin / super_admin */}
+        {userIsAdmin ? (
+          <Link to="/admin" className={staticItemClass}>
+            <LayoutDashboard className="size-[22px]" strokeWidth={2} aria-hidden />
+            Admin
+          </Link>
+        ) : null}
       </div>
     </nav>
   )

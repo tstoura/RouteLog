@@ -1,48 +1,33 @@
+import { Award, MapPin, Mountain, Ruler, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { HistoryCard } from '../../types/historyCard.ts'
+import type { HistoryCard, HistoryInfoIconKey } from '../../types/historyCard.ts'
 
 type Props = {
   entry: HistoryCard
 }
 
-function PinIcon() {
-  return (
-    <svg className="shrink-0 text-[#4c616c]" width="12" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 22s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <circle cx="12" cy="11" r="2" fill="currentColor" />
-    </svg>
-  )
+// ── Icon map ───────────────────────────────────────────────────────────────────
+
+const iconCls = 'size-3.5 shrink-0 text-[#4c616c]'
+
+function RowIcon({ iconKey }: { iconKey: HistoryInfoIconKey }) {
+  switch (iconKey) {
+    case 'pin':
+      return <MapPin className={iconCls} strokeWidth={1.8} aria-hidden />
+    case 'mountain':
+      return <Mountain className={iconCls} strokeWidth={1.8} aria-hidden />
+    case 'ruler':
+      return <Ruler className={iconCls} strokeWidth={1.8} aria-hidden />
+    case 'award':
+      return <Award className={iconCls} strokeWidth={1.8} aria-hidden />
+    case 'users':
+      return <Users className={iconCls} strokeWidth={1.8} aria-hidden />
+    case 'gauge':
+      return null
+  }
 }
 
-function ChartIcon() {
-  return (
-    <svg className="shrink-0 text-[#4c616c]" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 19V5M9 19v-7M14 19V9M19 19v-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function UsersIcon() {
-  return (
-    <svg className="shrink-0 text-[#4c616c]" width="16" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
+// ── Footer icon badges ─────────────────────────────────────────────────────────
 
 function CheckIcon() {
   return (
@@ -61,6 +46,8 @@ function PersonIcon() {
   )
 }
 
+// ── Card ───────────────────────────────────────────────────────────────────────
+
 export function HistoryActivityCard({ entry }: Props) {
   const tagTint =
     entry.kind === 'rock_climbing'
@@ -72,51 +59,66 @@ export function HistoryActivityCard({ entry }: Props) {
   const article = (
     <article className="relative flex h-full min-h-[320px] flex-col justify-between rounded-xl border border-[rgba(190,201,198,0.15)] bg-white p-6 shadow-[0px_0px_0px_1px_rgba(190,201,198,0.15)] transition hover:border-[#00453e]/25 hover:shadow-md">
       <div className="space-y-4">
+        {/* Header: category tag + date */}
         <div className="flex items-start justify-between gap-2">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${tagTint}`}
           >
             {entry.categoryLabel}
           </span>
-          <span className="whitespace-nowrap text-sm font-medium text-[#4c616c]">{entry.dateLabel}</span>
+          <span className="whitespace-nowrap text-sm font-medium text-[#4c616c]">
+            {entry.dateLabel}
+          </span>
         </div>
-        <h2 className="font-heading text-2xl font-bold leading-snug text-[#1a1c1e]">{entry.title}</h2>
+
+        {/* Title + difficulty badge */}
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="font-heading text-2xl font-bold leading-snug text-[#1a1c1e]">
+            {entry.title}
+          </h2>
+          {entry.difficultyBadge ? (
+            <span className="rounded-md bg-[#00453e] px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-white">
+              {entry.difficultyBadge}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Completion style badge (climbing only) */}
         {entry.styleBadge ? (
           <span className="inline-flex w-fit rounded border border-[rgba(100,46,26,0.2)] bg-[rgba(255,181,156,0.3)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#642e1a]">
             {entry.styleBadge}
           </span>
         ) : null}
-        <div className="space-y-3 rounded-lg bg-[#f3f3f6] p-4">
-          <div className="flex items-center gap-3 text-sm font-medium text-[#4c616c]">
-            <PinIcon />
-            <span>{entry.locationLine}</span>
+
+        {/* Info rows */}
+        {entry.infoRows.length > 0 ? (
+          <div className="space-y-2.5 rounded-lg bg-[#f3f3f6] p-4">
+            {entry.infoRows.map((row, i) => (
+              <div key={i} className="flex items-start gap-3 text-sm font-medium text-[#4c616c]">
+                <span className="mt-[1px]">
+                  <RowIcon iconKey={row.iconKey} />
+                </span>
+                <span className="min-w-0 leading-snug">{row.text}</span>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center gap-3 text-sm font-medium text-[#4c616c]">
-            <ChartIcon />
-            <span>{entry.metricLine}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm font-medium text-[#4c616c]">
-            <UsersIcon />
-            <span>{entry.peopleLine}</span>
-          </div>
-        </div>
+        ) : null}
       </div>
+
+      {/* Footer: official/personal badge + chevron */}
       <div className="mt-6 flex items-center justify-between border-t border-[rgba(226,226,229,0.5)] pt-4">
         {entry.status === 'official' ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-[#00453e] px-3 py-1 text-xs font-semibold text-white">
             <CheckIcon />
-            Επίσημη
+            Επίσημη καταγραφή
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-[#e8e8ec] px-3 py-1 text-xs font-semibold text-[#334155]">
             <PersonIcon />
-            Προσωπική
+            Προσωπική καταγραφή
           </span>
         )}
-        <span
-          className={`flex size-9 items-center justify-center rounded-full text-[#64748b] ${entry.detailSlug ? '' : ''}`}
-          aria-hidden
-        >
+        <span className="flex size-9 items-center justify-center rounded-full text-[#64748b]" aria-hidden>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>

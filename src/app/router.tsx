@@ -1,4 +1,6 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import { AuthProvider } from '../auth/AuthContext.tsx'
+import { NotFoundPage } from '../pages/public/NotFoundPage.tsx'
 import { PublicLayout } from '../components/layout/PublicLayout.tsx'
 import { AppLayout } from '../components/layout/AppLayout.tsx'
 import { LandingPage } from '../pages/public/LandingPage.tsx'
@@ -18,39 +20,75 @@ import { AdminLayout } from '../components/admin/AdminLayout.tsx'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.tsx'
 import { AdminMembersPage } from '../pages/admin/AdminMembersPage.tsx'
 import { AdminActivitiesPage } from '../pages/admin/AdminActivitiesPage.tsx'
+import { RequireAuth } from '../components/auth/RequireAuth.tsx'
+import { RequireAdmin } from '../components/auth/RequireAdmin.tsx'
+
+/**
+ * Root layout: renders AuthProvider around the entire route tree.
+ *
+ * Placing AuthProvider here (inside RouterProvider) rather than in main.tsx
+ * allows AuthContext to call useNavigate(), which is required so that logout()
+ * can navigate to "/" after clearing state — without a race against RequireAuth.
+ */
+function RootWithAuth() {
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  )
+}
 
 export const router = createBrowserRouter([
   {
-    element: <PublicLayout />,
+    element: <RootWithAuth />,
     children: [
-      { path: '/', element: <LandingPage /> },
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
-    ],
-  },
-  { path: '/onboarding', element: <OnboardingPage /> },
-  {
-    path: '/app',
-    element: <AppLayout />,
-    children: [
-      { index: true, element: <HomePage /> },
-      { path: 'history/:activitySlug', element: <ActivityDetailPage /> },
-      { path: 'history', element: <HistoryPage /> },
-      { path: 'routes/:routeSlug', element: <RouteDetailPage /> },
-      { path: 'routes', element: <RoutesPage /> },
-      { path: 'new', element: <NewActivityPage /> },
-      { path: 'new/hiking', element: <HikingFormPage /> },
-      { path: 'new/climbing', element: <RockClimbingFormPage /> },
-      { path: 'new/expedition', element: <ExpeditionFormPage /> },
-    ],
-  },
-  {
-    path: '/admin',
-    element: <AdminLayout />,
-    children: [
-      { index: true, element: <AdminDashboardPage /> },
-      { path: 'members', element: <AdminMembersPage /> },
-      { path: 'activities', element: <AdminActivitiesPage /> },
+      {
+        element: <PublicLayout />,
+        children: [
+          { path: '/', element: <LandingPage /> },
+          { path: '/login', element: <LoginPage /> },
+          { path: '/register', element: <RegisterPage /> },
+        ],
+      },
+      { path: '/onboarding', element: <OnboardingPage /> },
+      {
+        path: '/app',
+        element: (
+          <RequireAuth>
+            <AppLayout />
+          </RequireAuth>
+        ),
+        children: [
+          { index: true, element: <HomePage /> },
+          { path: 'history/:activitySlug', element: <ActivityDetailPage /> },
+          { path: 'history', element: <HistoryPage /> },
+          { path: 'routes/:routeSlug', element: <RouteDetailPage /> },
+          { path: 'routes', element: <RoutesPage /> },
+          { path: 'new', element: <NewActivityPage /> },
+          { path: 'new/hiking', element: <HikingFormPage /> },
+          { path: 'new/climbing', element: <RockClimbingFormPage /> },
+          { path: 'new/expedition', element: <ExpeditionFormPage /> },
+          // Unknown /app/* child routes redirect back to /app home.
+          { path: '*', element: <Navigate to="/app" replace /> },
+        ],
+      },
+      {
+        path: '/admin',
+        element: (
+          <RequireAdmin>
+            <AdminLayout />
+          </RequireAdmin>
+        ),
+        children: [
+          { index: true, element: <AdminDashboardPage /> },
+          { path: 'members', element: <AdminMembersPage /> },
+          { path: 'activities', element: <AdminActivitiesPage /> },
+          // Unknown /admin/* child routes redirect back to /admin home.
+          { path: '*', element: <Navigate to="/admin" replace /> },
+        ],
+      },
+      // Catch-all: any unmatched path renders the 404 page.
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])

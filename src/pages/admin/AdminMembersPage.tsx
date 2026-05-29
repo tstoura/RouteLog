@@ -1,21 +1,78 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
-import { mockAdminUsers } from '../../data/mockAdminUsers.ts'
+import { Card } from '../../components/ui/Card.tsx'
+import { getClubMembers } from '../../api/auth.ts'
+import type { ClubMember } from '../../api/auth.ts'
+import { useAdminClub } from '../../admin/AdminClubContext.tsx'
+
+function roleBadge(role: string) {
+  const isAdmin = role === 'club_admin'
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+        isAdmin
+          ? 'bg-[#dbeafe] text-[#1e40af]'
+          : 'bg-[#f1f5f9] text-[#475569]'
+      }`}
+    >
+      {isAdmin ? 'Διαχειριστής' : 'Μέλος'}
+    </span>
+  )
+}
 
 export function AdminMembersPage() {
+  const { selectedClubId } = useAdminClub()
   const [query, setQuery] = useState('')
+
+  const [members, setMembers] = useState<ClubMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedClubId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    getClubMembers(selectedClubId)
+      .then(setMembers)
+      .catch(() => setError('Σφάλμα κατά τη φόρτωση μελών. Δοκιμάστε ξανά.'))
+      .finally(() => setLoading(false))
+  }, [selectedClubId])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return mockAdminUsers
-    return mockAdminUsers.filter(
-      (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+    if (!q) return members
+    return members.filter((m) => {
+      const fullName = `${m.firstName} ${m.lastName}`.toLowerCase()
+      return fullName.includes(q) || m.email.toLowerCase().includes(q)
+    })
+  }, [query, members])
+
+  if (!selectedClubId) {
+    return (
+      <div className="space-y-6">
+        <AppPageHeading title="Μέλη Συλλόγου" description="Κατάλογος μελών" />
+        <Card className="p-6 text-center text-sm text-[#475569]">
+          <p className="text-base font-semibold text-[#022c22]">Επιλέξτε σύλλογο</p>
+          <p className="mt-1 text-[#64748b]">
+            Χρησιμοποιήστε την αναπτυσσόμενη λίστα «Σύλλογος» για να επιλέξετε σύλλογο.
+          </p>
+        </Card>
+      </div>
     )
-  }, [query])
+  }
 
   return (
     <div className="space-y-6">
-      <AppPageHeading title="Μέλη Συλλόγου" description="Κατάλογος μελών με στατιστικά δραστηριότητας (mock)" />
+      <AppPageHeading title="Μέλη Συλλόγου" description="Κατάλογος μελών συλλόγου" />
+
+      {error ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </p>
+      ) : null}
 
       <div>
         <label htmlFor="admin-members-search" className="sr-only">
@@ -32,29 +89,40 @@ export function AdminMembersPage() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-[#eef2f0] bg-white shadow-sm">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="w-full min-w-[480px] text-left text-sm">
           <thead>
             <tr className="border-b border-[#e8eef0] bg-[#f8fafc] text-xs font-bold uppercase tracking-wide text-[#64748b]">
-              <th className="px-4 py-3">Όνομα</th>
+              <th className="px-4 py-3">Ονοματεπώνυμο</th>
               <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3 text-right">Σύνολο Δράσεων</th>
-              <th className="px-4 py-3 text-right">Επίσημες Δράσεις</th>
+              <th className="px-4 py-3">Ρόλος</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
-              <tr key={u.id} className="border-b border-[#f1f5f9] last:border-0">
-                <td className="px-4 py-3 font-medium text-[#022c22]">{u.name}</td>
-                <td className="px-4 py-3 text-[#475569]">{u.email}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[#334155]">{u.totalActivities}</td>
-                <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#00453e]">{u.officialActivities}</td>
+            {loading ? (
+              <tr>
+                <td colSpan={3} className="px-4 py-8 text-center text-sm text-[#64748b]">
+                  Φόρτωση…
+                </td>
               </tr>
-            ))}
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="px-4 py-8 text-center text-sm text-[#64748b]">
+                  Δεν βρέθηκαν αποτελέσματα.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((m) => (
+                <tr key={m.userId} className="border-b border-[#f1f5f9] last:border-0">
+                  <td className="px-4 py-3 font-medium text-[#022c22]">
+                    {[m.firstName, m.lastName].filter(Boolean).join(' ') || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-[#475569]">{m.email}</td>
+                  <td className="px-4 py-3">{roleBadge(m.role)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-        {filtered.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[#64748b]">Δεν βρέθηκαν αποτελέσματα.</p>
-        ) : null}
       </div>
     </div>
   )

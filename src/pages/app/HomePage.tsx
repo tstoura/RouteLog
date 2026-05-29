@@ -3,13 +3,17 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { APP_HOME_ASSETS } from '../../constants/appHomeAssets.ts'
 import { ClockNavIcon, PlusNavIcon, RoutesNavIcon } from '../../components/icons/AppNavIcons.tsx'
+import { useAuth } from '../../auth/AuthContext.tsx'
 
 export function HomePage() {
+  const { user } = useAuth()
+  const firstName = user?.firstName ?? ''
+
   return (
     <div className="flex flex-col gap-12">
       <header className="space-y-2">
         <h1 className="font-heading text-4xl font-extrabold tracking-tight text-[#1a1c1e] md:text-5xl md:leading-[48px] md:tracking-[-1.2px]">
-          Καλώς ήρθες, Νίκο.
+          {firstName ? `Καλώς ήρθες, ${firstName}.` : 'Καλώς ήρθες.'}
         </h1>
         <p className="text-lg font-medium text-[#526772]">Τι θέλεις να κάνεις σήμερα;</p>
       </header>

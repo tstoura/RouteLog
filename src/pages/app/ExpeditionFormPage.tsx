@@ -9,16 +9,19 @@ export function ExpeditionFormPage() {
   const navigate = useNavigate()
   const [showSuccess, setShowSuccess] = useState(false)
   const [formKey, setFormKey] = useState(0)
+  const [lastPoints, setLastPoints] = useState<number | null>(null)
 
-  const handleMockSubmitSuccess = () => {
+  const handleSubmitSuccess = (points: number | null) => {
+    setLastPoints(points)
     setShowSuccess(true)
     navigate('/app/new/expedition', { replace: true })
     setFormKey((k) => k + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleBannerNewRoute = () => {
+  const handleNewActivity = () => {
     setShowSuccess(false)
+    setLastPoints(null)
     navigate('/app/new/expedition', { replace: true })
     setFormKey((k) => k + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -45,7 +48,8 @@ export function ExpeditionFormPage() {
       beforeContent={
         showSuccess ? (
           <ActivitySuccessBanner
-            onNewRoute={handleBannerNewRoute}
+            newActivityLabel="Καταχώρηση Νέας Δράσης"
+            onNewActivity={handleNewActivity}
             onViewHistory={() => navigate('/app/history')}
           />
         ) : null
@@ -53,7 +57,8 @@ export function ExpeditionFormPage() {
     >
       <ExpeditionActivityForm
         key={formKey}
-        onMockSubmitSuccess={handleMockSubmitSuccess}
+        onSubmitSuccess={handleSubmitSuccess}
+        lastSubmittedPoints={lastPoints}
         onActivityTabSelect={handleActivityTabSelect}
       />
     </ActivityFormLayout>

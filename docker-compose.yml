@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: routelog_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: routelog
+      POSTGRES_PASSWORD: routelog
+      POSTGRES_DB: routelog_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routelog -d routelog_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── NestJS API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: routelog_api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://routelog:routelog@db:5432/routelog_dev
+      PORT: 3001
+    depends_on:
+      db:
+        condition: service_healthy
+    # Remove this profile when the Dockerfile is created (Phase 1 runs db only).
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
