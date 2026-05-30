@@ -5,7 +5,7 @@ import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { CreateRouteModal } from '../../components/forms/CreateRouteModal.tsx'
 import { EmptyState } from '../../components/ui/EmptyState.tsx'
 import { Input } from '../../components/ui/Input.tsx'
-import { Select } from '../../components/ui/Select.tsx'
+import { CustomSelect } from '../../components/ui/CustomSelect.tsx'
 import {
   createClimbingRoute,
   listClimbingRoutes,
@@ -336,54 +336,45 @@ export function RoutesPage() {
       {filterKind === 'rock_climbing' && allRoutes.length > 0 ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {fieldOptions.length > 0 ? (
-            <div className="relative min-w-[160px] flex-1 sm:max-w-[240px]">
-              <Select
-                value={dropdownField}
-                onChange={(e) => setDropdownField(e.target.value)}
-                className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
-                aria-label="Πεδίο (φίλτρο)"
-              >
-                <option value="">Πεδίο</option>
-                {fieldOptions.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </Select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
-            </div>
+            <CustomSelect
+              value={dropdownField}
+              onChange={setDropdownField}
+              heightClass="h-11"
+              className="min-w-[160px] flex-1 sm:max-w-[240px]"
+              aria-label="Πεδίο (φίλτρο)"
+              options={[
+                { value: '', label: 'Πεδίο' },
+                ...fieldOptions.map((f) => ({ value: f, label: f })),
+              ]}
+            />
           ) : null}
 
           {mountainOptions.length > 0 ? (
-            <div className="relative min-w-[160px] flex-1 sm:max-w-[240px]">
-              <Select
-                value={dropdownMountain}
-                onChange={(e) => setDropdownMountain(e.target.value)}
-                className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
-                aria-label="Βουνό / Περιοχή (φίλτρο)"
-              >
-                <option value="">Βουνό / Περιοχή</option>
-                {mountainOptions.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </Select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
-            </div>
+            <CustomSelect
+              value={dropdownMountain}
+              onChange={setDropdownMountain}
+              heightClass="h-11"
+              className="min-w-[160px] flex-1 sm:max-w-[240px]"
+              aria-label="Βουνό / Περιοχή (φίλτρο)"
+              options={[
+                { value: '', label: 'Βουνό / Περιοχή' },
+                ...mountainOptions.map((m) => ({ value: m, label: m })),
+              ]}
+            />
           ) : null}
 
           {gradeOptions.length > 0 ? (
-            <div className="relative min-w-[140px] flex-1 sm:max-w-[180px]">
-              <Select
-                value={dropdownGrade}
-                onChange={(e) => setDropdownGrade(e.target.value)}
-                className="h-11 w-full cursor-pointer appearance-none rounded-full border-0 bg-[#e8e8ec] py-2 pl-4 pr-10 text-sm font-medium text-[#1a1c1e]"
-                aria-label="Βαθμός δυσκολίας (φίλτρο)"
-              >
-                <option value="">Βαθμός Δυσκολίας</option>
-                {gradeOptions.map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </Select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">▾</span>
-            </div>
+            <CustomSelect
+              value={dropdownGrade}
+              onChange={setDropdownGrade}
+              heightClass="h-11"
+              className="min-w-[195px] flex-1 sm:max-w-[240px]"
+              aria-label="Βαθμός δυσκολίας (φίλτρο)"
+              options={[
+                { value: '', label: 'Βαθμός Δυσκολίας' },
+                ...gradeOptions.map((g) => ({ value: g, label: g })),
+              ]}
+            />
           ) : null}
         </div>
       ) : null}

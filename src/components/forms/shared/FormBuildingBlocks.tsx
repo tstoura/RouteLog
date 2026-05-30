@@ -4,6 +4,7 @@ import { BarChart3, FileText, Info, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { FormSection } from '../../ui/FormSection.tsx'
 import { Select } from '../../ui/Select.tsx'
+import { CustomSelect } from '../../ui/CustomSelect.tsx'
 import { Textarea } from '../../ui/Textarea.tsx'
 import { Button } from '../../ui/Button.tsx'
 import { Input } from '../../ui/Input.tsx'
@@ -44,19 +45,13 @@ export function SectionIconNotes() {
 type DateInputProps = Omit<ComponentProps<typeof Input>, 'className'> & { className?: string }
 
 export function DateInputWithCalendar({ className = '', ...rest }: DateInputProps) {
+  const today = new Date().toISOString().slice(0, 10)
   return (
-    <div className="relative">
-      <Input {...rest} className={`h-14 pr-12 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] ${className}`} />
-      <span
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#64748b]"
-        aria-hidden
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      </span>
-    </div>
+    <Input
+      {...rest}
+      max={rest.max ?? today}
+      className={`h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] ${className}`}
+    />
   )
 }
 
@@ -160,22 +155,14 @@ export function SelectFieldControlled({
   return (
     <label className="flex flex-col gap-3">
       {label ? <FieldLabel>{label}</FieldLabel> : null}
-      <Select
+      <CustomSelect
         value={value}
+        onChange={onChange}
+        options={options}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:border-[#e2e8e0] disabled:bg-[#f1f5f9] disabled:text-[#334155] disabled:opacity-100 ${selectClassName}`}
-      >
-        {options.map((opt) => (
-          <option
-            key={`${opt.value}-${opt.label}`}
-            value={opt.value}
-            disabled={disabledValues?.includes(opt.value)}
-          >
-            {opt.label}
-          </option>
-        ))}
-      </Select>
+        disabledValues={disabledValues}
+        className={selectClassName}
+      />
     </label>
   )
 }
@@ -290,7 +277,7 @@ export function OfficialParticipationSection({
           aria-label={enabled ? 'Απενεργοποίηση επίσημης καταγραφής' : 'Ενεργοποίηση επίσημης καταγραφής'}
           onClick={handleToggle}
           className={[
-            'relative mt-1 h-6 w-12 shrink-0 rounded-full transition-colors',
+            'relative mt-1 h-6 w-12 shrink-0 cursor-pointer rounded-full transition-colors',
             enabled ? 'bg-[#00453e]' : 'bg-[#cbd5e1]',
           ].join(' ')}
         >

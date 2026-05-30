@@ -9,7 +9,7 @@ import {
 } from '../../constants/climbingFormOptions.ts'
 import { Button } from '../ui/Button.tsx'
 import { Input } from '../ui/Input.tsx'
-import { Select } from '../ui/Select.tsx'
+import { CustomSelect } from '../ui/CustomSelect.tsx'
 
 // ── Styled grade dropdown ──────────────────────────────────────────────────────
 // Custom-styled dropdown that visually matches the app. Selection-only — no
@@ -215,13 +215,12 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
             <label className="space-y-2">
               <FieldLabelReq>Κλίμακα</FieldLabelReq>
               {/* Uses CLIMBING_SCALE_FORM_OPTIONS: French | UIAA | Alpine (no empty placeholder). */}
-              <Select value={scaleKey} onChange={(e) => handleScaleChange(e.target.value)} className="h-12" required>
-                {CLIMBING_SCALE_FORM_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Select>
+              <CustomSelect
+                value={scaleKey}
+                onChange={handleScaleChange}
+                options={CLIMBING_SCALE_FORM_OPTIONS}
+                heightClass="h-12"
+              />
             </label>
             <div className="space-y-2">
               <FieldLabelReq>Βαθμός Δυσκολίας</FieldLabelReq>

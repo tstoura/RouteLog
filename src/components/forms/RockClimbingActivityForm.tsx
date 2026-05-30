@@ -723,7 +723,7 @@ export function RockClimbingActivityForm({
                       type="button"
                       onClick={() => setParticipantsNum((n) => Math.max(1, n - 1))}
                       aria-label="Μείωση αριθμού ατόμων"
-                      className="px-4 py-4 text-lg text-[#64748b]"
+                      className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
                     >
                       −
                     </button>
@@ -738,7 +738,7 @@ export function RockClimbingActivityForm({
                       type="button"
                       onClick={() => setParticipantsNum((n) => n + 1)}
                       aria-label="Αύξηση αριθμού ατόμων"
-                      className="px-4 py-4 text-lg text-[#64748b]"
+                      className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
                     >
                       +
                     </button>

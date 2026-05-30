@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -8,6 +9,7 @@ import {
   MinLength,
 } from 'class-validator'
 import { Transform } from 'class-transformer'
+import { PREFERRED_ACTIVITIES } from '../../users/users.constants'
 
 export class RegisterDto {
   /** Email address. Normalized to lowercase + trimmed before use. */
@@ -40,4 +42,15 @@ export class RegisterDto {
   @IsOptional()
   @IsUUID()
   clubId?: string
+
+  /**
+   * Optional preferred activity type for UI personalisation.
+   * Used only as a convenience shortcut (e.g. direct navigation to preferred form).
+   * Does not restrict what the user can record.
+   * Stored as null when omitted.
+   */
+  @IsOptional()
+  @IsString()
+  @IsIn([...PREFERRED_ACTIVITIES])
+  preferredActivity?: string
 }

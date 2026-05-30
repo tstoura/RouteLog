@@ -1,22 +1,25 @@
+import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
-import { Card } from '../../components/ui/Card.tsx'
 
 const options = [
   {
     to: '/app/new/hiking',
     title: 'Ορειβασία / πεζοπορία',
-    description: 'Καταγραφή διαδρομών και υψομέτρων.',
+    description: 'Για αναβάσεις, πεζοπορικές διαδρομές και ορειβατικές εξορμήσεις.',
+    cta: 'Νέα ορειβατική δράση',
   },
   {
     to: '/app/new/climbing',
     title: 'Αναρρίχηση βράχου',
-    description: 'Κλιμακωτές αναβάσεις και τεχνικά πεδία.',
+    description: 'Για αναρριχητικές διαδρομές με πεδίο, βαθμό δυσκολίας και τεχνικά στοιχεία.',
+    cta: 'Νέα αναρριχητική δράση',
   },
   {
     to: '/app/new/expedition',
-    title: 'Αποστολή εξωτερικού',
-    description: 'Πολυήμερες αποστολές και logistics.',
+    title: 'Αποστολές εξωτερικού',
+    description: 'Για πολυήμερες αποστολές και αναβάσεις σε βουνά του εξωτερικού.',
+    cta: 'Νέα αποστολή',
   },
 ] as const
 
@@ -25,20 +28,27 @@ export function NewActivityPage() {
     <div className="space-y-8">
       <AppPageHeading
         title="Καταγραφή Δράσης"
-        description="Επιλέξτε τύπο δραστηριότητας — οι φόρμες είναι πρωτότυπα πλαίσια."
+        description="Επιλέξτε τον τύπο δραστηριότητας που θέλετε να καταγράψετε. Μπορείτε να δημιουργήσετε επίσημη καταγραφή για τον σύλλογο ή προσωπική καταγραφή για το αρχείο σας."
       />
-      <ul className="space-y-3">
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {options.map((o) => (
-          <li key={o.to}>
-            <Link to={o.to}>
-              <Card className="p-4 transition hover:border-[#005f56]/40 hover:shadow-md">
-                <p className="font-heading font-semibold text-[#022c22]">{o.title}</p>
-                <p className="mt-1 text-sm text-[#64748b]">{o.description}</p>
-              </Card>
-            </Link>
-          </li>
+          <Link
+            key={o.to}
+            to={o.to}
+            className="group flex flex-col justify-between gap-4 rounded-2xl border border-[#e2e8e0] bg-white p-6 shadow-sm transition hover:border-[#00453e]/40 hover:shadow-md"
+          >
+            <div className="space-y-1.5">
+              <p className="font-heading font-semibold text-[#022c22]">{o.title}</p>
+              <p className="text-sm leading-relaxed text-[#64748b]">{o.description}</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-[#005f56] transition group-hover:gap-2.5">
+              <span>{o.cta}</span>
+              <ArrowRight className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+            </div>
+          </Link>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { HistoryActivityCard } from '../../components/history/HistoryActivityCard.tsx'
 import { HistoryPillFilterSection } from '../../components/history/HistoryPillFilterSection.tsx'
 import { Input } from '../../components/ui/Input.tsx'
-import { Select } from '../../components/ui/Select.tsx'
+import { CustomSelect } from '../../components/ui/CustomSelect.tsx'
 import { getActivities, type ActivityListItem } from '../../api/activities.ts'
 import {
   categoryToLabel,
@@ -288,24 +288,17 @@ export function HistoryPage() {
 
       {/* Search and year filter row */}
       <section className="flex flex-col gap-4 rounded-xl bg-transparent sm:flex-row sm:items-stretch">
-        <div className="relative min-w-[150px] flex-1">
-          <Select
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="appearance-none bg-[#e2e2e5] py-3 pl-4 pr-10 text-sm font-medium text-[#1a1c1e] shadow-[0px_0px_0px_1px_rgba(190,201,198,0.3)]"
-            aria-label="Έτος"
-          >
-            <option value="all">Όλα τα έτη</option>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </Select>
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">
-            ▾
-          </span>
-        </div>
+        <CustomSelect
+          value={year}
+          onChange={setYear}
+          heightClass="h-11"
+          className="min-w-[150px] flex-1"
+          aria-label="Έτος"
+          options={[
+            { value: 'all', label: 'Όλα τα έτη' },
+            ...yearOptions.map((y) => ({ value: y, label: y })),
+          ]}
+        />
         <div className="relative min-w-[250px] flex-[1.5]">
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#4c616c]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>

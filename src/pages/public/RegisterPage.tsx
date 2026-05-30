@@ -5,6 +5,7 @@ import { AuthIconCircle } from '../../components/auth/AuthIconCircle.tsx'
 import { AuthLabeledField } from '../../components/auth/AuthLabeledField.tsx'
 import { AuthModalCard } from '../../components/auth/AuthModalCard.tsx'
 import { AuthPageShell } from '../../components/auth/AuthPageShell.tsx'
+import { CustomSelect } from '../../components/ui/CustomSelect.tsx'
 import { useAuth } from '../../auth/AuthContext.tsx'
 import { getClubs, type ClubOption } from '../../api/auth.ts'
 import { ApiError } from '../../api/client.ts'
@@ -19,6 +20,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [selectedClubId, setSelectedClubId] = useState<string>('')
+  const [preferredActivity, setPreferredActivity] = useState<string>('')
   const [clubs, setClubs] = useState<ClubOption[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +62,7 @@ export function RegisterPage() {
         email: email.trim().toLowerCase(),
         password,
         clubId: selectedClubId || undefined,
+        preferredActivity: preferredActivity || undefined,
       })
       navigate('/app', { replace: true })
     } catch (err) {
@@ -97,7 +100,7 @@ export function RegisterPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <AuthLabeledField
             label="ΟΝΟΜΑ"
-            placeholder="π.χ. Ιωάννης"
+            placeholder="Όνομα"
             name="firstName"
             autoComplete="given-name"
             value={firstName}
@@ -106,7 +109,7 @@ export function RegisterPage() {
           />
           <AuthLabeledField
             label="ΕΠΩΝΥΜΟ"
-            placeholder="π.χ. Παπαδόπουλος"
+            placeholder="Επώνυμο"
             name="lastName"
             autoComplete="family-name"
             value={lastName}
@@ -154,22 +157,65 @@ export function RegisterPage() {
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748b]">
             ΣΥΛΛΟΓΟΣ <span className="font-normal normal-case tracking-normal">(προαιρετικό)</span>
           </p>
-          <select
+          <CustomSelect
             value={selectedClubId}
-            onChange={(e) => setSelectedClubId(e.target.value)}
+            onChange={setSelectedClubId}
+            heightClass="h-11"
             disabled={isSubmitting}
-            className="h-11 w-full rounded-lg border border-[#e8eef0] bg-white px-3 text-sm text-[#1a1c1e] shadow-sm focus:border-[#00453e] focus:outline-none focus:ring-1 focus:ring-[#00453e] disabled:opacity-60"
-          >
-            <option value="">Χωρίς σύλλογο / Δεν ανήκω σε σύλλογο</option>
-            {clubs.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'Χωρίς σύλλογο / Δεν ανήκω σε σύλλογο' },
+              ...clubs.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
+        </div>
+
+        {/* Preferred activity */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#64748b]">
+            ΠΡΟΤΙΜΩ ΚΥΡΙΩΣ <span className="font-normal normal-case tracking-normal">(προαιρετικό)</span>
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: '', label: 'Δεν έχω προτίμηση' },
+              { value: 'hiking', label: 'Ορειβασία / πεζοπορία' },
+              { value: 'climbing', label: 'Αναρρίχηση βράχου' },
+              { value: 'expedition', label: 'Αποστολές εξωτερικού' },
+            ].map((opt) => {
+              const selected = preferredActivity === opt.value
+              return (
+                <label
+                  key={opt.value}
+                  className={[
+                    'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition',
+                    selected
+                      ? 'border-[#00453e] bg-[rgba(0,69,62,0.07)] font-semibold text-[#00453e]'
+                      : 'border-[#e2e8f0] bg-[#f8fafc] text-[#475569] hover:border-[#00453e]/40',
+                  ].join(' ')}
+                >
+                  <input
+                    type="radio"
+                    name="preferredActivity"
+                    value={opt.value}
+                    checked={selected}
+                    onChange={() => setPreferredActivity(opt.value)}
+                    disabled={isSubmitting}
+                    className="sr-only"
+                  />
+                  <span
+                    className={[
+                      'flex size-4 shrink-0 items-center justify-center rounded-full border transition',
+                      selected ? 'border-[#00453e] bg-[#00453e]' : 'border-[#cbd5e1] bg-white',
+                    ].join(' ')}
+                  >
+                    {selected ? <span className="size-1.5 rounded-full bg-white" /> : null}
+                  </span>
+                  <span className="leading-tight">{opt.label}</span>
+                </label>
+              )
+            })}
+          </div>
           <p className="text-xs text-[#94a3b8]">
-            Η εγγραφή σε σύλλογο σας ανθέτει ρόλο <strong>μέλους</strong> — όχι διαχειριστή.
-            Μπορείτε να επιλέξετε σύλλογο τώρα ή αργότερα.
+            Επιλέξτε την προτίμησή σας για μια πιο εξατομικευμένη εμπειρία.
           </p>
         </div>
 
