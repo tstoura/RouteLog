@@ -59,6 +59,15 @@ export function RouteDetailPage() {
   const navigate = useNavigate()
   const { routeSlug } = useParams<{ routeSlug: string }>()
 
+  function handleBackToRoutes() {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) {
+      navigate(-1)
+    } else {
+      navigate('/app/routes')
+    }
+  }
+
   const [route, setRoute] = useState<ClimbingRouteResponse | null>(null)
   const [reviews, setReviews] = useState<ActivityReview[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -150,6 +159,7 @@ export function RouteDetailPage() {
       <DetailHeader
         backHref="/app/routes"
         backLabel="Πίσω στις Διαδρομές"
+        onBack={handleBackToRoutes}
         title={r.name}
         fieldLine={r.climbingField}
         mountainLine={r.mountainOrArea}

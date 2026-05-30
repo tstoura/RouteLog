@@ -1,5 +1,6 @@
 import { Award, MapPin, Mountain, Ruler, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { completionTypeBadgeClasses } from '../../lib/activityLabels.ts'
 import type { HistoryCard, HistoryInfoIconKey } from '../../types/historyCard.ts'
 
 type Props = {
@@ -85,7 +86,7 @@ export function HistoryActivityCard({ entry }: Props) {
 
         {/* Completion style badge (climbing only) */}
         {entry.styleBadge ? (
-          <span className="inline-flex w-fit rounded border border-[rgba(100,46,26,0.2)] bg-[rgba(255,181,156,0.3)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#642e1a]">
+          <span className={`inline-flex w-fit rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${completionTypeBadgeClasses(entry.rockCompletion)}`}>
             {entry.styleBadge}
           </span>
         ) : null}

@@ -83,13 +83,77 @@ const URL_FIELD_KEYWORDS: Record<string, string> = {
 
 export function RoutesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [query, setQuery] = useState('')
   const [kindFilter, setKindFilter] = useState<RouteActivityKind>('rock_climbing')
 
-  // Data-driven dropdown filter values (actual route field values, not keys)
-  const [dropdownField, setDropdownField] = useState('')
-  const [dropdownGrade, setDropdownGrade] = useState('')
-  const [dropdownMountain, setDropdownMountain] = useState('')
+  // ── Filter state driven by URL params ─────────────────────────────────────
+  // These four persist across navigation (back/forward) and page refresh.
+  //   search  → free-text search sent to the backend
+  //   sector  → client-side dropdown: climbingField value
+  //   mountain → client-side dropdown: mountainOrArea value
+  //   grade   → client-side dropdown: difficultyLabel value
+  const queryParam = searchParams.get('search') ?? ''
+  const dropdownField = searchParams.get('sector') ?? ''
+  const dropdownMountain = searchParams.get('mountain') ?? ''
+  const dropdownGrade = searchParams.get('grade') ?? ''
+
+  // Controlled input value — mirrors queryParam but updates immediately on keypress,
+  // then debounces the URL update so the backend isn't hammered per keystroke.
+  const [searchInput, setSearchInput] = useState(queryParam)
+
+  // Keep the input in sync when URL changes externally (back/forward navigation).
+  useEffect(() => {
+    setSearchInput(queryParam)
+  }, [queryParam])
+
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (value.trim()) next.set('search', value.trim())
+          else next.delete('search')
+          return next
+        },
+        { replace: true },
+      )
+    }, 350)
+  }
+
+  function setFilterParam(key: string, value: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (value) next.set(key, value)
+        else next.delete(key)
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  function setFieldFilter(value: string) { setFilterParam('sector', value) }
+  function setMountainFilter(value: string) { setFilterParam('mountain', value) }
+  function setGradeFilter(value: string) { setFilterParam('grade', value) }
+
+  function clearAllFilters() {
+    setSearchInput('')
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('search')
+        next.delete('sector')
+        next.delete('mountain')
+        next.delete('grade')
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const [page, setPage] = useState(1)
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -103,8 +167,6 @@ export function RoutesPage() {
 
   // Routes created this session — prepended to the list immediately after creation
   const [createdRoutes, setCreatedRoutes] = useState<Route[]>([])
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── URL params ─────────────────────────────────────────────────────────────
 
@@ -126,9 +188,15 @@ export function RoutesPage() {
 
   const showNewRouteCta = filterKind === 'rock_climbing'
 
-  const clearUrlParams = () => setSearchParams({}, { replace: true })
+  const clearUrlParams = () => {
+    setSearchInput('')
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    setSearchParams({}, { replace: true })
+  }
 
   // ── Fetch from backend ─────────────────────────────────────────────────────
+  // queryParam is already debounced (350 ms) by handleSearchChange, so we fire
+  // the request immediately when it changes rather than adding a second delay.
 
   useEffect(() => {
     if (filterKind !== 'rock_climbing') {
@@ -137,32 +205,22 @@ export function RoutesPage() {
       return
     }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-
-    debounceRef.current = setTimeout(() => {
-      setIsLoading(true)
-      setFetchError(null)
-      listClimbingRoutes({
-        q: query.trim() || undefined,
-        // When coming from the activity form context, pre-filter by field
-        climbingField: urlContextFieldKeyword,
-        take: 100,
+    setIsLoading(true)
+    setFetchError(null)
+    listClimbingRoutes({
+      q: queryParam || undefined,
+      // When coming from the activity form context, pre-filter by field
+      climbingField: urlContextFieldKeyword,
+      take: 100,
+    })
+      .then((results) => {
+        setFetchedRoutes(results.map(routeResponseToRoute))
+        setPage(1)
       })
-        .then((results) => {
-          setFetchedRoutes(results.map(routeResponseToRoute))
-          setPage(1)
-        })
-        .catch(() => setFetchError('Σφάλμα φόρτωσης διαδρομών. Δοκιμάστε ξανά.'))
-        .finally(() => setIsLoading(false))
-    }, 350)
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-    // urlContextFieldKeyword is derived from URL params — intentionally not reactive:
-    // it changes only when user navigates here from the activity form, not on every render.
+      .catch(() => setFetchError('Σφάλμα φόρτωσης διαδρομών. Δοκιμάστε ξανά.'))
+      .finally(() => setIsLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, filterKind, urlContextFieldKeyword])
+  }, [queryParam, filterKind, urlContextFieldKeyword])
 
   // Reset page when filters change
   useEffect(() => {
@@ -279,8 +337,8 @@ export function RoutesPage() {
         </span>
         <Input
           type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={searchInput}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Αναζήτηση διαδρομής"
           className="h-12 w-full rounded-xl border border-[#e8e8ed] bg-white py-3 pl-12 pr-4 text-sm shadow-sm placeholder:text-[#94a3b8]"
           aria-label="Αναζήτηση διαδρομών"
@@ -338,7 +396,7 @@ export function RoutesPage() {
           {fieldOptions.length > 0 ? (
             <CustomSelect
               value={dropdownField}
-              onChange={setDropdownField}
+              onChange={setFieldFilter}
               heightClass="h-11"
               className="min-w-[160px] flex-1 sm:max-w-[240px]"
               aria-label="Πεδίο (φίλτρο)"
@@ -352,7 +410,7 @@ export function RoutesPage() {
           {mountainOptions.length > 0 ? (
             <CustomSelect
               value={dropdownMountain}
-              onChange={setDropdownMountain}
+              onChange={setMountainFilter}
               heightClass="h-11"
               className="min-w-[160px] flex-1 sm:max-w-[240px]"
               aria-label="Βουνό / Περιοχή (φίλτρο)"
@@ -366,7 +424,7 @@ export function RoutesPage() {
           {gradeOptions.length > 0 ? (
             <CustomSelect
               value={dropdownGrade}
-              onChange={setDropdownGrade}
+              onChange={setGradeFilter}
               heightClass="h-11"
               className="min-w-[195px] flex-1 sm:max-w-[240px]"
               aria-label="Βαθμός δυσκολίας (φίλτρο)"
@@ -383,17 +441,17 @@ export function RoutesPage() {
       {(dropdownField || dropdownGrade || dropdownMountain) ? (
         <div className="flex flex-wrap items-center gap-2">
           {dropdownField ? (
-            <FilterChip label={dropdownField} onRemove={() => setDropdownField('')} />
+            <FilterChip label={dropdownField} onRemove={() => setFieldFilter('')} />
           ) : null}
           {dropdownMountain ? (
-            <FilterChip label={dropdownMountain} onRemove={() => setDropdownMountain('')} />
+            <FilterChip label={dropdownMountain} onRemove={() => setMountainFilter('')} />
           ) : null}
           {dropdownGrade ? (
-            <FilterChip label={dropdownGrade} onRemove={() => setDropdownGrade('')} />
+            <FilterChip label={dropdownGrade} onRemove={() => setGradeFilter('')} />
           ) : null}
           <button
             type="button"
-            onClick={() => { setDropdownField(''); setDropdownMountain(''); setDropdownGrade('') }}
+            onClick={clearAllFilters}
             className="text-xs text-[#64748b] hover:underline cursor-pointer"
           >
             Καθαρισμός φίλτρων

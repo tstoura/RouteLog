@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BarChart3, Check, Info, Lock, MessageSquare, Users } from 'lucide-react'
 import { getActivityById, type ActivityListItem } from '../../api/activities.ts'
 import {
   categoryToLabel,
   climbingScaleDisplayLabel,
+  completionTypeBadgeClasses,
   completionTypeToLabel,
   difficultyGradeToLabel,
   fieldTypeToLabel,
@@ -92,7 +93,8 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
   // ── Rock Climbing ────────────────────────────────────────────────────────────
   if (item.category === 'climbing' && item.climbingDetail) {
     const c = item.climbingDetail
-    const grade = c.mappedGrade ?? c.difficultyGrade
+    // Prefer the original submitted grade; mappedGrade is for scoring only
+    const grade = c.difficultyGrade ?? c.mappedGrade
     const gradeDisplay = grade ?? c.mixedClimbing ?? '—'
     const scaleDisplay = c.difficultyScale
       ? climbingScaleDisplayLabel(c.difficultyScale)
@@ -116,7 +118,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       { label: 'Βαθμός', value: gradeDisplay },
     ]
     if (c.completionType) {
-      technical.push({ label: 'Στυλ', value: completionTypeToLabel(c.completionType) })
+      technical.push({ label: 'Τρόπος Ολοκλήρωσης', value: completionTypeToLabel(c.completionType) })
     }
 
     const partnersList = c.participantsText
@@ -136,6 +138,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       dateLabel,
       status,
       styleBadge: c.completionType ? completionTypeToLabel(c.completionType) : undefined,
+      styleCompletionType: c.completionType ?? undefined,
       basics,
       technical,
       participation: {
@@ -215,7 +218,20 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export function ActivityDetailPage() {
+  const navigate = useNavigate()
   const { activitySlug } = useParams<{ activitySlug: string }>()
+
+  function handleBack() {
+    // window.history.state.idx is set by React Router v6 to track stack position.
+    // If idx > 0 the user navigated here from within the app — go back to preserve filters.
+    // If idx is 0 or missing they opened the URL directly — fall back to /app/history.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) {
+      navigate(-1)
+    } else {
+      navigate('/app/history')
+    }
+  }
 
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -270,7 +286,13 @@ export function ActivityDetailPage() {
 
   const badges = (
     <>
-      {data.styleBadge ? <DetailBadge variant="style">{data.styleBadge}</DetailBadge> : null}
+      {data.styleBadge ? (
+        <span
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${completionTypeBadgeClasses(data.styleCompletionType)}`}
+        >
+          {data.styleBadge}
+        </span>
+      ) : null}
       {data.status === 'official' ? (
         <DetailBadge variant="official" icon={<Check className="size-3.5" strokeWidth={2.5} aria-hidden />}>
           Επίσημη
@@ -309,6 +331,7 @@ export function ActivityDetailPage() {
       <DetailHeader
         backHref="/app/history"
         backLabel="Πίσω στο Ιστορικό"
+        onBack={handleBack}
         title={data.title}
         fieldLine={data.fieldLabel}
         mountainLine={data.mountainLabel}

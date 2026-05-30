@@ -259,7 +259,7 @@ export const MIXED_CLIMBING_OPTIONS: ClimbingSelectOption[] = [
 
 /** Helper text shown below the ΜΙΚΤΑ field. */
 export const MIXED_CLIMBING_HELPER =
-  'Βαθμός μικτής ή παγοαναρριχητικής διαδρομής, π.χ. M4 ή WI4.'
+  'Βαθμός μικτής ή παγοαναρριχητικής διαδρομής.'
 
 // ── Completion type ────────────────────────────────────────────────────────────
 

@@ -110,6 +110,27 @@ export function completionTypeToLabel(ct: string): string {
 }
 
 /**
+ * Returns Tailwind class string for a completion type badge.
+ * Consistent across HistoryActivityCard, ClimbingSessionGroup, and ActivityDetailPage.
+ *   flash     → amber
+ *   on_sight  → sky/blue
+ *   red_point → orange
+ *   other     → neutral gray
+ */
+export function completionTypeBadgeClasses(ct: string | undefined): string {
+  switch (ct) {
+    case 'flash':
+      return 'border border-amber-200 bg-amber-50 text-amber-800'
+    case 'on_sight':
+      return 'border border-sky-200 bg-sky-50 text-sky-800'
+    case 'red_point':
+      return 'border border-orange-200 bg-orange-50 text-orange-800'
+    default:
+      return 'border border-[#e2e2e6] bg-[#f0f0f3] text-[#475569]'
+  }
+}
+
+/**
  * Returns the Greek UI label for a difficulty value **only if** it is a
  * known-valid option from the UI option lists.
  *

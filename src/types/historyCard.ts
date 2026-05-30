@@ -36,4 +36,11 @@ export type HistoryCard = {
    * If omitted, derive from `styleBadge` via `getRockCompletionKind` in `historyRockFilters`.
    */
   rockCompletion?: 'on_sight' | 'flash' | 'red_point' | 'repeat' | 'incomplete'
+  /**
+   * Rock climbing only: used for visual session grouping on the History page.
+   * Value: "climbingField|mountainOrArea".
+   * Cards sharing the same dateLabel + climbingSessionKey are grouped into
+   * a compact session container (grouping only when 2+ cards match).
+   */
+  climbingSessionKey?: string
 }
