@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { HistoryActivityCard } from '../../components/history/HistoryActivityCard.tsx'
+import { ClimbingSessionGroup } from '../../components/history/ClimbingSessionGroup.tsx'
 import { HistoryPillFilterSection } from '../../components/history/HistoryPillFilterSection.tsx'
 import { Input } from '../../components/ui/Input.tsx'
-import { Select } from '../../components/ui/Select.tsx'
+import { CustomSelect } from '../../components/ui/CustomSelect.tsx'
 import { getActivities, type ActivityListItem } from '../../api/activities.ts'
 import {
   categoryToLabel,
@@ -96,8 +97,8 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
 
   if (item.category === 'climbing' && item.climbingDetail) {
     const c = item.climbingDetail
-    // Badge: prefer mappedGrade, then difficultyGrade, then mixedClimbing
-    const gradeBadge = c.mappedGrade ?? c.difficultyGrade ?? c.mixedClimbing ?? undefined
+    // Badge: prefer difficultyGrade (what the user submitted), then mixedClimbing, then mappedGrade as last resort
+    const gradeBadge = c.difficultyGrade ?? c.mixedClimbing ?? c.mappedGrade ?? undefined
     const rows: HistoryInfoRow[] = [
       { iconKey: 'pin', text: `${c.climbingField} · ${c.mountainOrArea}` },
     ]
@@ -115,6 +116,7 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
       infoRows: rows, status, detailSlug: item.id,
       rockCompletion: (c.completionType ?? undefined) as HistoryCard['rockCompletion'],
       styleBadge: c.completionType ? completionTypeToLabel(c.completionType) : undefined,
+      climbingSessionKey: `${c.climbingField}|${c.mountainOrArea}`,
     }
   }
 
@@ -149,6 +151,85 @@ function kindToBackendCategory(kind: ActivityKind | 'all'): string | undefined {
   if (kind === 'all') return undefined
   if (kind === 'rock_climbing') return 'climbing'
   return kind
+}
+
+// ── Climbing session grouping ──────────────────────────────────────────────────
+
+type SingleCardItem = { type: 'card'; card: HistoryCard }
+type GroupItem = {
+  type: 'group'
+  key: string
+  dateLabel: string
+  field: string
+  area: string
+  cards: HistoryCard[]
+}
+type RenderItem = SingleCardItem | GroupItem
+
+/**
+ * Converts a flat filtered list of HistoryCards into render items.
+ * Rock climbing cards sharing the same dateLabel + climbingSessionKey are
+ * collapsed into a single GroupItem (only when 2+ cards match).
+ * All other cards are wrapped as SingleCardItem unchanged.
+ * Original sort order is preserved — groups appear at the position of their
+ * first card.
+ */
+function buildRenderItems(cards: HistoryCard[]): RenderItem[] {
+  // Pass 1: count cards per climbing session key
+  const groupSizes = new Map<string, number>()
+  for (const c of cards) {
+    if (c.kind === 'rock_climbing' && c.climbingSessionKey) {
+      const gk = `${c.dateLabel}||${c.climbingSessionKey}`
+      groupSizes.set(gk, (groupSizes.get(gk) ?? 0) + 1)
+    }
+  }
+
+  // Pass 2: collect all cards for each multi-card group key
+  const groupCards = new Map<string, HistoryCard[]>()
+  for (const c of cards) {
+    if (c.kind === 'rock_climbing' && c.climbingSessionKey) {
+      const gk = `${c.dateLabel}||${c.climbingSessionKey}`
+      if ((groupSizes.get(gk) ?? 0) >= 2) {
+        if (!groupCards.has(gk)) groupCards.set(gk, [])
+        groupCards.get(gk)!.push(c)
+      }
+    }
+  }
+
+  // Pass 3: build render items in original order
+  const result: RenderItem[] = []
+  const inserted = new Set<string>()
+
+  for (const c of cards) {
+    if (c.kind !== 'rock_climbing' || !c.climbingSessionKey) {
+      result.push({ type: 'card', card: c })
+      continue
+    }
+
+    const gk = `${c.dateLabel}||${c.climbingSessionKey}`
+    const size = groupSizes.get(gk) ?? 0
+
+    if (size < 2) {
+      result.push({ type: 'card', card: c })
+      continue
+    }
+
+    if (!inserted.has(gk)) {
+      inserted.add(gk)
+      const [field = '', area = ''] = c.climbingSessionKey.split('|')
+      result.push({
+        type: 'group',
+        key: gk,
+        dateLabel: c.dateLabel,
+        field,
+        area,
+        cards: groupCards.get(gk)!,
+      })
+    }
+    // Subsequent cards of the same group are absorbed — skip them.
+  }
+
+  return result
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────
@@ -203,7 +284,7 @@ export function HistoryPage() {
     return [...years].sort((a, b) => b.localeCompare(a))
   }, [allCards])
 
-  // Client-side filter on top of loaded data
+  // Client-side filter on top of loaded data — result is a flat list of HistoryCards
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     const rcFilter: RockCompletionFilterKey =
@@ -230,6 +311,9 @@ export function HistoryPage() {
         return matchesRockCompletionFilter(c, rcFilter) && matchesEntryStatusFilter(c, stFilter)
       })
   }, [allCards, activeKind, query, year, rockCompletion, entryStatus])
+
+  // Group climbing sessions — computed from filtered list
+  const renderItems = useMemo(() => buildRenderItems(filtered), [filtered])
 
   return (
     <div className="flex flex-col gap-8">
@@ -288,24 +372,17 @@ export function HistoryPage() {
 
       {/* Search and year filter row */}
       <section className="flex flex-col gap-4 rounded-xl bg-transparent sm:flex-row sm:items-stretch">
-        <div className="relative min-w-[150px] flex-1">
-          <Select
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="appearance-none bg-[#e2e2e5] py-3 pl-4 pr-10 text-sm font-medium text-[#1a1c1e] shadow-[0px_0px_0px_1px_rgba(190,201,198,0.3)]"
-            aria-label="Έτος"
-          >
-            <option value="all">Όλα τα έτη</option>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </Select>
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#4c616c]">
-            ▾
-          </span>
-        </div>
+        <CustomSelect
+          value={year}
+          onChange={setYear}
+          heightClass="h-11"
+          className="min-w-[150px] flex-1"
+          aria-label="Έτος"
+          options={[
+            { value: 'all', label: 'Όλα τα έτη' },
+            ...yearOptions.map((y) => ({ value: y, label: y })),
+          ]}
+        />
         <div className="relative min-w-[250px] flex-[1.5]">
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#4c616c]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -351,11 +428,22 @@ export function HistoryPage() {
             {filtered.length} {filtered.length === 1 ? 'καταχώρηση' : 'καταχωρήσεις'}
           </p>
           <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((entry) => (
-              <li key={entry.id}>
-                <HistoryActivityCard entry={entry} />
-              </li>
-            ))}
+            {renderItems.map((item) =>
+              item.type === 'card' ? (
+                <li key={item.card.id}>
+                  <HistoryActivityCard entry={item.card} />
+                </li>
+              ) : (
+                <li key={item.key}>
+                  <ClimbingSessionGroup
+                    dateLabel={item.dateLabel}
+                    field={item.field}
+                    area={item.area}
+                    cards={item.cards}
+                  />
+                </li>
+              )
+            )}
           </ul>
         </>
       )}

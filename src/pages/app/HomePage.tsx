@@ -4,10 +4,13 @@ import { Link } from 'react-router-dom'
 import { APP_HOME_ASSETS } from '../../constants/appHomeAssets.ts'
 import { ClockNavIcon, PlusNavIcon, RoutesNavIcon } from '../../components/icons/AppNavIcons.tsx'
 import { useAuth } from '../../auth/AuthContext.tsx'
+import { getPreferredActivityPath } from '../../lib/preferredActivityPath.ts'
 
 export function HomePage() {
   const { user } = useAuth()
   const firstName = user?.firstName ?? ''
+
+  const recordingDest = getPreferredActivityPath(user?.preferredActivity)
 
   return (
     <div className="flex flex-col gap-12">
@@ -20,7 +23,7 @@ export function HomePage() {
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:grid-rows-[minmax(280px,auto)]">
         <Link
-          to="/app/new"
+          to={recordingDest}
           className="relative flex min-h-[280px] flex-col justify-between overflow-hidden rounded-2xl p-8 text-left shadow-[0px_20px_25px_-5px_rgba(0,69,62,0.1),0px_8px_10px_-6px_rgba(0,69,62,0.1)] lg:col-span-6"
           style={{
             backgroundImage: 'linear-gradient(135deg, rgb(0, 69, 62) 0%, rgb(0, 95, 86) 100%)',
@@ -111,21 +114,21 @@ export function HomePage() {
                 Σκι
               </>
             }
-            cta="Δες διαδρομές"
+            cta="Νέα ορειβατική δράση"
           />
           <CategoryTile
-            to="/app/new/climbing"
+            to="/app/routes?category=climbing"
             image={APP_HOME_ASSETS.categoryClimbing}
             eyebrow="ΔΡΑΣΤΗΡΙΟΤΗΤΑ"
             title="Αναρρίχηση Βράχου"
-            cta="Δες πεδία & διαδρομές"
+            cta="Δες διαδρομές"
           />
           <CategoryTile
             to="/app/new/expedition"
             image={APP_HOME_ASSETS.categoryExpedition}
             eyebrow="ΔΡΑΣΤΗΡΙΟΤΗΤΑ"
             title="Αποστολές Εξωτερικού"
-            cta="Δες καταγραφές"
+            cta="Νέα αποστολή"
           />
         </div>
       </section>

@@ -31,6 +31,7 @@ export type AuthUserResponse = {
   firstName: string
   lastName: string
   systemRole: string
+  preferredActivity: string | null
   onboardingCompleted: boolean
   memberships: Array<{
     clubId: string
@@ -95,7 +96,7 @@ export class AuthService {
         lastName: dto.lastName,
         // systemRole is always "user" at registration.
         systemRole: 'user',
-        preferredActivity: null,
+        preferredActivity: dto.preferredActivity ?? null,
         onboardingCompleted: false,
         ...(dto.clubId
           ? {
@@ -172,6 +173,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       systemRole: user.systemRole,
+      preferredActivity: user.preferredActivity,
       onboardingCompleted: user.onboardingCompleted,
       memberships: memberships.map((m) => ({
         clubId: m.clubId,
@@ -249,6 +251,7 @@ export class AuthService {
       firstName: userRecord.firstName,
       lastName: userRecord.lastName,
       systemRole: userRecord.systemRole,
+      preferredActivity: userRecord.preferredActivity,
       onboardingCompleted: userRecord.onboardingCompleted,
       memberships: memberships.map((m) => ({
         clubId: m.clubId,

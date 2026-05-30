@@ -82,7 +82,7 @@ export function RouteCombobox({
           onFocus={() => setOpen(true)}
           placeholder="Αναζητήστε υπάρχουσα διαδρομή"
           autoComplete="off"
-          className="w-full rounded-lg border border-[#e2e8e0] bg-white py-3 pl-11 pr-3 text-sm text-[#1a1c1e] outline-none ring-[#005f56] transition placeholder:text-xs placeholder:text-[#94a3b8] focus:border-[#005f56] focus:ring-2"
+          className="w-full rounded-lg border border-[#e2e8e0] bg-white py-3 pl-11 pr-3 text-sm text-[#1a1c1e] outline-none ring-[#005f56] transition placeholder:text-sm placeholder:text-[#94a3b8] focus:border-[#005f56] focus:ring-2"
         />
       </div>
 
@@ -102,7 +102,7 @@ export function RouteCombobox({
                   close()
                   onEmptyCreateRoute()
                 }}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-[#bbf7d0] bg-[#ecfdf5] px-4 py-3 text-sm font-semibold text-[#065f46] transition hover:bg-[#d1fae5]"
+                className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#bbf7d0] bg-[#ecfdf5] px-4 py-3 text-sm font-semibold text-[#065f46] transition hover:bg-[#d1fae5]"
               >
                 <PlusCircle className="size-5 shrink-0" strokeWidth={2} aria-hidden />
                 Δημιουργία νέας διαδρομής
@@ -119,7 +119,7 @@ export function RouteCombobox({
                     role="option"
                     aria-selected={active}
                     className={[
-                      'flex w-full flex-col gap-0.5 px-4 py-3 text-left text-sm transition',
+                      'flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left text-sm transition',
                       active ? 'bg-[#f0fdf4]' : 'hover:bg-[#f8fafc]',
                     ].join(' ')}
                     onMouseEnter={() => setActiveIndex(idx)}
@@ -141,7 +141,7 @@ export function RouteCombobox({
                     close()
                     onFooterNewRoute()
                   }}
-                  className="w-full rounded-lg bg-[rgba(0,69,62,0.08)] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-[#00453e] transition hover:bg-[rgba(0,69,62,0.14)]"
+                  className="w-full cursor-pointer rounded-lg bg-[rgba(0,69,62,0.08)] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-[#00453e] transition hover:bg-[rgba(0,69,62,0.14)]"
                 >
                   + ΝΕΑ ΔΙΑΔΡΟΜΗ
                 </button>

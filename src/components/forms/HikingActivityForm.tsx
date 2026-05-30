@@ -164,9 +164,12 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                 <Input
                   value={mountain}
                   onChange={(e) => setMountain(e.target.value)}
-                  placeholder="Το βουνό στο οποίο πραγματοποιήθηκε η ανάβαση."
+                  placeholder="Βουνό"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
+                <FieldHints>
+                  <FieldHint>Το βουνό στο οποίο πραγματοποιήθηκε η ανάβαση.</FieldHint>
+                </FieldHints>
               </label>
 
               <label className="flex flex-col gap-3">
@@ -174,9 +177,12 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                 <Input
                   value={startPoint}
                   onChange={(e) => setStartPoint(e.target.value)}
-                  placeholder="Το σημείο εκκίνησης της διαδρομής."
+                  placeholder="Αφετηρία"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
+                <FieldHints>
+                  <FieldHint>Το σημείο εκκίνησης της διαδρομής.</FieldHint>
+                </FieldHints>
               </label>
 
               <label className="flex flex-col gap-3">
@@ -184,9 +190,12 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                 <Input
                   value={endPoint}
                   onChange={(e) => setEndPoint(e.target.value)}
-                  placeholder="Το σημείο στο οποίο ολοκληρώθηκε η διαδρομή."
+                  placeholder="Κορυφή ή τερματισμός"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
+                <FieldHints>
+                  <FieldHint>Το σημείο στο οποίο ολοκληρώθηκε η διαδρομή.</FieldHint>
+                </FieldHints>
               </label>
             </div>
           </FormSection>
@@ -200,9 +209,12 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                   min="0"
                   value={maxAltitude}
                   onChange={(e) => setMaxAltitude(e.target.value)}
-                  placeholder="Το μέγιστο υψόμετρο της ανάβασης."
+                  placeholder="Υψόμετρο"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
+                <FieldHints>
+                  <FieldHint>Το μέγιστο υψόμετρο της ανάβασης.</FieldHint>
+                </FieldHints>
               </label>
 
               <label className="flex flex-col gap-3">
@@ -227,7 +239,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                   min="0"
                   value={distanceLength}
                   onChange={(e) => setDistanceLength(e.target.value)}
-                  placeholder="Το συνολικό μήκος της διαδρομής."
+                  placeholder="Μήκος"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
                 <FieldHints>
@@ -271,7 +283,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                   type="button"
                   onClick={handleDecrement}
                   aria-label="Μείωση αριθμού ατόμων"
-                  className="px-4 py-4 text-lg text-[#64748b]"
+                  className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
                 >
                   −
                 </button>
@@ -286,7 +298,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                   type="button"
                   onClick={handleIncrement}
                   aria-label="Αύξηση αριθμού ατόμων"
-                  className="px-4 py-4 text-lg text-[#64748b]"
+                  className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
                 >
                   +
                 </button>

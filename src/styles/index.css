@@ -11,3 +11,60 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Number input: hide browser spinner arrows ────────────────────────────── */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ── Date input: style the native calendar picker icon ───────────────────── */
+input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+}
+input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
+}
+
+/* ── Select: pointer cursor on all selects ───────────────────────────────── */
+select {
+  cursor: pointer;
+}
+
+/* ── Placeholder: ellipsis when text overflows the input ─────────────────── */
+input::placeholder,
+textarea::placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Buttons: always show pointer cursor; disabled shows not-allowed ─────── */
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* ── Password inputs: suppress browser-native reveal / clear decorations ─── */
+/* Edge / IE */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+/* Chrome autofill suggestion overlays */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  height: 0;
+  width: 0;
+  margin: 0;
+}

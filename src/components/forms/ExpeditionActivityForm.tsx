@@ -207,7 +207,7 @@ export function ExpeditionActivityForm({
                 <Input
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  placeholder="π.χ. Νεπάλ"
+                  placeholder="Χώρα"
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -220,7 +220,7 @@ export function ExpeditionActivityForm({
                 <Input
                   value={mountainRange}
                   onChange={(e) => setMountainRange(e.target.value)}
-                  placeholder="π.χ. Ιμαλάια"
+                  placeholder="Οροσειρά"
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -233,7 +233,7 @@ export function ExpeditionActivityForm({
                 <Input
                   value={mountain}
                   onChange={(e) => setMountain(e.target.value)}
-                  placeholder="π.χ. Mont Blanc"
+                  placeholder="Βουνό"
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -246,7 +246,7 @@ export function ExpeditionActivityForm({
                 <Input
                   value={summit}
                   onChange={(e) => setSummit(e.target.value)}
-                  placeholder="π.χ. Κορυφή 5364 m"
+                  placeholder="Κορυφή"
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -259,7 +259,7 @@ export function ExpeditionActivityForm({
                 <Input
                   value={routeName}
                   onChange={(e) => setRouteName(e.target.value)}
-                  placeholder="π.χ. Base Camp Trek"
+                  placeholder="Διαδρομή"
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -298,7 +298,7 @@ export function ExpeditionActivityForm({
                   min="1"
                   value={altitude}
                   onChange={(e) => setAltitude(e.target.value)}
-                  placeholder="π.χ. 5364"
+                  placeholder="Μέγιστο υψόμετρο"
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -313,7 +313,7 @@ export function ExpeditionActivityForm({
                   min="0"
                   value={totalElevationGain}
                   onChange={(e) => setTotalElevationGain(e.target.value)}
-                  placeholder="π.χ. 1200"
+                  placeholder="Σ.Υ.Α."
                   className={expeditionInputClass}
                 />
                 <FieldHints>
@@ -347,7 +347,7 @@ export function ExpeditionActivityForm({
                     type="button"
                     onClick={handleDecrement}
                     aria-label="Μείωση αριθμού ατόμων"
-                    className="px-4 py-4 text-lg text-[#64748b]"
+                    className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
                   >
                     −
                   </button>
@@ -362,7 +362,7 @@ export function ExpeditionActivityForm({
                     type="button"
                     onClick={handleIncrement}
                     aria-label="Αύξηση αριθμού ατόμων"
-                    className="px-4 py-4 text-lg text-[#64748b]"
+                    className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
                   >
                     +
                   </button>

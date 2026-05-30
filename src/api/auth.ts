@@ -14,6 +14,8 @@ export type AuthUser = {
   firstName: string
   lastName: string
   systemRole: string
+  /** Convenience shortcut for direct form navigation. One of 'hiking' | 'climbing' | 'expedition' | null. */
+  preferredActivity: string | null
   onboardingCompleted: boolean
   memberships: AuthMembership[]
 }
@@ -45,6 +47,8 @@ export type RegisterPayload = {
   password: string
   /** Optional: join an existing club as a regular member. */
   clubId?: string
+  /** Optional: preferred activity type for UI personalisation. One of 'hiking' | 'climbing' | 'expedition'. */
+  preferredActivity?: string
 }
 
 export type LoginPayload = {

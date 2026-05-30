@@ -14,6 +14,8 @@ export type ActivityDetailModel = {
   mountainLabel: string
   dateLabel: string
   styleBadge?: string
+  /** Rock climbing only: raw completion type key for badge color lookup. */
+  styleCompletionType?: string
   status: HistoryStatus
   basics: DetailInfoRow[]
   technical: DetailInfoRow[]

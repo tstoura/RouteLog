@@ -5,6 +5,8 @@ import { MapPin, Pencil, Trash2 } from 'lucide-react'
 type Props = {
   backHref: string
   backLabel: string
+  /** When provided, clicking the back link calls this instead of navigating to backHref. */
+  onBack?: () => void
   title: string
   fieldLine: string
   mountainLine: string
@@ -22,6 +24,7 @@ type Props = {
 export function DetailHeader({
   backHref,
   backLabel,
+  onBack,
   title,
   fieldLine,
   mountainLine,
@@ -33,15 +36,22 @@ export function DetailHeader({
 }: Props) {
   const displayHero = Boolean(heroImageSrc) && showHeroImage !== false
 
+  const backLinkClasses =
+    'inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-[#005f86] transition hover:text-[#00453e]'
+
   return (
     <header className="space-y-4 border-b border-[#e8eeeb] pb-6">
-      <Link
-        to={backHref}
-        className="inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-[#005f86] transition hover:text-[#00453e]"
-      >
-        <span aria-hidden>←</span>
-        {backLabel}
-      </Link>
+      {onBack ? (
+        <button type="button" onClick={onBack} className={backLinkClasses}>
+          <span aria-hidden>←</span>
+          {backLabel}
+        </button>
+      ) : (
+        <Link to={backHref} className={backLinkClasses}>
+          <span aria-hidden>←</span>
+          {backLabel}
+        </Link>
+      )}
 
       {displayHero ? (
         <div className="overflow-hidden rounded-xl border border-[#e8eef0] shadow-sm">

@@ -154,7 +154,7 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#022c22]"
+            className="cursor-pointer rounded-lg p-2 text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#022c22]"
             aria-label="Κλείσιμο"
           >
             <X className="size-6" strokeWidth={2} />
