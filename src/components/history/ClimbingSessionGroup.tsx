@@ -42,7 +42,7 @@ export function ClimbingSessionGroup({ dateLabel, field, area, cards, fromHistor
       {/* Session header */}
       <div className="flex items-start justify-between gap-3 border-b border-[#f0f0f3] bg-[#f8fafc] px-5 py-5">
         <div className="space-y-2">
-          <span className="inline-flex items-center rounded-full bg-[rgba(207,230,242,0.6)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#526772]">
+          <span className="inline-flex items-center rounded-full bg-[rgba(207,230,242,0.6)] px-3 py-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-[#526772]">
             Αναρρίχηση βράχου
           </span>
           <p className="flex items-center gap-1.5 text-sm font-medium text-[#1a1c1e]">

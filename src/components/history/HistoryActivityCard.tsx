@@ -65,7 +65,7 @@ export function HistoryActivityCard({ entry, fromHistory }: Props) {
         {/* Header: category tag + date */}
         <div className="flex items-start justify-between gap-2">
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${tagTint}`}
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${tagTint}`}
           >
             {entry.categoryLabel}
           </span>

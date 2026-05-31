@@ -30,6 +30,7 @@ import { patchActivity, type PatchClimbingPayload } from '../../api/activities.t
 import type { ActivityListItem } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
 import { MapPin } from 'lucide-react'
+import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
 
 // ── Read-only record type indicator ───────────────────────────────────────────
 
@@ -129,6 +130,18 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // ── Live points preview (official activities only) ──────────────────────────
+  const preview = usePointsPreview('climbing', {
+    altitude: Number(altitude) || 0,
+    routeLength: Number(routeLength) || 0,
+    season,
+    repetitionType,
+    participantsNum,
+    difficultyScale: scaleKey && scaleKey !== '-' ? scaleKey : null,
+    difficultyGrade: gradeVal && gradeVal !== '-' ? gradeVal : null,
+    mixedClimbing: mixedClimbing || null,
+  }, isOfficial)
 
   const handleDecrement = () => setParticipantsNum((n) => Math.max(1, n - 1))
   const handleIncrement = () => setParticipantsNum((n) => n + 1)
@@ -236,10 +249,22 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
                   <Input type="number" min="0" value={altitude} onChange={(e) => setAltitude(e.target.value)} placeholder="Υψόμετρο" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+                  <FieldHints>
+                    <FieldHint>
+                      Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής εποχής.
+                      Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.
+                    </FieldHint>
+                  </FieldHints>
                 </label>
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΑΝΑΠΤΥΓΜΑ (M)</FieldLabel>
                   <Input type="number" min="0.01" step="0.01" value={routeLength} onChange={(e) => setRouteLength(e.target.value)} placeholder="Ανάπτυγμα" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+                  <FieldHints>
+                    <FieldHint>
+                      Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
+                      Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.
+                    </FieldHint>
+                  </FieldHints>
                 </label>
               </div>
 
@@ -294,6 +319,26 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
               </label>
             </div>
           </FormSection>
+
+          {isOfficial && (
+            <div className="rounded-xl bg-[#00453e] px-6 py-5 text-white">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[1.4px]">ΥΠΟΛΟΓΙΣΜΕΝΟΙ ΒΑΘΜΟΙ</p>
+                  <p className={`mt-1 text-3xl font-semibold tracking-[-1px] ${preview.isLoading ? 'opacity-60' : ''}`}>
+                    {preview.isLoading ? '...' : preview.points ?? '—'}
+                  </p>
+                </div>
+                <p className="max-w-[220px] text-right text-xs leading-relaxed text-[rgba(140,214,202,0.85)]">
+                  {preview.isLoading
+                    ? 'Υπολογισμός...'
+                    : preview.isReady
+                      ? 'Βαθμοί ΕΟΟΑ'
+                      : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {submitError ? (
             <div role="alert" className="rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">

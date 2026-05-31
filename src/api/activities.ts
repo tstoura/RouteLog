@@ -333,3 +333,27 @@ export function deleteActivity(id: string): Promise<{ ok: boolean }> {
     method: 'DELETE',
   })
 }
+
+// ── Points preview ─────────────────────────────────────────────────────────────
+
+export type PreviewPointsResponse = {
+  points: string | null
+  isReady: boolean
+  reason?: string
+}
+
+/**
+ * Preview EOOA points for an official activity without creating it.
+ *
+ * The payload may be incomplete — the backend returns isReady=false for
+ * missing fields rather than a 422 error. Only call when isOfficial=true.
+ */
+export function previewActivityPoints(
+  category: 'hiking' | 'climbing' | 'expedition',
+  payload: Record<string, unknown>,
+): Promise<PreviewPointsResponse> {
+  return apiFetch<PreviewPointsResponse>('/activities/preview-points', {
+    method: 'POST',
+    body: JSON.stringify({ category, payload }),
+  })
+}
