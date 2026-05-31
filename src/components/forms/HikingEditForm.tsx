@@ -185,13 +185,16 @@ export function HikingEditForm({ activity, onSaved, onCancel }: HikingEditFormPr
 
               <label className="flex flex-col gap-3">
                 <FieldLabel>ΜΗΚΟΣ ΔΙΑΔΡΟΜΗΣ (KM)</FieldLabel>
-                <Input type="number" min="0" step="0.01" value={distanceLength} onChange={(e) => setDistanceLength(e.target.value)} placeholder="Μήκος" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
-                <FieldHints>
-                  <FieldHint>
-                    Για αποστάσεις έως 15 km εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
-                    Για μεγαλύτερες αποστάσεις, η πραγματική τιμή επηρεάζει τους βαθμούς.
-                  </FieldHint>
-                </FieldHints>
+                <Input type="number" min="0" step="0.01" value={distanceLength} onChange={(e) => setDistanceLength(e.target.value)} placeholder="Μήκος διαδρομής (m)" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+                {isOfficial && (
+                  <FieldHints>
+                    <FieldHint>
+                      Για αποστάσεις έως 15 km εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
+                      <br />
+                      <span className="italic">Για μεγαλύτερες αποστάσεις, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                    </FieldHint>
+                  </FieldHints>
+                )}
               </label>
 
               <div className="grid gap-6 md:grid-cols-2">

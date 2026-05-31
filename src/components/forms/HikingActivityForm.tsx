@@ -269,15 +269,18 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
                   step="0.01"
                   value={distanceLength}
                   onChange={(e) => setDistanceLength(e.target.value)}
-                  placeholder="Μήκος"
+                  placeholder="Μήκος διαδρομής (m)"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
-                <FieldHints>
-                  <FieldHint>
-                    Για αποστάσεις έως 15 km εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
-                    Για μεγαλύτερες αποστάσεις, η πραγματική τιμή επηρεάζει τους βαθμούς.
-                  </FieldHint>
-                </FieldHints>
+                {effectiveIsOfficial && (
+                  <FieldHints>
+                    <FieldHint>
+                      Για αποστάσεις έως 15 km εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
+                      <br />
+                      <span className="italic">Για μεγαλύτερες αποστάσεις, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                    </FieldHint>
+                  </FieldHints>
+                )}
               </label>
 
               <div className="grid gap-6 md:grid-cols-2">

@@ -249,22 +249,28 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
                   <Input type="number" min="0" value={altitude} onChange={(e) => setAltitude(e.target.value)} placeholder="Υψόμετρο" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
-                  <FieldHints>
-                    <FieldHint>
-                      Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής εποχής.
-                      Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.
-                    </FieldHint>
-                  </FieldHints>
+                  {isOfficial && (
+                    <FieldHints>
+                      <FieldHint>
+                        Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
+                        <br />
+                        <span className="italic">Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.</span>
+                      </FieldHint>
+                    </FieldHints>
+                  )}
                 </label>
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΑΝΑΠΤΥΓΜΑ (M)</FieldLabel>
                   <Input type="number" min="0.01" step="0.01" value={routeLength} onChange={(e) => setRouteLength(e.target.value)} placeholder="Ανάπτυγμα" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
-                  <FieldHints>
-                    <FieldHint>
-                      Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
-                      Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.
-                    </FieldHint>
-                  </FieldHints>
+                  {isOfficial && (
+                    <FieldHints>
+                      <FieldHint>
+                        Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
+                        <br />
+                        <span className="italic">Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                      </FieldHint>
+                    </FieldHints>
+                  )}
                 </label>
               </div>
 

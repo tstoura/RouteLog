@@ -705,13 +705,15 @@ export function RockClimbingActivityForm({
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill && autofillHadAlt ? <AutoFilledBadge /> : null}
-                    <FieldHints>
-                      <FieldHint>
-                        Το υψόμετρο στο οποίο καταλήγει η αναρρίχηση.
-                        Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής εποχής.
-                        Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.
-                      </FieldHint>
-                    </FieldHints>
+                    {effectiveIsOfficial && (
+                      <FieldHints>
+                        <FieldHint>
+                          Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
+                          <br />
+                          <span className="italic">Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.</span>
+                        </FieldHint>
+                      </FieldHints>
+                    )}
                   </label>
 
                   <label className="flex flex-col gap-3">
@@ -722,16 +724,19 @@ export function RockClimbingActivityForm({
                       step="0.01"
                       value={routeLength}
                       onChange={(e) => setRouteLength(e.target.value)}
-                      placeholder="Συνολικό μήκος αναρρίχησης"
+                      placeholder="Συνολικό μήκος αναρρίχησης (m)"
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill && autofillHadLen ? <AutoFilledBadge /> : null}
-                    <FieldHints>
-                      <FieldHint>
-                        Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
-                        Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.
-                      </FieldHint>
-                    </FieldHints>
+                    {effectiveIsOfficial && (
+                      <FieldHints>
+                        <FieldHint>
+                          Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
+                          <br />
+                          <span className="italic">Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                        </FieldHint>
+                      </FieldHints>
+                    )}
                   </label>
                 </div>
               </div>
