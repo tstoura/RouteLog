@@ -243,6 +243,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                 <Input
                   type="number"
                   min="0"
+                  step="0.01"
                   value={distanceLength}
                   onChange={(e) => setDistanceLength(e.target.value)}
                   placeholder="Μήκος"

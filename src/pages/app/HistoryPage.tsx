@@ -235,7 +235,8 @@ function buildRenderItems(cards: HistoryCard[]): RenderItem[] {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export function HistoryPage() {
-  const { search } = useLocation()
+  const location = useLocation()
+  const fromHistory = location.pathname + location.search
 
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('all')
@@ -248,11 +249,11 @@ export function HistoryPage() {
   const [allCards, setAllCards] = useState<HistoryCard[]>([])
 
   const activeKind = useMemo((): ActivityKind | 'all' => {
-    const sp = new URLSearchParams(search)
+    const sp = new URLSearchParams(location.search)
     const raw = sp.get('kind')
     if (raw === 'hiking' || raw === 'rock_climbing' || raw === 'expedition') return raw
     return 'all'
-  }, [search])
+  }, [location.search])
 
   // Fetch from backend when activeKind changes
   useEffect(() => {
@@ -431,7 +432,7 @@ export function HistoryPage() {
             {renderItems.map((item) =>
               item.type === 'card' ? (
                 <li key={item.card.id}>
-                  <HistoryActivityCard entry={item.card} />
+                  <HistoryActivityCard entry={item.card} fromHistory={fromHistory} />
                 </li>
               ) : (
                 <li key={item.key}>
@@ -440,6 +441,7 @@ export function HistoryPage() {
                     field={item.field}
                     area={item.area}
                     cards={item.cards}
+                    fromHistory={fromHistory}
                   />
                 </li>
               )

@@ -5,6 +5,8 @@ import type { HistoryCard, HistoryInfoIconKey } from '../../types/historyCard.ts
 
 type Props = {
   entry: HistoryCard
+  /** Current history page URL (pathname + search) passed as location state so detail can navigate back deterministically. */
+  fromHistory?: string
 }
 
 // ── Icon map ───────────────────────────────────────────────────────────────────
@@ -49,7 +51,7 @@ function PersonIcon() {
 
 // ── Card ───────────────────────────────────────────────────────────────────────
 
-export function HistoryActivityCard({ entry }: Props) {
+export function HistoryActivityCard({ entry, fromHistory }: Props) {
   const tagTint =
     entry.kind === 'rock_climbing'
       ? 'bg-[rgba(207,230,242,0.5)] text-[#526772]'
@@ -132,6 +134,7 @@ export function HistoryActivityCard({ entry }: Props) {
     return (
       <Link
         to={`/app/history/${entry.detailSlug}`}
+        state={fromHistory ? { fromHistory } : undefined}
         className="block h-full cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00453e]"
       >
         {article}

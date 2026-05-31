@@ -39,6 +39,7 @@ import {
 import { CreateHikingActivityDto } from './dto/create-hiking-activity.dto'
 import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
 import { CreateExpeditionActivityDto } from './dto/create-expedition-activity.dto'
+import { PatchActivityDto } from './dto/patch-activity.dto'
 import { GetActivitiesDto } from './dto/get-activities.dto'
 
 @Injectable()
@@ -648,6 +649,532 @@ export class ActivitiesService {
     }
 
     return activity
+  }
+
+  // ── Edit (PATCH) ────────────────────────────────────────────────────────────
+
+  /**
+   * Patches an activity owned by the caller.
+   *
+   * MVP immutable fields (category, isOfficial, userId, clubId, createdAt, and routeId
+   * for climbing) are excluded from PatchActivityDto — the global ValidationPipe will
+   * reject any attempt to send them with a 400 before this method is called.
+   *
+   * The service:
+   *  1. Loads the existing activity + detail.
+   *  2. Returns 404 if not found or belongs to a different user (ownership-hiding 404).
+   *  3. Merges each incoming field with the stored value (missing fields keep existing).
+   *  4. Re-validates the effective values against official or personal rules.
+   *  5. Keeps the existing clubId — never infers or accepts a new one on edit.
+   *  6. Recalculates points for official activities; keeps null for personal.
+   */
+  async patchActivity(id: string, dto: PatchActivityDto, callerUserId: string) {
+    const existing = await this.prisma.activity.findUnique({
+      where: { id },
+      include: {
+        hikingDetail: true,
+        climbingDetail: true,
+        expeditionDetail: true,
+      },
+    })
+
+    // 404 whether the activity doesn't exist or belongs to another user.
+    if (!existing || existing.userId !== callerUserId) {
+      throw new NotFoundException(`Activity with id ${id} not found`)
+    }
+
+    if (existing.category === 'hiking') {
+      return this.applyHikingPatch(existing as any, dto)
+    }
+    if (existing.category === 'climbing') {
+      return this.applyClimbingPatch(existing as any, dto)
+    }
+    if (existing.category === 'expedition') {
+      return this.applyExpeditionPatch(existing as any, dto)
+    }
+
+    throw new UnprocessableEntityException(`Unknown activity category: ${existing.category}`)
+  }
+
+  /** Applies a hiking activity patch. Called only when existing.category === 'hiking'. */
+  private async applyHikingPatch(
+    existing: {
+      id: string
+      isOfficial: boolean
+      points: any
+      date: Date
+      privateNotes: string | null
+      publicNotes: string | null
+      hikingDetail: {
+        mountain: string
+        startPoint: string
+        endPoint: string
+        maxAltitude: number
+        totalElevationGain: number
+        distanceLength: any
+        fieldType: string
+        difficultyGrade: string
+        participantsNum: number
+      }
+    },
+    dto: PatchActivityDto,
+  ) {
+    const d = existing.hikingDetail
+
+    // Merge: use incoming value when provided, otherwise fall back to stored value.
+    const mountain           = dto.mountain           ?? d.mountain
+    const startPoint         = dto.startPoint         ?? d.startPoint
+    const endPoint           = dto.endPoint           ?? d.endPoint
+    const maxAltitude        = dto.maxAltitude        ?? d.maxAltitude
+    const totalElevationGain = dto.totalElevationGain ?? d.totalElevationGain
+    const distanceLength     = dto.distanceLength     !== undefined ? dto.distanceLength : Number(d.distanceLength)
+    const fieldType          = dto.fieldType          ?? d.fieldType
+    const difficultyGrade    = dto.difficultyGrade    ?? d.difficultyGrade
+    const participantsNum    = dto.participantsNum    ?? d.participantsNum
+
+    let points: number | null = existing.points !== null ? Number(existing.points) : null
+
+    if (existing.isOfficial) {
+      // ── Official re-validation ────────────────────────────────────────────
+      if (participantsNum < 3) {
+        throw new UnprocessableEntityException(
+          'Official hiking activities require at least 3 participants.',
+        )
+      }
+      if (!HIKING_FIELD_TYPES.includes(fieldType as HikingFieldType)) {
+        throw new UnprocessableEntityException(
+          `field_type "${fieldType}" is not valid for official activities. ` +
+          `Allowed values: ${HIKING_FIELD_TYPES.join(', ')}.`,
+        )
+      }
+      if (!HIKING_DIFFICULTY_GRADES.includes(difficultyGrade as HikingDifficultyGrade)) {
+        throw new UnprocessableEntityException(
+          `difficulty_grade "${difficultyGrade}" is not valid for official activities. ` +
+          `Allowed values: ${HIKING_DIFFICULTY_GRADES.join(', ')}.`,
+        )
+      }
+      if (maxAltitude <= 0) {
+        throw new UnprocessableEntityException('max_altitude must be greater than 0 for official activities.')
+      }
+      if (totalElevationGain <= 0) {
+        throw new UnprocessableEntityException('total_elevation_gain must be greater than 0 for official activities.')
+      }
+
+      // Recalculate points.
+      try {
+        const raw = this.scoring.calculateHikingPoints({
+          maxAltitude,
+          totalElevationGain,
+          distanceLength,
+          fieldType,
+          difficultyGrade,
+          participantsNum,
+        })
+        points = Math.round(raw * 100) / 100
+      } catch (err) {
+        if (err instanceof ScoringError) throw new UnprocessableEntityException(err.message)
+        throw err
+      }
+    } else {
+      points = null
+    }
+
+    return this.prisma.activity.update({
+      where: { id: existing.id },
+      data: {
+        date: dto.date ? new Date(dto.date) : existing.date,
+        points: points !== null ? points : null,
+        privateNotes: dto.privateNotes !== undefined ? dto.privateNotes : existing.privateNotes,
+        publicNotes:  dto.publicNotes  !== undefined ? dto.publicNotes  : existing.publicNotes,
+        hikingDetail: {
+          update: {
+            mountain,
+            startPoint,
+            endPoint,
+            maxAltitude,
+            totalElevationGain,
+            distanceLength,
+            fieldType,
+            difficultyGrade,
+            participantsNum,
+          },
+        },
+      },
+      include: { hikingDetail: true },
+    })
+  }
+
+  /** Applies a climbing activity patch. Called only when existing.category === 'climbing'. */
+  private async applyClimbingPatch(
+    existing: {
+      id: string
+      isOfficial: boolean
+      points: any
+      date: Date
+      privateNotes: string | null
+      publicNotes: string | null
+      climbingDetail: {
+        routeId: string
+        routeName: string
+        mountainOrArea: string
+        climbingField: string
+        season: string
+        repetitionType: string
+        altitude: number
+        routeLength: any
+        participantsNum: number
+        participantsText: string
+        completionType: string | null
+        difficultyScale: string | null
+        difficultyGrade: string | null
+        mappedScale: string | null
+        mappedGrade: string | null
+        mixedClimbing: string | null
+      }
+    },
+    dto: PatchActivityDto,
+  ) {
+    const d = existing.climbingDetail
+
+    // Merge fields — snapshot fields (routeId, routeName, mountainOrArea, climbingField) are never changed.
+    const season          = dto.season          ?? d.season
+    const repetitionType  = dto.repetitionType  ?? d.repetitionType
+    const altitude        = dto.altitude        ?? d.altitude
+    const routeLength     = dto.routeLength     !== undefined ? dto.routeLength : Number(d.routeLength)
+    const participantsNum = dto.participantsNum  ?? d.participantsNum
+    const participantsText = dto.participantsText !== undefined ? dto.participantsText : d.participantsText
+    const completionType  = dto.completionType  !== undefined ? dto.completionType : d.completionType
+    const mixedClimbing   = dto.mixedClimbing   !== undefined ? dto.mixedClimbing : d.mixedClimbing
+
+    // Difficulty: handle scale+grade pair atomically.
+    // If client sends one but not the other, merge with the stored partner.
+    let difficultyScale = d.difficultyScale
+    let difficultyGrade = d.difficultyGrade
+    if (dto.difficultyScale !== undefined || dto.difficultyGrade !== undefined) {
+      difficultyScale = dto.difficultyScale !== undefined ? dto.difficultyScale : d.difficultyScale
+      difficultyGrade = dto.difficultyGrade !== undefined ? dto.difficultyGrade : d.difficultyGrade
+    }
+
+    // scale and grade must always be paired.
+    if (!!difficultyScale !== !!difficultyGrade) {
+      throw new UnprocessableEntityException(
+        'difficulty_scale and difficulty_grade must be provided together. Provide both or neither.',
+      )
+    }
+
+    const hasRegularDifficulty = !!(difficultyScale && difficultyGrade)
+    const hasMixedDifficulty   = !!mixedClimbing
+
+    let points: number | null = existing.points !== null ? Number(existing.points) : null
+    let mappedScale: string | null = d.mappedScale
+    let mappedGrade: string | null = d.mappedGrade
+
+    // Re-resolve French grade mapping only if the scale/grade changed.
+    const frenchScaleChanged = dto.difficultyScale !== undefined || dto.difficultyGrade !== undefined
+    const isFrench = difficultyScale === 'french'
+    if (isFrench && hasRegularDifficulty && frenchScaleChanged) {
+      mappedScale = null
+      mappedGrade = null
+    }
+
+    if (existing.isOfficial) {
+      // Validate season + repetition_type.
+      if (!CLIMBING_SEASONS.includes(season as ClimbingSeason)) {
+        throw new UnprocessableEntityException(
+          `season "${season}" is not valid. Allowed values: ${CLIMBING_SEASONS.join(', ')}.`,
+        )
+      }
+      if (!CLIMBING_REPETITION_TYPES.includes(repetitionType as ClimbingRepetitionType)) {
+        throw new UnprocessableEntityException(
+          `repetition_type "${repetitionType}" is not valid. Allowed values: ${CLIMBING_REPETITION_TYPES.join(', ')}.`,
+        )
+      }
+      if (!altitude || altitude <= 0) {
+        throw new UnprocessableEntityException('altitude must be greater than 0 for official climbing records.')
+      }
+      if (!routeLength || routeLength <= 0) {
+        throw new UnprocessableEntityException('route_length must be greater than 0 for official climbing records.')
+      }
+      if (!hasRegularDifficulty && !hasMixedDifficulty) {
+        throw new UnprocessableEntityException(
+          'Official climbing records require at least one of: (difficulty_scale + difficulty_grade) or mixed_climbing.',
+        )
+      }
+      if (hasRegularDifficulty) {
+        if (!CLIMBING_DIFFICULTY_SCALES.includes(difficultyScale! as ClimbingDifficultyScale)) {
+          throw new UnprocessableEntityException(
+            `difficulty_scale "${difficultyScale}" is not valid. Allowed values: ${CLIMBING_DIFFICULTY_SCALES.join(', ')}.`,
+          )
+        }
+      }
+      if (hasMixedDifficulty) {
+        if (!CLIMBING_MIXED_GRADES.includes(mixedClimbing! as ClimbingMixedGrade)) {
+          throw new UnprocessableEntityException(
+            `mixed_climbing "${mixedClimbing}" is not valid. Allowed values: M1–M12, WI1–WI12.`,
+          )
+        }
+      }
+      if (completionType !== undefined && completionType !== null) {
+        if (!CLIMBING_COMPLETION_TYPES.includes(completionType as ClimbingCompletionType)) {
+          throw new UnprocessableEntityException(
+            `completion_type "${completionType}" is not valid. Allowed values: ${CLIMBING_COMPLETION_TYPES.join(', ')}.`,
+          )
+        }
+      }
+      // French grade resolution.
+      if (isFrench && hasRegularDifficulty) {
+        try {
+          const resolved = await this.scoring.resolveClimbingGrade(difficultyGrade!)
+          mappedScale = resolved.mappedScale
+          mappedGrade = resolved.mappedGrade
+        } catch (err) {
+          if (err instanceof ScoringError) throw new UnprocessableEntityException(err.message)
+          throw err
+        }
+      }
+      // UIAA/Alpine validation.
+      if (hasRegularDifficulty && !isFrench) {
+        const gradeToCheck = difficultyGrade!
+        if (!CLIMBING_UIAA_GRADES.includes(gradeToCheck as ClimbingUiaaGrade)) {
+          throw new UnprocessableEntityException(
+            `difficulty_grade "${gradeToCheck}" is not a valid UIAA/Alpine grade.`,
+          )
+        }
+      }
+
+      // Recalculate points.
+      try {
+        const raw = await this.scoring.calculateClimbingPoints({
+          altitude,
+          routeLength,
+          season,
+          repetitionType,
+          participantsNum,
+          difficultyScale: difficultyScale ?? null,
+          difficultyGrade: difficultyGrade ?? null,
+          mappedGrade,
+          mixedClimbing: mixedClimbing ?? null,
+        })
+        points = Math.round(raw * 100) / 100
+      } catch (err) {
+        if (err instanceof ScoringError) throw new UnprocessableEntityException(err.message)
+        throw err
+      }
+    } else {
+      // Personal: validate difficulty if present.
+      if (hasRegularDifficulty) {
+        if (!CLIMBING_DIFFICULTY_SCALES.includes(difficultyScale! as ClimbingDifficultyScale)) {
+          throw new UnprocessableEntityException(
+            `difficulty_scale "${difficultyScale}" is not valid. Allowed values: ${CLIMBING_DIFFICULTY_SCALES.join(', ')}.`,
+          )
+        }
+        if (isFrench) {
+          if (!CLIMBING_FRENCH_GRADES.includes(difficultyGrade! as ClimbingFrenchGrade)) {
+            throw new UnprocessableEntityException(
+              `difficulty_grade "${difficultyGrade}" is not a valid French grade.`,
+            )
+          }
+        } else {
+          if (!CLIMBING_UIAA_GRADES.includes(difficultyGrade! as ClimbingUiaaGrade)) {
+            throw new UnprocessableEntityException(
+              `difficulty_grade "${difficultyGrade}" is not a valid UIAA/Alpine grade.`,
+            )
+          }
+        }
+      }
+      if (hasMixedDifficulty) {
+        if (!CLIMBING_MIXED_GRADES.includes(mixedClimbing! as ClimbingMixedGrade)) {
+          throw new UnprocessableEntityException(
+            `mixed_climbing "${mixedClimbing}" is not valid. Allowed values: M1–M12, WI1–WI12.`,
+          )
+        }
+      }
+      if (completionType !== undefined && completionType !== null) {
+        if (!CLIMBING_COMPLETION_TYPES.includes(completionType as ClimbingCompletionType)) {
+          throw new UnprocessableEntityException(
+            `completion_type "${completionType}" is not valid.`,
+          )
+        }
+      }
+      points = null
+    }
+
+    return this.prisma.activity.update({
+      where: { id: existing.id },
+      data: {
+        date: dto.date ? new Date(dto.date) : existing.date,
+        points: points !== null ? points : null,
+        privateNotes: dto.privateNotes !== undefined ? dto.privateNotes : existing.privateNotes,
+        publicNotes:  dto.publicNotes  !== undefined ? dto.publicNotes  : existing.publicNotes,
+        climbingDetail: {
+          update: {
+            season,
+            repetitionType,
+            altitude,
+            routeLength,
+            participantsNum,
+            participantsText: participantsText ?? '',
+            completionType:   completionType   ?? null,
+            difficultyScale:  difficultyScale  ?? null,
+            difficultyGrade:  difficultyGrade  ?? null,
+            mappedScale:      mappedScale      ?? null,
+            mappedGrade:      mappedGrade      ?? null,
+            mixedClimbing:    mixedClimbing    ?? null,
+          },
+        },
+      },
+      include: { climbingDetail: true },
+    })
+  }
+
+  /** Applies an expedition activity patch. Called only when existing.category === 'expedition'. */
+  private async applyExpeditionPatch(
+    existing: {
+      id: string
+      isOfficial: boolean
+      points: any
+      date: Date
+      privateNotes: string | null
+      publicNotes: string | null
+      expeditionDetail: {
+        country: string
+        mountainRange: string
+        mountain: string
+        summit: string
+        routeName: string
+        season: string
+        altitude: number
+        totalElevationGain: number
+        difficultyGrade: string
+        participantsNum: number
+        organizationType: string
+      }
+    },
+    dto: PatchActivityDto,
+  ) {
+    const d = existing.expeditionDetail
+
+    const country            = dto.country            ?? d.country
+    const mountainRange      = dto.mountainRange      ?? d.mountainRange
+    const mountain           = dto.mountain           ?? d.mountain
+    const summit             = dto.summit             ?? d.summit
+    const routeName          = dto.routeName          ?? d.routeName
+    const season             = dto.season             ?? d.season
+    const altitude           = dto.altitude           ?? d.altitude
+    const totalElevationGain = dto.totalElevationGain ?? d.totalElevationGain
+    const difficultyGrade    = dto.difficultyGrade    ?? d.difficultyGrade
+    const participantsNum    = dto.participantsNum    ?? d.participantsNum
+    const organizationType   = dto.organizationType   ?? d.organizationType
+
+    // Always validate season and organizationType (same as create).
+    if (!EXPEDITION_SEASONS.includes(season as ExpeditionSeason)) {
+      throw new UnprocessableEntityException(
+        `season "${season}" is not valid for expeditions. Allowed values: ${EXPEDITION_SEASONS.join(', ')}.`,
+      )
+    }
+    if (!EXPEDITION_ORGANIZATION_TYPES.includes(organizationType as ExpeditionOrganizationType)) {
+      throw new UnprocessableEntityException(
+        `organization_type "${organizationType}" is not valid. Allowed values: ${EXPEDITION_ORGANIZATION_TYPES.join(', ')}.`,
+      )
+    }
+    if (difficultyGrade && !EXPEDITION_DIFFICULTY_GRADES.includes(difficultyGrade as ExpeditionDifficultyGrade)) {
+      throw new UnprocessableEntityException(
+        `difficulty_grade "${difficultyGrade}" is not valid. Allowed values: ${EXPEDITION_DIFFICULTY_GRADES.join(', ')}.`,
+      )
+    }
+
+    let points: number | null = existing.points !== null ? Number(existing.points) : null
+
+    if (existing.isOfficial) {
+      if (!difficultyGrade) {
+        throw new UnprocessableEntityException('difficulty_grade is required for official expedition activities.')
+      }
+      if (!altitude || altitude <= 0) {
+        throw new UnprocessableEntityException('altitude must be greater than 0 for official expedition activities.')
+      }
+      if (totalElevationGain === undefined || totalElevationGain <= 0) {
+        throw new UnprocessableEntityException('total_elevation_gain must be greater than 0 for official expedition activities.')
+      }
+
+      try {
+        const raw = this.scoring.calculateExpeditionPoints({
+          altitude,
+          totalElevationGain,
+          season,
+          difficultyGrade,
+          participantsNum,
+          organizationType,
+        })
+        points = Math.round(raw * 100) / 100
+      } catch (err) {
+        if (err instanceof ScoringError) throw new UnprocessableEntityException(err.message)
+        throw err
+      }
+    } else {
+      points = null
+    }
+
+    return this.prisma.activity.update({
+      where: { id: existing.id },
+      data: {
+        date: dto.date ? new Date(dto.date) : existing.date,
+        points: points !== null ? points : null,
+        privateNotes: dto.privateNotes !== undefined ? dto.privateNotes : existing.privateNotes,
+        publicNotes:  dto.publicNotes  !== undefined ? dto.publicNotes  : existing.publicNotes,
+        expeditionDetail: {
+          update: {
+            country,
+            mountainRange,
+            mountain,
+            summit,
+            routeName,
+            season,
+            altitude,
+            totalElevationGain,
+            difficultyGrade,
+            participantsNum,
+            organizationType,
+          },
+        },
+      },
+      include: { expeditionDetail: true },
+    })
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Hard-deletes an activity owned by the caller.
+   *
+   * Because the detail tables (hiking_activity_details etc.) use activity_id as FK
+   * without ON DELETE CASCADE, the detail must be deleted first in a transaction.
+   *
+   * Returns 404 if the activity does not exist or belongs to a different user.
+   * Returns { ok: true } on success.
+   */
+  async deleteActivity(id: string, callerUserId: string) {
+    const existing = await this.prisma.activity.findUnique({
+      where: { id },
+      select: { id: true, userId: true, category: true },
+    })
+
+    if (!existing || existing.userId !== callerUserId) {
+      throw new NotFoundException(`Activity with id ${id} not found`)
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Delete the category-specific detail row first (FK constraint).
+      if (existing.category === 'hiking') {
+        await tx.hikingActivityDetails.delete({ where: { activityId: id } })
+      } else if (existing.category === 'climbing') {
+        await tx.climbingActivityDetails.delete({ where: { activityId: id } })
+      } else if (existing.category === 'expedition') {
+        await tx.expeditionActivityDetails.delete({ where: { activityId: id } })
+      }
+      await tx.activity.delete({ where: { id } })
+    })
+
+    return { ok: true }
   }
 }
 
