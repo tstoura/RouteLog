@@ -61,11 +61,13 @@ const mockPrismaService = {
 const mockCalculateClimbingPoints = jest.fn()
 const mockResolveClimbingGrade = jest.fn()
 const mockCalculateHikingPoints = jest.fn()
+const mockCalculateExpeditionPoints = jest.fn()
 
 const mockScoringService = {
   calculateClimbingPoints: mockCalculateClimbingPoints,
   resolveClimbingGrade: mockResolveClimbingGrade,
   calculateHikingPoints: mockCalculateHikingPoints,
+  calculateExpeditionPoints: mockCalculateExpeditionPoints,
 }
 
 // ── Base payloads ─────────────────────────────────────────────────────────────
@@ -114,6 +116,27 @@ const baseOfficialHiking = {
   totalElevationGain: 1200,
   startPoint: 'Λιτόχωρο',
   endPoint: 'Μύτικας',
+}
+
+const basePersonalExpedition = {
+  date: '2026-05-26',
+  isOfficial: false as const,
+  country: 'Νεπάλ',
+  mountain: 'Έβερεστ',
+  season: 'summer',
+  participantsNum: 1,
+  organizationType: 'no',
+}
+
+const baseOfficialExpedition = {
+  ...basePersonalExpedition,
+  isOfficial: true as const,
+  mountainRange: 'Ιμαλάια',
+  summit: 'Κορυφή',
+  routeName: 'Νοτιοδυτική Ράχη',
+  altitude: 8849,
+  totalElevationGain: 3500,
+  difficultyGrade: 'pezoporia',
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -464,7 +487,8 @@ describe('ActivitiesService', () => {
 
     it('official hiking uses membership clubId', async () => {
       mockClubMembership.findMany.mockResolvedValue([{ clubId: CLUB_ID }])
-      await service.createHiking(baseOfficialHiking, CALLER_USER_ID)
+      mockCalculateHikingPoints.mockReturnValue(10)
+      await service.createHiking({ ...baseOfficialHiking, participantsNum: 3 }, CALLER_USER_ID)
 
       const createData = mockActivity.create.mock.calls[0][0].data
       expect(createData.clubId).toBe(CLUB_ID)
@@ -472,7 +496,7 @@ describe('ActivitiesService', () => {
 
     it('official hiking without membership → throws 422', async () => {
       mockClubMembership.findMany.mockResolvedValue([])
-      await expect(service.createHiking(baseOfficialHiking, CALLER_USER_ID))
+      await expect(service.createHiking({ ...baseOfficialHiking, participantsNum: 3 }, CALLER_USER_ID))
         .rejects.toThrow(UnprocessableEntityException)
     })
 
@@ -483,6 +507,200 @@ describe('ActivitiesService', () => {
 
     it('personal hiking stores clubId = null', async () => {
       await service.createHiking(basePersonalHiking, CALLER_USER_ID)
+      const createData = mockActivity.create.mock.calls[0][0].data
+      expect(createData.clubId).toBeNull()
+    })
+
+    // ── EOOA rule: official hiking requires ≥ 3 participants ──────────────────
+
+    it('official hiking with participantsNum=1 → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateHikingPoints.mockReturnValue(10)
+      await expect(
+        service.createHiking({ ...baseOfficialHiking, participantsNum: 1 }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    it('official hiking with participantsNum=2 → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateHikingPoints.mockReturnValue(10)
+      await expect(
+        service.createHiking({ ...baseOfficialHiking, participantsNum: 2 }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    it('official hiking with participantsNum=3 → succeeds', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateHikingPoints.mockReturnValue(10)
+      await expect(
+        service.createHiking({ ...baseOfficialHiking, participantsNum: 3 }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockActivity.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('personal hiking with participantsNum=1 → succeeds (no minimum for personal)', async () => {
+      mockClubMembership.findMany.mockResolvedValue([])
+      await expect(
+        service.createHiking({ ...basePersonalHiking, participantsNum: 1 }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockActivity.create).toHaveBeenCalledTimes(1)
+    })
+
+    // ── Canonical difficulty value ─────────────────────────────────────────────
+
+    it('official hiking with difficultyGrade="pezoporia" → succeeds (canonical value)', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateHikingPoints.mockReturnValue(10)
+      await expect(
+        service.createHiking({ ...baseOfficialHiking, difficultyGrade: 'pezoporia', participantsNum: 3 }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockActivity.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('official hiking with legacy difficultyGrade="hiking" → 422 (old value rejected by backend)', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      await expect(
+        service.createHiking({ ...baseOfficialHiking, difficultyGrade: 'hiking', participantsNum: 3 }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+  })
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Section D — createExpedition validation and scoring
+  // ════════════════════════════════════════════════════════════════════════════
+
+  describe('createExpedition — official validation and scoring', () => {
+    beforeEach(() => {
+      mockActivity.create.mockResolvedValue({
+        id: ACTIVITY_ID,
+        isOfficial: false,
+        points: null,
+        expeditionDetail: {},
+      })
+    })
+
+    // ── Membership ────────────────────────────────────────────────────────────
+
+    it('official expedition uses membership clubId', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateExpeditionPoints.mockReturnValue(15)
+      await service.createExpedition(baseOfficialExpedition, CALLER_USER_ID)
+
+      const createData = mockActivity.create.mock.calls[0][0].data
+      expect(createData.clubId).toBe(CLUB_ID)
+    })
+
+    it('official expedition without membership → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue([])
+      await expect(service.createExpedition(baseOfficialExpedition, CALLER_USER_ID))
+        .rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    // ── Difficulty: expedition uses its own coefficient table ─────────────────
+
+    it('official expedition difficultyGrade="pezoporia" → succeeds (expedition coeff = 2, not 1 like hiking)', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      // The real scoring service is NOT injected here; we verify the service
+      // calls calculateExpeditionPoints (not calculateHikingPoints).
+      mockCalculateExpeditionPoints.mockReturnValue(20)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, difficultyGrade: 'pezoporia' }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockCalculateExpeditionPoints).toHaveBeenCalledTimes(1)
+      expect(mockCalculateHikingPoints).not.toHaveBeenCalled()
+    })
+
+    it('official expedition difficultyGrade="hiking" (old value) → 422 (not in expedition grades)', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, difficultyGrade: 'hiking' }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    // ── Organization coefficient ───────────────────────────────────────────────
+
+    it('official expedition organizationType="no" → succeeds; org coefficient = 0 (no bonus)', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateExpeditionPoints.mockReturnValue(5)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, organizationType: 'no' }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockCalculateExpeditionPoints).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationType: 'no' }),
+      )
+    })
+
+    it('official expedition organizationType="other_continents" → succeeds; org coefficient = 12', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      mockCalculateExpeditionPoints.mockReturnValue(42)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, organizationType: 'other_continents' }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockCalculateExpeditionPoints).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationType: 'other_continents' }),
+      )
+    })
+
+    it('official expedition unknown organizationType → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, organizationType: 'moon' }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    // ── Required fields for official ──────────────────────────────────────────
+
+    it('official expedition missing difficultyGrade → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      const { difficultyGrade: _dg, ...noDifficulty } = baseOfficialExpedition
+      await expect(
+        service.createExpedition({ ...noDifficulty, difficultyGrade: '' }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    it('official expedition altitude=0 → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, altitude: 0 }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    it('official expedition totalElevationGain=0 → 422', async () => {
+      mockClubMembership.findMany.mockResolvedValue(oneMembership)
+      await expect(
+        service.createExpedition({ ...baseOfficialExpedition, totalElevationGain: 0 }, CALLER_USER_ID),
+      ).rejects.toThrow(UnprocessableEntityException)
+      expect(mockActivity.create).not.toHaveBeenCalled()
+    })
+
+    // ── Personal expedition: optional fields remain flexible ──────────────────
+
+    it('personal expedition without difficultyGrade → succeeds (personal allows empty)', async () => {
+      mockClubMembership.findMany.mockResolvedValue([])
+      await expect(
+        service.createExpedition({ ...basePersonalExpedition, difficultyGrade: '' }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockActivity.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('personal expedition with participantsNum=1 → succeeds (no minimum for expedition)', async () => {
+      mockClubMembership.findMany.mockResolvedValue([])
+      await expect(
+        service.createExpedition({ ...basePersonalExpedition, participantsNum: 1 }, CALLER_USER_ID),
+      ).resolves.not.toThrow()
+      expect(mockActivity.create).toHaveBeenCalledTimes(1)
+    })
+
+    it('personal expedition stores clubId = null', async () => {
+      await service.createExpedition(basePersonalExpedition, CALLER_USER_ID)
       const createData = mockActivity.create.mock.calls[0][0].data
       expect(createData.clubId).toBeNull()
     })

@@ -14,8 +14,9 @@ import {
   register as apiRegister,
   refresh as apiRefresh,
   logout as apiLogout,
+  joinMyClub as apiJoinMyClub,
 } from '../api/auth.ts'
-import type { AuthUser, LoginPayload, RegisterPayload } from '../api/auth.ts'
+import type { AuthUser, AuthMembership, LoginPayload, RegisterPayload } from '../api/auth.ts'
 import { clearAccessToken, setAccessToken } from './tokenStorage.ts'
 import { clearAdminClubId } from '../admin/adminClubStorage.ts'
 
@@ -28,6 +29,10 @@ type AuthContextValue = {
   isLoading: boolean
   /** True once the user is verified (token present and /auth/me succeeded). */
   isAuthenticated: boolean
+  /** True when the user has at least one club membership. */
+  hasClubMembership: boolean
+  /** The first (and in MVP the only) membership, or null if none. */
+  primaryMembership: AuthMembership | null
   /** Log in with email and password; returns the authenticated user. */
   login: (payload: LoginPayload) => Promise<AuthUser>
   /** Register a new account; returns the created user on success. */
@@ -36,6 +41,12 @@ type AuthContextValue = {
   logout: () => void
   /** Re-fetch /auth/me and refresh the user in state. */
   refreshMe: () => Promise<void>
+  /**
+   * Join an existing club as a regular member.
+   * Updates the user in context immediately — no page reload required.
+   * Returns the updated AuthUser on success.
+   */
+  joinClub: (clubId: string) => Promise<AuthUser>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -129,9 +140,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me)
   }, [])
 
+  const joinClub = useCallback(async (clubId: string): Promise<AuthUser> => {
+    const updatedUser = await apiJoinMyClub(clubId)
+    setUser(updatedUser)
+    return updatedUser
+  }, [])
+
+  const hasClubMembership = useMemo(
+    () => Boolean(user && user.memberships.length > 0),
+    [user],
+  )
+
+  const primaryMembership = useMemo<AuthMembership | null>(
+    () => (user && user.memberships.length > 0 ? user.memberships[0] : null),
+    [user],
+  )
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, isAuthenticated: user !== null, login, register, logout, refreshMe }),
-    [user, isLoading, login, register, logout, refreshMe],
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: user !== null,
+      hasClubMembership,
+      primaryMembership,
+      login,
+      register,
+      logout,
+      refreshMe,
+      joinClub,
+    }),
+    [user, isLoading, hasClubMembership, primaryMembership, login, register, logout, refreshMe, joinClub],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

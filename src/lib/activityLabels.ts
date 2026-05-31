@@ -16,9 +16,13 @@ import {
  * All difficulty values that are considered valid by the UI option lists.
  * Any value NOT in this set is treated as old/invalid test data and should
  * not be displayed as a prominent badge.
+ *
+ * "hiking" is included as a legacy alias for "pezoporia" so that old stored
+ * records still resolve to "Πεζοπορία" via resolveKnownDifficultyLabel.
  */
 const VALID_DIFFICULTY_VALUES: ReadonlySet<string> = new Set([
   ...HIKING_DIFFICULTY_GRADE_OPTIONS.map((o) => o.value),
+  'hiking', // legacy alias stored before the pezoporia rename
   ...EXPEDITION_DIFFICULTY_GRADE_OPTIONS.map((o) => o.value),
   ...UIAA_GRADE_OPTIONS.filter((o) => o.value).map((o) => o.value),
   ...ALPINE_GRADE_OPTIONS.filter((o) => o.value).map((o) => o.value),
@@ -78,9 +82,10 @@ export function fieldTypeToLabel(fieldType: string): string {
   }
 }
 
-/** "hiking" → "Πεζοπορία", all other grades displayed as-is. */
+/** "pezoporia" or legacy "hiking" → "Πεζοπορία", all other grades displayed as-is. */
 export function difficultyGradeToLabel(grade: string): string {
-  return grade === 'hiking' ? 'Πεζοπορία' : grade
+  if (grade === 'pezoporia' || grade === 'hiking') return 'Πεζοπορία'
+  return grade
 }
 
 export function repetitionTypeToLabel(repType: string): string {

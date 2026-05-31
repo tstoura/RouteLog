@@ -16,7 +16,8 @@ import { AuthService, REFRESH_COOKIE_NAME } from './auth.service'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { RegisterDto } from './dto/register.dto'
 import { LoginDto } from './dto/login.dto'
-import type { AuthResponse, JwtPayload } from './auth.service'
+import { JoinClubDto } from './dto/join-club.dto'
+import type { AuthResponse, AuthUserResponse, JwtPayload } from './auth.service'
 
 type AuthenticatedRequest = Request & { user: JwtPayload }
 
@@ -117,5 +118,28 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getMe(@Request() req: AuthenticatedRequest) {
     return this.authService.getMe(req.user.sub)
+  }
+
+  /**
+   * POST /auth/me/club-membership
+   *
+   * Declares club membership for the currently authenticated user.
+   * - Requires: Authorization: Bearer <token> (401 without token).
+   * - Body: { clubId: string (UUID) }
+   * - Role is always "member" — the client cannot elevate to club_admin or super_admin.
+   * - userId is taken from the JWT; any userId in the body is ignored.
+   * - Returns 404 if clubId does not exist.
+   * - Returns 409 if the user already has a membership (MVP: one club per user).
+   * - Returns the updated safe user object (same shape as GET /auth/me).
+   * - Never returns passwordHash.
+   */
+  @Post('me/club-membership')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  joinMyClub(
+    @Body() dto: JoinClubDto,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<AuthUserResponse> {
+    return this.authService.joinMyClub(req.user.sub, dto.clubId)
   }
 }

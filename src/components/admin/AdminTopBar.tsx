@@ -1,11 +1,14 @@
-import { LogOut } from 'lucide-react'
-import { useAuth } from '../../auth/AuthContext.tsx'
 import { useAdminClub } from '../../admin/AdminClubContext.tsx'
+import { CustomSelect } from '../ui/CustomSelect.tsx'
+import { ProfileDropdown } from '../layout/ProfileDropdown.tsx'
+import { useMemo } from 'react'
 
-/** Admin top bar: shows the authenticated admin user's name, a logout button,
- *  and — for super_admin on mobile — the club selector dropdown. */
+/**
+ * Admin top bar.
+ * Shows the profile dropdown (no join-club form for admins) and — for
+ * super_admin on mobile — the styled club selector.
+ */
 export function AdminTopBar() {
-  const { user, logout } = useAuth()
   const {
     isSuperAdmin,
     selectedClubId,
@@ -15,7 +18,13 @@ export function AdminTopBar() {
     clearSelectedClubId,
   } = useAdminClub()
 
-  const displayName = user ? `${user.firstName} ${user.lastName}` : '—'
+  const clubOptions = useMemo(
+    () => [
+      { value: '', label: '— Σύλλογος —' },
+      ...availableClubs.map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [availableClubs],
+  )
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-[#e8e8ed] bg-[rgba(249,249,252,0.92)] px-4 py-4 backdrop-blur-md md:gap-3 md:justify-end md:px-8">
@@ -25,41 +34,20 @@ export function AdminTopBar() {
           {isLoadingClubs ? (
             <span className="text-xs text-[#94a3b8]">Φόρτωση…</span>
           ) : (
-            <select
+            <CustomSelect
               value={selectedClubId ?? ''}
-              onChange={(e) => {
-                if (e.target.value) setSelectedClubId(e.target.value)
-                else clearSelectedClubId()
-              }}
-              className="h-8 w-full max-w-[200px] rounded-lg border border-[#e0e5e3] bg-white px-2 text-xs text-[#1a1c1e] shadow-sm focus:border-[#00453e] focus:outline-none focus:ring-1 focus:ring-[#00453e]"
-              aria-label="Επιλογή συλλόγου"
-            >
-              <option value="">— Σύλλογος —</option>
-              {availableClubs.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => (v ? setSelectedClubId(v) : clearSelectedClubId())}
+              options={clubOptions}
+              heightClass="h-9"
+              className="max-w-[200px]"
+            />
           )}
         </div>
       )}
 
-      {/* User name badge + logout — pushed to the right */}
-      <div className="ml-auto flex items-center gap-2">
-        <div className="flex items-center gap-2 rounded-full border border-[rgba(190,201,198,0.25)] bg-[#f3f3f6] px-3 py-1.5">
-          <span className="text-xs font-semibold text-[#3f4947]">{displayName}</span>
-        </div>
-        <button
-          type="button"
-          onClick={logout}
-          title="Αποσύνδεση"
-          aria-label="Αποσύνδεση"
-          className="flex items-center gap-1.5 rounded-full border border-[rgba(190,201,198,0.25)] bg-[#f3f3f6] px-3 py-1.5 text-xs font-semibold text-[#64748b] transition hover:bg-[#e8edf2] hover:text-[#022c22]"
-        >
-          <LogOut className="size-[14px]" strokeWidth={2} aria-hidden />
-          <span className="hidden sm:inline">Αποσύνδεση</span>
-        </button>
+      {/* Profile dropdown — no join-club form for admin users */}
+      <div className="ml-auto">
+        <ProfileDropdown allowJoinClub={false} />
       </div>
     </header>
   )

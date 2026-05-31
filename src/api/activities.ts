@@ -27,8 +27,9 @@ export type HikingActivityPayload = {
    */
   fieldType: string
   /**
-   * Backend values: "hiking" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" | "AD-" | "AD" | "AD+"
-   * UI label for "hiking": Πεζοπορία
+   * Backend values: "pezoporia" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" | "AD-" | "AD" | "AD+"
+   * UI label for "pezoporia": Πεζοπορία
+   * Note: legacy records stored as "hiking" are displayed as "Πεζοπορία" via activityLabels.ts.
    */
   difficultyGrade: string
   participantsNum: number
@@ -136,10 +137,10 @@ export type ExpeditionActivityPayload = {
   /** Required for official records. Optional for personal — omit when unknown. */
   totalElevationGain?: number
   /**
-   * Backend values: "hiking" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" |
+   * Backend values: "pezoporia" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" |
    *                 "AD-" | "AD" | "AD+" | "D-" | "D" | "D+" | "TD-" | "TD" |
    *                 "TD+" | "ED-" | "ED" | "ED+"
-   * UI label for "hiking": Πεζοπορία
+   * UI label for "pezoporia": Πεζοπορία
    * Optional for personal records — omit when unknown.
    */
   difficultyGrade?: string
@@ -175,7 +176,7 @@ export type HikingDetailResponse = {
   distanceLength: number
   /** Backend values: "normal" | "winter_conditions" | "ski_mountaineering" */
   fieldType: string
-  /** Backend values: "hiking" | "F-" … "AD+" */
+  /** Backend values: "pezoporia" | "F-" … "AD+" */
   difficultyGrade: string
   participantsNum: number
 }
@@ -211,7 +212,7 @@ export type ExpeditionDetailResponse = {
   season: string
   altitude: number
   totalElevationGain: number
-  /** Backend values: "hiking" | "F-" … "ED+" */
+  /** Backend values: "pezoporia" | "F-" … "ED+" */
   difficultyGrade: string
   participantsNum: number
   /** Backend values: "no" | "europe" | "africa" | "other_continents" */

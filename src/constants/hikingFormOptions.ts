@@ -37,12 +37,12 @@ export const HIKING_FIELD_TYPE_HELPER =
 /**
  * Backend value → UI label mapping for hiking_activity_details.difficulty_grade.
  *
- * Backend allowed: "hiking" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" | "AD-" | "AD" | "AD+"
- * The backend value "hiking" corresponds to the Greek label "Πεζοπορία".
+ * Backend allowed: "pezoporia" | "F-" | "F" | "F+" | "PD-" | "PD" | "PD+" | "AD-" | "AD" | "AD+"
+ * The backend value "pezoporia" corresponds to the Greek label "Πεζοπορία".
  * All other grade labels match their backend value (F-, F, etc.).
  */
 export const HIKING_DIFFICULTY_GRADE_OPTIONS: HikingFormOption[] = [
-  { value: 'hiking', label: 'Πεζοπορία' },
+  { value: 'pezoporia', label: 'Πεζοπορία' },
   { value: 'F-', label: 'F-' },
   { value: 'F', label: 'F' },
   { value: 'F+', label: 'F+' },

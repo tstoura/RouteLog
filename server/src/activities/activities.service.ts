@@ -131,6 +131,13 @@ export class ActivitiesService {
       // dto.clubId is intentionally ignored.
       officialClubId = await this.resolveOfficialClubId(callerUserId)
 
+      // Official hiking requires at least 3 participants (EOOA rule).
+      if (dto.participantsNum < 3) {
+        throw new UnprocessableEntityException(
+          'Official hiking activities require at least 3 participants.',
+        )
+      }
+
       // field_type must match EOOA-allowed values.
       if (!HIKING_FIELD_TYPES.includes(dto.fieldType as HikingFieldType)) {
         throw new UnprocessableEntityException(

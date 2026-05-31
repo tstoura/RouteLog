@@ -183,6 +183,46 @@ export class AuthService {
     }
   }
 
+  // ── Join club (POST /auth/me/club-membership) ─────────────────────────────
+
+  /**
+   * Allows an authenticated user to declare membership in one existing club.
+   *
+   * Business rules enforced here:
+   *   - Club must exist (404 if not found).
+   *   - User must not already have any membership (MVP: at most one club → 409).
+   *   - Role is always "member". The client cannot elevate to club_admin or super_admin.
+   *   - userId is always taken from the JWT (never from the request body).
+   *
+   * Returns the updated safe user object (same shape as getMe / AuthUserResponse).
+   */
+  async joinMyClub(userId: string, clubId: string): Promise<AuthUserResponse> {
+    // Validate club exists — throws 404 if not found.
+    await this.clubsService.findByIdOrThrow(clubId)
+
+    // MVP: a user belongs to at most one club.
+    const existingMembership = await this.prisma.clubMembership.findFirst({
+      where: { userId },
+    })
+    if (existingMembership) {
+      throw new ConflictException(
+        'Ανήκετε ήδη σε σύλλογο. Δεν είναι δυνατή η εγγραφή σε δεύτερο σύλλογο.',
+      )
+    }
+
+    // Create membership — role is always "member", never from client input.
+    await this.prisma.clubMembership.create({
+      data: {
+        userId,
+        clubId,
+        role: 'member',
+      },
+    })
+
+    // Return the updated safe user (re-uses getMe which fetches fresh memberships).
+    return this.getMe(userId)
+  }
+
   // ── Cookie helpers (called by AuthController) ─────────────────────────────
 
   /**
