@@ -10,6 +10,8 @@ type Props = {
   /** "mountainOrArea" portion of the session key. */
   area: string
   cards: HistoryCard[]
+  /** Current history page URL passed as location state so detail can navigate back deterministically. */
+  fromHistory?: string
 }
 
 function CheckIcon() {
@@ -34,7 +36,7 @@ function PersonIcon() {
  * (same date + climbingField + mountainOrArea) as a single compact card.
  * Only shown when 2+ activities match the grouping key.
  */
-export function ClimbingSessionGroup({ dateLabel, field, area, cards }: Props) {
+export function ClimbingSessionGroup({ dateLabel, field, area, cards, fromHistory }: Props) {
   return (
     <div className="overflow-hidden rounded-xl border border-[rgba(190,201,198,0.2)] bg-white shadow-[0px_0px_0px_1px_rgba(190,201,198,0.15)] transition hover:border-[#00453e]/25 hover:shadow-md">
       {/* Session header */}
@@ -108,6 +110,7 @@ export function ClimbingSessionGroup({ dateLabel, field, area, cards }: Props) {
               {card.detailSlug ? (
                 <Link
                   to={`/app/history/${card.detailSlug}`}
+                  state={fromHistory ? { fromHistory } : undefined}
                   className="block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00453e]"
                 >
                   {row}

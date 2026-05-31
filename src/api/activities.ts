@@ -256,3 +256,80 @@ export function getActivities(category?: string): Promise<ActivityListItem[]> {
 export function getActivityById(id: string): Promise<ActivityListItem> {
   return apiFetch<ActivityListItem>(`/activities/${id}`)
 }
+
+// ── PATCH payload types ────────────────────────────────────────────────────────
+// Only editable fields are included. Immutable fields (category, isOfficial,
+// userId, clubId, createdAt, routeId/snapshots for climbing) are intentionally
+// excluded — the backend ValidationPipe rejects them with 400 if sent.
+
+export type PatchHikingPayload = {
+  date?: string
+  mountain?: string
+  startPoint?: string
+  endPoint?: string
+  maxAltitude?: number
+  totalElevationGain?: number
+  distanceLength?: number
+  fieldType?: string
+  difficultyGrade?: string
+  participantsNum?: number
+  privateNotes?: string
+  publicNotes?: string
+}
+
+export type PatchClimbingPayload = {
+  date?: string
+  season?: string
+  repetitionType?: string
+  altitude?: number
+  routeLength?: number
+  participantsNum?: number
+  participantsText?: string
+  difficultyScale?: string
+  difficultyGrade?: string
+  mixedClimbing?: string
+  completionType?: string
+  privateNotes?: string
+  publicNotes?: string
+}
+
+export type PatchExpeditionPayload = {
+  date?: string
+  country?: string
+  mountainRange?: string
+  mountain?: string
+  summit?: string
+  routeName?: string
+  season?: string
+  altitude?: number
+  totalElevationGain?: number
+  difficultyGrade?: string
+  participantsNum?: number
+  organizationType?: string
+  privateNotes?: string
+  publicNotes?: string
+}
+
+export type PatchActivityPayload = PatchHikingPayload | PatchClimbingPayload | PatchExpeditionPayload
+
+/**
+ * Partially update an activity owned by the authenticated user.
+ * Only send editable fields — immutable fields must not be included.
+ * Returns the updated activity with its detail.
+ */
+export function patchActivity(id: string, payload: PatchActivityPayload): Promise<ActivityListItem> {
+  return apiFetch<ActivityListItem>(`/activities/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
+ * Hard-delete an activity owned by the authenticated user.
+ * Returns { ok: true } on success.
+ */
+export function deleteActivity(id: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/activities/${id}`, {
+    method: 'DELETE',
+  })
+}

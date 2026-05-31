@@ -17,8 +17,12 @@ type Props = {
   heroImageSrc?: string
   /** If false, hide hero even when `heroImageSrc` is set. Default: show when `heroImageSrc` exists. */
   showHeroImage?: boolean
-  /** Show edit/delete action icons (placeholder). */
+  /** Show edit/delete action icons. */
   showActions?: boolean
+  /** Called when the edit icon is clicked. */
+  onEdit?: () => void
+  /** Called when the delete icon is clicked. */
+  onDelete?: () => void
 }
 
 export function DetailHeader({
@@ -33,6 +37,8 @@ export function DetailHeader({
   heroImageSrc,
   showHeroImage,
   showActions = true,
+  onEdit,
+  onDelete,
 }: Props) {
   const displayHero = Boolean(heroImageSrc) && showHeroImage !== false
 
@@ -67,6 +73,7 @@ export function DetailHeader({
               <div className="flex items-center gap-1 text-[#94a3b8]">
                 <button
                   type="button"
+                  onClick={onEdit}
                   className="cursor-pointer rounded-lg p-2 transition hover:bg-[#f1f5f9] hover:text-[#475569]"
                   aria-label="Επεξεργασία"
                 >
@@ -74,6 +81,7 @@ export function DetailHeader({
                 </button>
                 <button
                   type="button"
+                  onClick={onDelete}
                   className="cursor-pointer rounded-lg p-2 transition hover:bg-red-50 hover:text-red-700"
                   aria-label="Διαγραφή"
                 >

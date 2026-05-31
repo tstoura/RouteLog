@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BarChart3, Check, Info, Lock, MessageSquare, Users } from 'lucide-react'
-import { getActivityById, type ActivityListItem } from '../../api/activities.ts'
+import { deleteActivity, getActivityById, type ActivityListItem } from '../../api/activities.ts'
+import { ApiError } from '../../api/client.ts'
 import {
   categoryToLabel,
   climbingScaleDisplayLabel,
@@ -149,7 +150,9 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       personalNote: { body: item.privateNotes ?? '' },
       routeEvaluation: { body: item.publicNotes ?? '' },
       sidebar,
-      routesDeepLink: '/app/routes',
+      routesDeepLink: c.climbingField
+        ? `/app/routes?category=climbing&sector=${encodeURIComponent(c.climbingField)}`
+        : '/app/routes?category=climbing',
     }
   }
 
@@ -219,23 +222,27 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
 
 export function ActivityDetailPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { activitySlug } = useParams<{ activitySlug: string }>()
 
+  // Deterministic back target: the history page URL passed by HistoryPage as
+  // location.state.fromHistory, or /app/history as a safe fallback.
+  const fromHistory: string =
+    (location.state as { fromHistory?: string } | null)?.fromHistory ?? '/app/history'
+
   function handleBack() {
-    // window.history.state.idx is set by React Router v6 to track stack position.
-    // If idx > 0 the user navigated here from within the app — go back to preserve filters.
-    // If idx is 0 or missing they opened the URL directly — fall back to /app/history.
-    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
-    if (idx > 0) {
-      navigate(-1)
-    } else {
-      navigate('/app/history')
-    }
+    navigate(fromHistory, { replace: true })
   }
 
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [data, setData] = useState<ActivityDetailModel | null>(null)
+  const [rawActivity, setRawActivity] = useState<ActivityListItem | null>(null)
+
+  // ── Delete modal state ──────────────────────────────────────────────────────
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!activitySlug) {
@@ -249,6 +256,7 @@ export function ActivityDetailPage() {
 
     getActivityById(activitySlug)
       .then((item) => {
+        setRawActivity(item)
         setData(buildDetailModel(item))
       })
       .catch((err: unknown) => {
@@ -259,6 +267,28 @@ export function ActivityDetailPage() {
         setIsLoading(false)
       })
   }, [activitySlug])
+
+  const handleEdit = () => {
+    navigate(`/app/history/${activitySlug}/edit`, { state: { fromHistory } })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!activitySlug) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteActivity(activitySlug)
+      navigate('/app/history', { replace: true })
+    } catch (err) {
+      setDeleteError(
+        err instanceof ApiError
+          ? err.message
+          : 'Σφάλμα κατά τη διαγραφή. Παρακαλώ δοκιμάστε ξανά.',
+      )
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -305,31 +335,43 @@ export function ActivityDetailPage() {
 
   const sidebar = (
     <>
-      <DetailSidebarMetricCard
-        title={data.sidebar.scoreTitle}
-        value={data.sidebar.scoreValue}
-        footnote={data.sidebar.scoreFootnote}
-      />
-      <DetailSidebarLinkCard
-        to={data.routesDeepLink}
-        icon={
-          <svg className="size-6 text-[#00453e]" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-            <path d="M20 20l-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        }
-      >
-        <span className="text-sm font-semibold leading-snug text-[#0f3d36]">
-          Δες όλες τις διαδρομές
-        </span>
-      </DetailSidebarLinkCard>
+      {data.status === 'official' ? (
+        <DetailSidebarMetricCard
+          title={data.sidebar.scoreTitle}
+          value={data.sidebar.scoreValue}
+          footnote={data.sidebar.scoreFootnote}
+        />
+      ) : (
+        <DetailSidebarMetricCard
+          variant="soft"
+          title="ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ"
+          value="—"
+          footnote="Δεν υπολογίζονται βαθμοί ΕΟΟΑ για προσωπικές καταγραφές."
+          hideFootnoteIcon
+        />
+      )}
+      {data.kind === 'rock_climbing' ? (
+        <DetailSidebarLinkCard
+          to={data.routesDeepLink}
+          icon={
+            <svg className="size-6 text-[#00453e]" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+              <path d="M20 20l-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          }
+        >
+          <span className="text-sm font-semibold leading-snug text-[#0f3d36]">
+            Δες όλες τις διαδρομές στο ίδιο πεδίο
+          </span>
+        </DetailSidebarLinkCard>
+      ) : null}
     </>
   )
 
   return (
     <DetailPageLayout sidebar={sidebar}>
       <DetailHeader
-        backHref="/app/history"
+        backHref={fromHistory}
         backLabel="Πίσω στο Ιστορικό"
         onBack={handleBack}
         title={data.title}
@@ -337,6 +379,8 @@ export function ActivityDetailPage() {
         mountainLine={data.mountainLabel}
         dateLine={data.dateLabel}
         badges={badges}
+        onEdit={handleEdit}
+        onDelete={() => setShowDeleteModal(true)}
       />
 
       {data.basics.length > 0 ? (
@@ -428,6 +472,53 @@ export function ActivityDetailPage() {
           <p className="text-sm text-[#94a3b8]">Καμία αξιολόγηση.</p>
         )}
       </DetailSectionCard>
+
+      {/* ── Delete confirmation modal ──────────────────────────────────────── */}
+      {showDeleteModal ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2 id="delete-modal-title" className="font-heading text-xl font-bold text-[#1a1c1e]">
+              Διαγραφή δράσης;
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-[#475569]">
+              {rawActivity?.isOfficial
+                ? 'Η επίσημη δράση θα αφαιρεθεί οριστικά από το ιστορικό σας και από μελλοντικές εξαγωγές του συλλόγου. Η ενέργεια αυτή δεν μπορεί να αναιρεθεί.'
+                : 'Η δράση θα αφαιρεθεί οριστικά από το ιστορικό σας. Η ενέργεια αυτή δεν μπορεί να αναιρεθεί.'}
+            </p>
+            {deleteError ? (
+              <p role="alert" className="mt-3 rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">
+                {deleteError}
+              </p>
+            ) : null}
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeleteError(null)
+                }}
+                className="flex-1 rounded-lg border border-[#e2e8e0] bg-white py-2.5 text-sm font-semibold text-[#3f4947] transition hover:bg-[#f8fafc] disabled:opacity-60"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteConfirm}
+                className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {isDeleting ? 'Διαγραφή...' : 'Διαγραφή'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DetailPageLayout>
   )
 }
