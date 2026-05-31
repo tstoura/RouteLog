@@ -29,6 +29,7 @@ import {
 import { submitHikingActivity } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
 import { useAuth } from '../../auth/AuthContext.tsx'
+import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
 
 export type HikingActivityFormProps = {
   /** Called after a successful backend submission; receives the server-calculated points. */
@@ -39,7 +40,7 @@ export type HikingActivityFormProps = {
   onActivityTabSelect: (kind: ActivityFormTabKind) => void
 }
 
-export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onActivityTabSelect }: HikingActivityFormProps) {
+export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _lastSubmittedPoints, onActivityTabSelect }: HikingActivityFormProps) {
   const { user } = useAuth()
 
   // True when the user has at least one club membership.
@@ -78,6 +79,28 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  // ── Live points preview ─────────────────────────────────────────────────────
+  const effectiveIsOfficial = hasClub ? isOfficial : false
+  const preview = usePointsPreview('hiking', {
+    maxAltitude: Number(maxAltitude) || 0,
+    totalElevationGain: Number(totalElevationGain) || 0,
+    distanceLength: Number(distanceLength) || 0,
+    fieldType,
+    difficultyGrade,
+    participantsNum,
+  }, effectiveIsOfficial)
+
+  const scoreValue = effectiveIsOfficial
+    ? preview.isLoading ? '...' : preview.points ?? '—'
+    : '—'
+  const scoreDesc = effectiveIsOfficial
+    ? preview.isLoading
+      ? 'Υπολογισμός...'
+      : preview.isReady
+        ? 'Βαθμοί ΕΟΟΑ'
+        : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'
+    : 'Δεν υπολογίζονται βαθμοί ΕΟΟΑ για προσωπικές καταγραφές.'
+
   const handleDecrement = () => setParticipantsNum((n) => Math.max(1, n - 1))
   const handleIncrement = () => setParticipantsNum((n) => n + 1)
 
@@ -92,7 +115,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
     }
 
     // Backend also enforces this; the UI hides the toggle so this is a safety net.
-    const effectiveIsOfficial = hasClub ? isOfficial : false
+    // effectiveIsOfficial is computed at component level.
 
     // ── Frontend validation for official records ────────────────────────────
     if (effectiveIsOfficial) {
@@ -246,12 +269,18 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
                   step="0.01"
                   value={distanceLength}
                   onChange={(e) => setDistanceLength(e.target.value)}
-                  placeholder="Μήκος"
+                  placeholder="Μήκος διαδρομής (m)"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
-                <FieldHints>
-                  <FieldHint>Για διαδρομές κάτω των 15 km, η συμπλήρωση είναι προαιρετική.</FieldHint>
-                </FieldHints>
+                {effectiveIsOfficial && (
+                  <FieldHints>
+                    <FieldHint>
+                      Για αποστάσεις έως 15 km εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
+                      <br />
+                      <span className="italic">Για μεγαλύτερες αποστάσεις, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                    </FieldHint>
+                  </FieldHints>
+                )}
               </label>
 
               <div className="grid gap-6 md:grid-cols-2">
@@ -370,12 +399,8 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
         </div>
 
         <ScoreSummaryCard
-          description={
-            hasClub && isOfficial
-              ? 'Οι βαθμοί υπολογίζονται αυτόματα από τον server βάσει της δραστηριότητας.'
-              : 'Οι βαθμοί δεν υπολογίζονται για προσωπικές καταγραφές.'
-          }
-          value={lastSubmittedPoints != null ? String(lastSubmittedPoints) : '-'}
+          description={scoreDesc}
+          value={scoreValue}
           icon="Σ"
         />
       </div>

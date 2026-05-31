@@ -48,6 +48,7 @@ import {
 import { submitClimbingActivity } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
 import { useAuth } from '../../auth/AuthContext.tsx'
+import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ function isUUID(s: string): boolean {
 export function RockClimbingActivityForm({
   initialRouteSlug = null,
   onSubmitSuccess,
-  lastSubmittedPoints,
+  lastSubmittedPoints: _lastSubmittedPoints,
   onActivityTabSelect,
 }: RockClimbingActivityFormProps) {
   const { user } = useAuth()
@@ -224,6 +225,30 @@ export function RockClimbingActivityForm({
   const [completionType, setCompletionType] = useState('')
   const [privateNotes, setPrivateNotes] = useState('')
   const [publicNotes, setPublicNotes] = useState('')
+
+  // ── Live points preview ─────────────────────────────────────────────────────
+  const effectiveIsOfficial = hasClub ? isOfficial : false
+  const preview = usePointsPreview('climbing', {
+    altitude: Number(altitude) || 0,
+    routeLength: Number(routeLength) || 0,
+    season,
+    repetitionType: repeat,
+    participantsNum,
+    difficultyScale: scaleKey && scaleKey !== '-' ? scaleKey : null,
+    difficultyGrade: gradeVal && gradeVal !== '-' ? gradeVal : null,
+    mixedClimbing: mixedClimbing || null,
+  }, effectiveIsOfficial)
+
+  const scoreValue = effectiveIsOfficial
+    ? preview.isLoading ? '...' : preview.points ?? '—'
+    : '—'
+  const scoreDesc = effectiveIsOfficial
+    ? preview.isLoading
+      ? 'Υπολογισμός...'
+      : preview.isReady
+        ? 'Βαθμοί ΕΟΟΑ'
+        : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'
+    : 'Δεν υπολογίζονται βαθμοί ΕΟΟΑ για προσωπικές καταγραφές.'
 
   // ── Modal ──────────────────────────────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false)
@@ -350,7 +375,7 @@ export function RockClimbingActivityForm({
     }
 
     // Backend also enforces this; the UI hides the toggle so this is a safety net.
-    const effectiveIsOfficial = hasClub ? isOfficial : false
+    // effectiveIsOfficial is computed at component level.
 
     // routeId is always required — user must pick or create a backend route
     if (!routeId) {
@@ -680,13 +705,15 @@ export function RockClimbingActivityForm({
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill && autofillHadAlt ? <AutoFilledBadge /> : null}
-                    <FieldHints>
-                      <FieldHint>
-                        Το υψόμετρο στο οποίο καταλήγει η αναρρίχηση.
-                        <br />
-                        <span className="italic">Για χαμηλό υψόμετρο (&lt;1000m), η συμπλήρωση είναι προαιρετική.</span>
-                      </FieldHint>
-                    </FieldHints>
+                    {effectiveIsOfficial && (
+                      <FieldHints>
+                        <FieldHint>
+                          Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
+                          <br />
+                          <span className="italic">Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.</span>
+                        </FieldHint>
+                      </FieldHints>
+                    )}
                   </label>
 
                   <label className="flex flex-col gap-3">
@@ -697,17 +724,19 @@ export function RockClimbingActivityForm({
                       step="0.01"
                       value={routeLength}
                       onChange={(e) => setRouteLength(e.target.value)}
-                      placeholder="Συνολικό μήκος αναρρίχησης"
+                      placeholder="Συνολικό μήκος αναρρίχησης (m)"
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill && autofillHadLen ? <AutoFilledBadge /> : null}
-                    <FieldHints>
-                      <FieldHint>
-                        Το συνολικό μήκος της αναρρίχησης.
-                        <br />
-                        <span className="italic">Για πολύ μικρές διαδρομές (&lt;100m), η συμπλήρωση είναι προαιρετική.</span>
-                      </FieldHint>
-                    </FieldHints>
+                    {effectiveIsOfficial && (
+                      <FieldHints>
+                        <FieldHint>
+                          Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
+                          <br />
+                          <span className="italic">Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                        </FieldHint>
+                      </FieldHints>
+                    )}
                   </label>
                 </div>
               </div>
@@ -826,8 +855,8 @@ export function RockClimbingActivityForm({
           </div>
 
           <ScoreSummaryCard
-            description="Οι βαθμοί υπολογίζονται αυτόματα από τον server βάσει της δυσκολίας, ύψους και εποχής."
-            value={lastSubmittedPoints != null ? String(lastSubmittedPoints) : '-'}
+            description={scoreDesc}
+            value={scoreValue}
             colSpan={3}
           />
         </div>

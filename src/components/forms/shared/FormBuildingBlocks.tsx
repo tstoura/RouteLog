@@ -399,7 +399,7 @@ export function ScoreSummaryCard({
   colSpan?: 3 | 4
 }) {
   return (
-    <aside className={`hidden lg:block ${colSpan === 3 ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
+    <aside className={`hidden lg:block lg:sticky lg:top-24 lg:self-start ${colSpan === 3 ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
       <div className="rounded-xl bg-[#00453e] p-8 text-center text-white shadow-[0px_25px_50px_-12px_rgba(6,78,59,0.1)]">
         <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-[#005f56] text-2xl font-bold">
           {icon}

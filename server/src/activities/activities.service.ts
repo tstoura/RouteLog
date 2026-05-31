@@ -41,6 +41,7 @@ import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
 import { CreateExpeditionActivityDto } from './dto/create-expedition-activity.dto'
 import { PatchActivityDto } from './dto/patch-activity.dto'
 import { GetActivitiesDto } from './dto/get-activities.dto'
+import { PreviewPointsDto, type PreviewPointsResult } from './dto/preview-points.dto'
 
 @Injectable()
 export class ActivitiesService {
@@ -1175,6 +1176,144 @@ export class ActivitiesService {
     })
 
     return { ok: true }
+  }
+
+  // ── Preview points (no DB writes) ───────────────────────────────────────────
+
+  /**
+   * Computes a live EOOA points preview for the given category payload.
+   *
+   * Returns { points, isReady: true } when the payload is complete and valid.
+   * Returns { points: null, isReady: false } when the payload is incomplete.
+   * Never throws for incomplete/expected-invalid data — that is normal for a
+   * live preview called while the user is typing.
+   */
+  async previewPoints(dto: PreviewPointsDto): Promise<PreviewPointsResult> {
+    if (dto.category === 'hiking') return this.previewHikingPoints(dto.payload)
+    if (dto.category === 'climbing') return this.previewClimbingPoints(dto.payload)
+    if (dto.category === 'expedition') return this.previewExpeditionPoints(dto.payload)
+    return { points: null, isReady: false, reason: 'unknown_category' }
+  }
+
+  private previewHikingPoints(payload: Record<string, unknown>): PreviewPointsResult {
+    const maxAltitude = Number(payload.maxAltitude) || 0
+    const totalElevationGain = Number(payload.totalElevationGain) || 0
+    const distanceLength = Number(payload.distanceLength) || 0
+    const fieldType = String(payload.fieldType ?? '')
+    const difficultyGrade = String(payload.difficultyGrade ?? '')
+    const participantsNum = Number(payload.participantsNum) || 0
+
+    if (
+      maxAltitude <= 0 ||
+      totalElevationGain <= 0 ||
+      !HIKING_FIELD_TYPES.includes(fieldType as HikingFieldType) ||
+      !HIKING_DIFFICULTY_GRADES.includes(difficultyGrade as HikingDifficultyGrade) ||
+      participantsNum < 3
+    ) {
+      return { points: null, isReady: false, reason: 'missing_required_fields' }
+    }
+
+    try {
+      const raw = this.scoring.calculateHikingPoints({
+        maxAltitude,
+        totalElevationGain,
+        distanceLength,
+        fieldType,
+        difficultyGrade,
+        participantsNum,
+      })
+      return { points: raw.toFixed(2), isReady: true }
+    } catch {
+      return { points: null, isReady: false, reason: 'scoring_error' }
+    }
+  }
+
+  private async previewClimbingPoints(payload: Record<string, unknown>): Promise<PreviewPointsResult> {
+    const altitude = Number(payload.altitude) || 0
+    const routeLength = Number(payload.routeLength) || 0
+    const season = String(payload.season ?? '')
+    const repetitionType = String(payload.repetitionType ?? '')
+    const participantsNum = Number(payload.participantsNum) || 0
+    const difficultyScale = payload.difficultyScale ? String(payload.difficultyScale) : null
+    const difficultyGrade = payload.difficultyGrade ? String(payload.difficultyGrade) : null
+    const mixedClimbing = payload.mixedClimbing ? String(payload.mixedClimbing) : null
+
+    if (
+      altitude <= 0 ||
+      routeLength <= 0 ||
+      !CLIMBING_SEASONS.includes(season as ClimbingSeason) ||
+      !CLIMBING_REPETITION_TYPES.includes(repetitionType as ClimbingRepetitionType) ||
+      participantsNum < 1
+    ) {
+      return { points: null, isReady: false, reason: 'missing_required_fields' }
+    }
+
+    const hasRegularDifficulty = !!(difficultyScale && difficultyGrade)
+    const hasMixedDifficulty = !!mixedClimbing
+    if (!hasRegularDifficulty && !hasMixedDifficulty) {
+      return { points: null, isReady: false, reason: 'missing_required_fields' }
+    }
+
+    let mappedGrade: string | null = null
+    if (difficultyScale === 'french' && difficultyGrade) {
+      try {
+        const resolved = await this.scoring.resolveClimbingGrade(difficultyGrade)
+        mappedGrade = resolved.mappedGrade
+      } catch {
+        return { points: null, isReady: false, reason: 'french_grade_unmapped' }
+      }
+    }
+
+    try {
+      const raw = this.scoring.calculateClimbingPoints({
+        altitude,
+        routeLength,
+        season,
+        repetitionType,
+        participantsNum,
+        difficultyScale,
+        difficultyGrade,
+        mappedGrade,
+        mixedClimbing,
+      })
+      return { points: raw.toFixed(2), isReady: true }
+    } catch {
+      return { points: null, isReady: false, reason: 'scoring_error' }
+    }
+  }
+
+  private previewExpeditionPoints(payload: Record<string, unknown>): PreviewPointsResult {
+    const altitude = Number(payload.altitude) || 0
+    const totalElevationGain = Number(payload.totalElevationGain) || 0
+    const season = String(payload.season ?? '')
+    const difficultyGrade = String(payload.difficultyGrade ?? '')
+    const participantsNum = Number(payload.participantsNum) || 0
+    const organizationType = String(payload.organizationType ?? '')
+
+    if (
+      altitude <= 0 ||
+      totalElevationGain <= 0 ||
+      !EXPEDITION_SEASONS.includes(season as ExpeditionSeason) ||
+      !EXPEDITION_DIFFICULTY_GRADES.includes(difficultyGrade as ExpeditionDifficultyGrade) ||
+      participantsNum < 1 ||
+      !EXPEDITION_ORGANIZATION_TYPES.includes(organizationType as ExpeditionOrganizationType)
+    ) {
+      return { points: null, isReady: false, reason: 'missing_required_fields' }
+    }
+
+    try {
+      const raw = this.scoring.calculateExpeditionPoints({
+        altitude,
+        totalElevationGain,
+        season,
+        difficultyGrade,
+        participantsNum,
+        organizationType,
+      })
+      return { points: raw.toFixed(2), isReady: true }
+    } catch {
+      return { points: null, isReady: false, reason: 'scoring_error' }
+    }
   }
 }
 

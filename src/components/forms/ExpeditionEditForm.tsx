@@ -26,6 +26,7 @@ import {
 import { patchActivity, type PatchExpeditionPayload } from '../../api/activities.ts'
 import type { ActivityListItem } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
+import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
 
 const inputClass = 'h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]'
 
@@ -90,6 +91,16 @@ export function ExpeditionEditForm({ activity, onSaved, onCancel }: ExpeditionEd
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // ── Live points preview (official activities only) ──────────────────────────
+  const preview = usePointsPreview('expedition', {
+    altitude: Number(altitude) || 0,
+    totalElevationGain: Number(totalElevationGain) || 0,
+    season,
+    difficultyGrade,
+    participantsNum,
+    organizationType,
+  }, isOfficial)
 
   const handleDecrement = () => setParticipantsNum((n) => Math.max(1, n - 1))
   const handleIncrement = () => setParticipantsNum((n) => n + 1)
@@ -244,6 +255,26 @@ export function ExpeditionEditForm({ activity, onSaved, onCancel }: ExpeditionEd
               </label>
             </div>
           </FormSection>
+
+          {isOfficial && (
+            <div className="rounded-xl bg-[#00453e] px-6 py-5 text-white">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[1.4px]">ΥΠΟΛΟΓΙΣΜΕΝΟΙ ΒΑΘΜΟΙ</p>
+                  <p className={`mt-1 text-3xl font-semibold tracking-[-1px] ${preview.isLoading ? 'opacity-60' : ''}`}>
+                    {preview.isLoading ? '...' : preview.points ?? '—'}
+                  </p>
+                </div>
+                <p className="max-w-[220px] text-right text-xs leading-relaxed text-[rgba(140,214,202,0.85)]">
+                  {preview.isLoading
+                    ? 'Υπολογισμός...'
+                    : preview.isReady
+                      ? 'Βαθμοί ΕΟΟΑ'
+                      : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {submitError ? (
             <div role="alert" className="rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">

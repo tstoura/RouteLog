@@ -21,6 +21,7 @@ import { CreateClimbingActivityDto } from './dto/create-climbing-activity.dto'
 import { CreateExpeditionActivityDto } from './dto/create-expedition-activity.dto'
 import { PatchActivityDto } from './dto/patch-activity.dto'
 import { GetActivitiesDto } from './dto/get-activities.dto'
+import { PreviewPointsDto } from './dto/preview-points.dto'
 
 type AuthRequest = ExpressRequest & { user: JwtPayload }
 
@@ -82,6 +83,23 @@ export class ActivitiesController {
   }
 
   // ── Creation ──────────────────────────────────────────────────────────────
+
+  /**
+   * POST /activities/preview-points
+   *
+   * Compute a live EOOA points preview for the given category payload.
+   * No database writes are performed.
+   *
+   * The payload may be incomplete (user is still filling the form).
+   * Returns 200 with { points: null, isReady: false } for incomplete data.
+   * Returns 200 with { points: "10.25", isReady: true } when fully computable.
+   * Returns 400 if category is unknown or the body is malformed.
+   * Returns 401 if not authenticated.
+   */
+  @Post('preview-points')
+  previewPoints(@Body() dto: PreviewPointsDto) {
+    return this.activitiesService.previewPoints(dto)
+  }
 
   /**
    * POST /activities/hiking

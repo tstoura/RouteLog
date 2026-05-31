@@ -30,6 +30,7 @@ import {
 import { submitExpeditionActivity } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
 import { useAuth } from '../../auth/AuthContext.tsx'
+import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
 
 /** Matches other activity form inputs. */
 const expeditionInputClass =
@@ -55,7 +56,7 @@ export type ExpeditionActivityFormProps = {
 
 export function ExpeditionActivityForm({
   onSubmitSuccess,
-  lastSubmittedPoints,
+  lastSubmittedPoints: _lastSubmittedPoints,
   onActivityTabSelect,
 }: ExpeditionActivityFormProps) {
   const { user } = useAuth()
@@ -101,6 +102,27 @@ export function ExpeditionActivityForm({
   // ── Submit state ─────────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // ── Live points preview ─────────────────────────────────────────────────────
+  const preview = usePointsPreview('expedition', {
+    altitude: Number(altitude) || 0,
+    totalElevationGain: Number(totalElevationGain) || 0,
+    season,
+    difficultyGrade,
+    participantsNum,
+    organizationType,
+  }, effectiveIsOfficial)
+
+  const scoreValue = effectiveIsOfficial
+    ? preview.isLoading ? '...' : preview.points ?? '—'
+    : '—'
+  const scoreDesc = effectiveIsOfficial
+    ? preview.isLoading
+      ? 'Υπολογισμός...'
+      : preview.isReady
+        ? 'Βαθμοί ΕΟΟΑ'
+        : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'
+    : 'Δεν υπολογίζονται βαθμοί ΕΟΟΑ για προσωπικές καταγραφές.'
 
   const handleDecrement = () => setParticipantsNum((n) => Math.max(1, n - 1))
   const handleIncrement = () => setParticipantsNum((n) => n + 1)
@@ -442,12 +464,8 @@ export function ExpeditionActivityForm({
         </div>
 
         <ScoreSummaryCard
-          description={
-            effectiveIsOfficial
-              ? 'Οι βαθμοί υπολογίζονται αυτόματα με βάση τα στοιχεία της αποστολής.'
-              : 'Οι βαθμοί δεν υπολογίζονται για προσωπικές καταγραφές.'
-          }
-          value={lastSubmittedPoints != null ? String(lastSubmittedPoints) : '-'}
+          description={scoreDesc}
+          value={scoreValue}
           icon="Σ"
         />
       </div>
