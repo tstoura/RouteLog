@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Badge } from '../ui/Badge.tsx'
 import { LANDING_ASSETS } from '../../constants/landingAssets.ts'
+import { useAuth, isAdminUser } from '../../auth/AuthContext.tsx'
 
 function ArrowIcon() {
   return (
@@ -17,6 +18,9 @@ function ArrowIcon() {
 }
 
 export function HeroSection() {
+  const { isAuthenticated, isLoading, user, logout } = useAuth()
+  const appDest = isAdminUser(user) ? '/admin' : '/app'
+
   return (
     <section className="relative flex min-h-[min(921px,90vh)] w-full items-center justify-center overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
@@ -44,20 +48,46 @@ export function HeroSection() {
             <br />
             αναρρίχησης βράχου και αποστολών εξωτερικού με ακρίβεια και συνέπεια.
           </p>
+
+          {/* CTA buttons — three states: loading / authenticated / unauthenticated */}
           <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-start">
-            <Link
-              to="/login"
-              className="relative inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#005f56] px-8 py-[17px] text-base font-semibold text-white shadow-[0px_20px_25px_-5px_rgba(0,95,86,0.2),0px_8px_10px_-6px_rgba(0,95,86,0.2)] transition hover:bg-[#004a43]"
-            >
-              Σύνδεση
-              <ArrowIcon />
-            </Link>
-            <Link
-              to="/register"
-              className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md transition hover:bg-white/15"
-            >
-              Δημιουργία Λογαριασμού
-            </Link>
+            {isLoading ? (
+              /* While refresh cookie check is in flight — prevent register/login flicker */
+              <div className="h-[54px] w-40 animate-pulse rounded-lg bg-white/20" aria-hidden />
+            ) : isAuthenticated ? (
+              <>
+                <Link
+                  to={appDest}
+                  className="relative inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#005f56] px-8 py-[17px] text-base font-semibold text-white shadow-[0px_20px_25px_-5px_rgba(0,95,86,0.2),0px_8px_10px_-6px_rgba(0,95,86,0.2)] transition hover:bg-[#004a43]"
+                >
+                  Μετάβαση στην εφαρμογή
+                  <ArrowIcon />
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md transition hover:bg-white/15"
+                >
+                  Αποσύνδεση
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="relative inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#005f56] px-8 py-[17px] text-base font-semibold text-white shadow-[0px_20px_25px_-5px_rgba(0,95,86,0.2),0px_8px_10px_-6px_rgba(0,95,86,0.2)] transition hover:bg-[#004a43]"
+                >
+                  Σύνδεση
+                  <ArrowIcon />
+                </Link>
+                <Link
+                  to="/register"
+                  className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md transition hover:bg-white/15"
+                >
+                  Δημιουργία Λογαριασμού
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

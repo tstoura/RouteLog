@@ -1,8 +1,10 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ClipboardList, LayoutDashboard, Users, BookOpen } from 'lucide-react'
+import { useMemo } from 'react'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
 import { useAuth } from '../../auth/AuthContext.tsx'
 import { useAdminClub } from '../../admin/AdminClubContext.tsx'
+import { CustomSelect } from '../ui/CustomSelect.tsx'
 
 function HelpIcon() {
   return (
@@ -55,6 +57,14 @@ export function AdminSidebar() {
   const membersActive = pathname.startsWith('/admin/members')
   const activitiesActive = pathname.startsWith('/admin/activities')
 
+  const clubOptions = useMemo(
+    () => [
+      { value: '', label: '— Επιλέξτε σύλλογο —' },
+      ...availableClubs.map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [availableClubs],
+  )
+
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#e4e4e8] bg-[#eeeef0] px-4 py-8 md:flex">
       <div className="mb-6">
@@ -73,22 +83,12 @@ export function AdminSidebar() {
           ) : clubError ? (
             <p className="px-1 text-xs text-red-500">{clubError}</p>
           ) : (
-            <select
+            <CustomSelect
               value={selectedClubId ?? ''}
-              onChange={(e) => {
-                if (e.target.value) setSelectedClubId(e.target.value)
-                else clearSelectedClubId()
-              }}
-              className="w-full rounded-lg border border-[#e0e5e3] bg-white px-3 py-2 text-sm text-[#1a1c1e] shadow-sm focus:border-[#00453e] focus:outline-none focus:ring-1 focus:ring-[#00453e]"
-              aria-label="Επιλογή συλλόγου"
-            >
-              <option value="">— Επιλέξτε σύλλογο —</option>
-              {availableClubs.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => (v ? setSelectedClubId(v) : clearSelectedClubId())}
+              options={clubOptions}
+              heightClass="h-10"
+            />
           )}
         </div>
       )}

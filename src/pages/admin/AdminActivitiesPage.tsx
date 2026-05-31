@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AppPageHeading } from '../../components/layout/AppPageHeading.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Button } from '../../components/ui/Button.tsx'
-import { Select } from '../../components/ui/Select.tsx'
+import { CustomSelect } from '../../components/ui/CustomSelect.tsx'
 import { ExportDataModal } from '../../components/admin/ExportDataModal.tsx'
 import { getClubActivities } from '../../api/auth.ts'
 import type { AdminActivityItem } from '../../api/auth.ts'
@@ -85,6 +85,35 @@ export function AdminActivitiesPage() {
     return ['all', ...[...ys].sort((a, b) => b.localeCompare(a))]
   }, [activities])
 
+  const yearSelectOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Όλα τα έτη' },
+      ...yearOptions
+        .filter((y) => y !== 'all')
+        .map((y) => ({ value: y, label: y })),
+    ],
+    [yearOptions],
+  )
+
+  const monthSelectOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Όλοι οι μήνες' },
+      { value: '1', label: 'Ιανουάριος' },
+      { value: '2', label: 'Φεβρουάριος' },
+      { value: '3', label: 'Μάρτιος' },
+      { value: '4', label: 'Απρίλιος' },
+      { value: '5', label: 'Μάιος' },
+      { value: '6', label: 'Ιούνιος' },
+      { value: '7', label: 'Ιούλιος' },
+      { value: '8', label: 'Αύγουστος' },
+      { value: '9', label: 'Σεπτέμβριος' },
+      { value: '10', label: 'Οκτώβριος' },
+      { value: '11', label: 'Νοέμβριος' },
+      { value: '12', label: 'Δεκέμβριος' },
+    ],
+    [],
+  )
+
   // Client-side filter by year and month.
   const filtered = useMemo(() => {
     let list = activities
@@ -135,34 +164,21 @@ export function AdminActivitiesPage() {
       <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-end">
         <label className="space-y-2 sm:min-w-[160px]">
           <span className="text-xs font-bold uppercase tracking-wide text-[#64748b]">Έτος</span>
-          <Select value={year} onChange={(e) => setYear(e.target.value)} className="h-11 text-sm">
-            <option value="all">Όλα τα έτη</option>
-            {yearOptions
-              .filter((y) => y !== 'all')
-              .map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-          </Select>
+          <CustomSelect
+            value={year}
+            onChange={setYear}
+            options={yearSelectOptions}
+            heightClass="h-11"
+          />
         </label>
         <label className="space-y-2 sm:min-w-[160px]">
           <span className="text-xs font-bold uppercase tracking-wide text-[#64748b]">Μήνας</span>
-          <Select value={month} onChange={(e) => setMonth(e.target.value)} className="h-11 text-sm">
-            <option value="all">Όλοι οι μήνες</option>
-            <option value="1">Ιανουάριος</option>
-            <option value="2">Φεβρουάριος</option>
-            <option value="3">Μάρτιος</option>
-            <option value="4">Απρίλιος</option>
-            <option value="5">Μάιος</option>
-            <option value="6">Ιούνιος</option>
-            <option value="7">Ιούλιος</option>
-            <option value="8">Αύγουστος</option>
-            <option value="9">Σεπτέμβριος</option>
-            <option value="10">Οκτώβριος</option>
-            <option value="11">Νοέμβριος</option>
-            <option value="12">Δεκέμβριος</option>
-          </Select>
+          <CustomSelect
+            value={month}
+            onChange={setMonth}
+            options={monthSelectOptions}
+            heightClass="h-11"
+          />
         </label>
         <Button
           type="button"

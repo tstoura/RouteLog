@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FormSection } from '../ui/FormSection.tsx'
 import { Input } from '../ui/Input.tsx'
 import { Textarea } from '../ui/Textarea.tsx'
@@ -12,6 +12,7 @@ import {
   FieldLabel,
   FormActions,
   OfficialParticipationSection,
+  PersonalOnlySection,
   ScoreSummaryCard,
   SectionIconBasics,
   SectionIconNotes,
@@ -41,8 +42,16 @@ export type HikingActivityFormProps = {
 export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onActivityTabSelect }: HikingActivityFormProps) {
   const { user } = useAuth()
 
+  // True when the user has at least one club membership.
+  const hasClub = Boolean(user && user.memberships.length > 0)
+
   // ── Official / personal toggle ──────────────────────────────────────────────
   const [isOfficial, setIsOfficial] = useState(true)
+
+  // When the user has no club, always force isOfficial = false.
+  useEffect(() => {
+    if (!hasClub) setIsOfficial(false)
+  }, [hasClub])
 
   // ── Basic fields ────────────────────────────────────────────────────────────
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -81,15 +90,12 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
       setSubmitError('Δεν είστε συνδεδεμένος. Παρακαλώ συνδεθείτε ξανά.')
       return
     }
-    if (isOfficial && user.memberships.length === 0) {
-      setSubmitError(
-        'Για επίσημη καταγραφή απαιτείται μέλος συλλόγου. Εγγραφείτε σε σύλλογο από τις ρυθμίσεις.',
-      )
-      return
-    }
+
+    // Backend also enforces this; the UI hides the toggle so this is a safety net.
+    const effectiveIsOfficial = hasClub ? isOfficial : false
 
     // ── Frontend validation for official records ────────────────────────────
-    if (isOfficial) {
+    if (effectiveIsOfficial) {
       if (!mountain.trim() || !startPoint.trim() || !endPoint.trim()) {
         setSubmitError(
           'Βουνό, αφετηρία και κορυφή/τερματισμός είναι υποχρεωτικά για επίσημη καταγραφή.',
@@ -104,8 +110,8 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
         setSubmitError('Η συνολική υψομετρική ανάβαση (Σ.Υ.Α.) είναι υποχρεωτική για επίσημη καταγραφή.')
         return
       }
-      if (participantsNum < 1) {
-        setSubmitError('Απαιτείται τουλάχιστον 1 άτομο.')
+      if (participantsNum < 3) {
+        setSubmitError('Η επίσημη ορειβατική καταγραφή απαιτεί τουλάχιστον 3 άτομα.')
         return
       }
     }
@@ -113,7 +119,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
     setIsSubmitting(true)
     try {
       const result = await submitHikingActivity({
-        isOfficial,
+        isOfficial: effectiveIsOfficial,
         date,
         mountain: mountain.trim(),
         startPoint: startPoint.trim(),
@@ -305,7 +311,9 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
               </div>
               <FieldHints>
                 <FieldHint>Ο αριθμός των μελών του συλλόγου που συμμετείχαν.</FieldHint>
-                <FieldHint>Απαιτούνται τουλάχιστον 3 άτομα για επίσημη καταγραφή.</FieldHint>
+                {hasClub && isOfficial && (
+                  <FieldHint>Απαιτούνται τουλάχιστον 3 άτομα για επίσημη καταγραφή.</FieldHint>
+                )}
               </FieldHints>
             </div>
           </FormSection>
@@ -340,7 +348,11 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
             </div>
           </FormSection>
 
-          <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+          {hasClub ? (
+            <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+          ) : (
+            <PersonalOnlySection />
+          )}
 
           {submitError ? (
             <div
@@ -358,7 +370,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints, onAct
 
         <ScoreSummaryCard
           description={
-            isOfficial
+            hasClub && isOfficial
               ? 'Οι βαθμοί υπολογίζονται αυτόματα από τον server βάσει της δραστηριότητας.'
               : 'Οι βαθμοί δεν υπολογίζονται για προσωπικές καταγραφές.'
           }

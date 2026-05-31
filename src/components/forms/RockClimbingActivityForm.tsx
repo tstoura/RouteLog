@@ -12,6 +12,7 @@ import {
   FieldLabel,
   FormActions,
   OfficialParticipationSection,
+  PersonalOnlySection,
   RadioGroupField,
   ScoreSummaryCard,
   SectionIconBasics,
@@ -131,8 +132,16 @@ export function RockClimbingActivityForm({
   const { user } = useAuth()
   const seed = useMemo(() => buildStateFromRouteSlug(initialRouteSlug ?? null), [initialRouteSlug])
 
+  // True when the user has at least one club membership.
+  const hasClub = Boolean(user && user.memberships.length > 0)
+
   // ── Official / personal toggle ─────────────────────────────────────────────
   const [isOfficial, setIsOfficial] = useState(true)
+
+  // When the user has no club, always force isOfficial = false.
+  useEffect(() => {
+    if (!hasClub) setIsOfficial(false)
+  }, [hasClub])
 
   // ── Basic ──────────────────────────────────────────────────────────────────
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -339,12 +348,9 @@ export function RockClimbingActivityForm({
       setSubmitError('Δεν είστε συνδεδεμένος. Παρακαλώ συνδεθείτε ξανά.')
       return
     }
-    if (isOfficial && user.memberships.length === 0) {
-      setSubmitError(
-        'Για επίσημη καταγραφή απαιτείται μέλος συλλόγου. Εγγραφείτε σε σύλλογο από τις ρυθμίσεις.',
-      )
-      return
-    }
+
+    // Backend also enforces this; the UI hides the toggle so this is a safety net.
+    const effectiveIsOfficial = hasClub ? isOfficial : false
 
     // routeId is always required — user must pick or create a backend route
     if (!routeId) {
@@ -358,7 +364,7 @@ export function RockClimbingActivityForm({
     const hasRegularDifficulty =
       Boolean(scaleKey) && scaleKey !== '-' && Boolean(gradeVal) && gradeVal !== '-'
 
-    if (isOfficial) {
+    if (effectiveIsOfficial) {
       if (!altitude || Number(altitude) < 1) {
         setSubmitError('Το υψόμετρο είναι υποχρεωτικό για επίσημη καταγραφή.')
         return
@@ -371,10 +377,6 @@ export function RockClimbingActivityForm({
         setSubmitError('Απαιτείται τουλάχιστον 1 άτομο.')
         return
       }
-      // participantsText is required only when climbing with others (participantsNum > 1).
-      // When participantsNum = 1 the user climbed alone; no partner list is needed.
-      // TODO (Auth phase): export should prepend the authenticated user's display name
-      //   automatically, so participantsText will only need to list additional partners.
       if (participantsNum > 1 && !participantsText.trim()) {
         setSubmitError(
           'Καταχωρήστε τους σχοινοσυντρόφους για επίσημη καταγραφή με περισσότερα από 1 άτομα.',
@@ -394,18 +396,15 @@ export function RockClimbingActivityForm({
     const routeLengthVal = Number(routeLength)
     try {
       const result = await submitClimbingActivity({
-        isOfficial,
+        isOfficial: effectiveIsOfficial,
         routeId,
         date,
         season,
         repetitionType: repeat,
-        // Official: sentinel 1/0.01 preserved as a safety floor (service validates).
-        // Personal: omit when empty so the backend stores the 0 sentinel rather than
-        //           a forced minimum value the user never entered.
-        altitude: isOfficial
+        altitude: effectiveIsOfficial
           ? altitudeVal || 1
           : altitudeVal >= 1 ? altitudeVal : undefined,
-        routeLength: isOfficial
+        routeLength: effectiveIsOfficial
           ? routeLengthVal || 0.01
           : routeLengthVal >= 0.01 ? routeLengthVal : undefined,
         participantsNum,
@@ -808,7 +807,11 @@ export function RockClimbingActivityForm({
               </div>
             </FormSection>
 
-            <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+            {hasClub ? (
+              <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+            ) : (
+              <PersonalOnlySection />
+            )}
 
             {submitError ? (
               <div

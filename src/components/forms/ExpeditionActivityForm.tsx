@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { FormSection } from '../ui/FormSection.tsx'
 import {
   ActivityTypeTabs,
@@ -9,6 +9,7 @@ import {
   FieldLabel,
   FormActions,
   OfficialParticipationSection,
+  PersonalOnlySection,
   RadioGroupField,
   ScoreSummaryCard,
   SectionIconBasics,
@@ -59,8 +60,20 @@ export function ExpeditionActivityForm({
 }: ExpeditionActivityFormProps) {
   const { user } = useAuth()
 
+  // True when the user has at least one club membership.
+  const hasClub = Boolean(user && user.memberships.length > 0)
+
   // ── Official / personal toggle ───────────────────────────────────────────────
   const [isOfficial, setIsOfficial] = useState(true)
+
+  // When the user has no club, always force isOfficial = false.
+  useEffect(() => {
+    if (!hasClub) setIsOfficial(false)
+  }, [hasClub])
+
+  // Effective value used in JSX and submit handler.
+  // Users without club always submit personal (false), regardless of toggle.
+  const effectiveIsOfficial = hasClub ? isOfficial : false
 
   // ── Basic fields ─────────────────────────────────────────────────────────────
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -100,15 +113,12 @@ export function ExpeditionActivityForm({
       setSubmitError('Δεν είστε συνδεδεμένος. Παρακαλώ συνδεθείτε ξανά.')
       return
     }
-    if (isOfficial && user.memberships.length === 0) {
-      setSubmitError(
-        'Για επίσημη καταγραφή απαιτείται μέλος συλλόγου. Εγγραφείτε σε σύλλογο από τις ρυθμίσεις.',
-      )
-      return
-    }
+
+    // Backend also enforces this; the UI hides the toggle so this is a safety net.
+    // effectiveIsOfficial is computed at component level.
 
     // ── Frontend validation for official records ──────────────────────────────
-    if (isOfficial) {
+    if (effectiveIsOfficial) {
       if (
         !country.trim() ||
         !mountainRange.trim() ||
@@ -145,15 +155,10 @@ export function ExpeditionActivityForm({
       }
     }
 
-    // ── TODO: for personal records, determine which fields can be omitted ─────
-    // Currently all standard fields are required by the backend regardless of
-    // isOfficial. This will be revisited when personal record optional fields
-    // are clarified in a later phase.
-
     setIsSubmitting(true)
     try {
       const result = await submitExpeditionActivity({
-        isOfficial,
+        isOfficial: effectiveIsOfficial,
         date,
         country: country.trim(),
         mountainRange: mountainRange.trim(),
@@ -161,9 +166,8 @@ export function ExpeditionActivityForm({
         summit: summit.trim(),
         routeName: routeName.trim(),
         season,
-        // Official: always send (required). Personal: omit when empty — backend stores 0 as Phase A sentinel.
-        altitude: isOfficial ? Number(altitude) || 0 : (Number(altitude) > 0 ? Number(altitude) : undefined),
-        totalElevationGain: isOfficial ? Number(totalElevationGain) || 0 : (Number(totalElevationGain) > 0 ? Number(totalElevationGain) : undefined),
+        altitude: effectiveIsOfficial ? Number(altitude) || 0 : (Number(altitude) > 0 ? Number(altitude) : undefined),
+        totalElevationGain: effectiveIsOfficial ? Number(totalElevationGain) || 0 : (Number(totalElevationGain) > 0 ? Number(totalElevationGain) : undefined),
         difficultyGrade,
         participantsNum,
         organizationType: organizationType || 'no',
@@ -292,7 +296,7 @@ export function ExpeditionActivityForm({
           <FormSection title="ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ" icon={<SectionIconTechnical />}>
             <div className="flex flex-col gap-8">
               <label className="flex flex-col gap-3">
-                <FieldLabel>{isOfficial ? 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)' : 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M) (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
+                <FieldLabel>{effectiveIsOfficial ? 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)' : 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M) (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
                 <Input
                   type="number"
                   min="1"
@@ -307,7 +311,7 @@ export function ExpeditionActivityForm({
               </label>
 
               <label className="flex flex-col gap-3">
-                <FieldLabel>{isOfficial ? 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ' : 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
+                <FieldLabel>{effectiveIsOfficial ? 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ' : 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
                 <Input
                   type="number"
                   min="0"
@@ -325,11 +329,11 @@ export function ExpeditionActivityForm({
 
               <div className="flex flex-col gap-3">
                 <SelectFieldControlled
-                  label={isOfficial ? 'ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ' : 'ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ (ΠΡΟΑΙΡΕΤΙΚΟ)'}
+                  label={effectiveIsOfficial ? 'ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ' : 'ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ (ΠΡΟΑΙΡΕΤΙΚΟ)'}
                   options={EXPEDITION_GRADE_SELECT_OPTIONS}
                   value={difficultyGrade}
                   onChange={setDifficultyGrade}
-                  disabledValues={isOfficial ? [''] : []}
+                  disabledValues={effectiveIsOfficial ? [''] : []}
                 />
                 <FieldHints>
                   <FieldHint>{EXPEDITION_DIFFICULTY_GRADE_HELPER}</FieldHint>
@@ -372,7 +376,7 @@ export function ExpeditionActivityForm({
                 </FieldHints>
               </div>
 
-              {isOfficial ? (
+              {effectiveIsOfficial ? (
                 <div className="flex flex-col gap-3">
                   <SelectFieldControlled
                     label="ΟΡΓΑΝΩΣΗ"
@@ -419,7 +423,11 @@ export function ExpeditionActivityForm({
             </div>
           </FormSection>
 
-          <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+          {hasClub ? (
+            <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
+          ) : (
+            <PersonalOnlySection />
+          )}
 
           {submitError ? (
             <div
@@ -435,7 +443,7 @@ export function ExpeditionActivityForm({
 
         <ScoreSummaryCard
           description={
-            isOfficial
+            effectiveIsOfficial
               ? 'Οι βαθμοί υπολογίζονται αυτόματα με βάση τα στοιχεία της αποστολής.'
               : 'Οι βαθμοί δεν υπολογίζονται για προσωπικές καταγραφές.'
           }

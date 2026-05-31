@@ -180,3 +180,20 @@ export type AdminActivityItem = {
 export function getClubActivities(clubId: string): Promise<AdminActivityItem[]> {
   return apiFetch<AdminActivityItem[]>(`/clubs/${clubId}/activities`)
 }
+
+/**
+ * POST /auth/me/club-membership — declares club membership for the authenticated user.
+ *
+ * - Requires JWT (Bearer token in Authorization header).
+ * - Body: { clubId: string }
+ * - Role is always "member" — the backend ignores any role sent by the client.
+ * - Returns 404 if the club does not exist.
+ * - Returns 409 if the user already has a membership.
+ * - Returns the updated safe AuthUser (same shape as GET /auth/me).
+ */
+export function joinMyClub(clubId: string): Promise<AuthUser> {
+  return apiFetch<AuthUser>('/auth/me/club-membership', {
+    method: 'POST',
+    body: JSON.stringify({ clubId }),
+  })
+}

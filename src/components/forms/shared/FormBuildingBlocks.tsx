@@ -304,6 +304,44 @@ export function OfficialParticipationSection({
   )
 }
 
+/**
+ * Non-interactive toggle section shown when the user has no club membership.
+ *
+ * Visually matches OfficialParticipationSection but:
+ *   - toggle is permanently OFF and cannot be clicked
+ *   - title says "ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ" (not "ΕΠΙΣΗΜΗ")
+ *   - explains that a club must be declared first
+ *
+ * The payload is forced to isOfficial=false by the parent form — this component
+ * is purely presentational.
+ */
+export function PersonalOnlySection() {
+  return (
+    <section className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-6">
+      <div className="flex gap-4">
+        {/* Static OFF toggle — not a button, cannot be interacted with */}
+        <div
+          className="relative mt-1 h-6 w-12 shrink-0 cursor-not-allowed rounded-full bg-[#cbd5e1] opacity-60"
+          aria-hidden="true"
+        >
+          <span className="absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold uppercase tracking-[0.35px] text-[#1a1c1e]">
+            ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ
+          </p>
+          <p className="text-sm italic text-[#475569]">
+            Δεν έχετε δηλώσει σύλλογο, επομένως η δράση θα αποθηκευτεί στο προσωπικό σας αρχείο.
+          </p>
+          <p className="text-xs text-[rgba(0,69,62,0.7)]">
+            Μπορείτε να δηλώσετε σύλλογο από το προφίλ σας.
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function FormActions({
   submitText = 'Υποβολή Καταχώρησης',
   cancelText = 'Ακύρωση',
