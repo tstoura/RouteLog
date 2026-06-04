@@ -228,15 +228,18 @@ export class AuthService {
   /**
    * Sets the httpOnly refresh-token cookie on the Express response.
    * - httpOnly: JavaScript cannot read it.
-   * - sameSite: "lax" — acceptable for same-site dev setup.
-   * - secure: only set Secure flag in production (HTTPS).
+   * - sameSite: "none" in production so the cookie is sent cross-site when the
+   *   frontend (Vercel) and backend (Render) are on different domains.
+   *   "lax" in development — works fine for same-origin local setup.
+   * - secure: true in production (required when sameSite is "none"); false locally.
    * - path: "/auth" — cookie is only sent to /auth/* routes.
    */
   setRefreshCookie(res: Response, refreshToken: string): void {
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
       path: '/auth',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
     })
@@ -247,10 +250,11 @@ export class AuthService {
    * Must use the same path/options as setRefreshCookie so the browser removes it.
    */
   clearRefreshCookie(res: Response): void {
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie(REFRESH_COOKIE_NAME, '', {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
       path: '/auth',
       maxAge: 0,
     })
