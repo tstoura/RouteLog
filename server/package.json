@@ -4,7 +4,7 @@
   "private": true,
   "description": "RouteLog backend API — NestJS + Prisma + PostgreSQL",
   "scripts": {
-    "start": "node dist/main",
+    "start": "node dist/src/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "build": "nest build",
