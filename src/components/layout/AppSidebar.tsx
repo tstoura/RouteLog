@@ -5,17 +5,18 @@ import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
 import { useAuth, isAdminUser } from '../../auth/AuthContext.tsx'
 import { LayoutDashboard } from 'lucide-react'
 
-function HelpIcon() {
+function HelpIcon({ active = false }: { active?: boolean }) {
+  const color = active ? '#ffffff' : '#475569'
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[#475569]" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6" />
       <path
         d="M9.5 9.5a2.5 2.5 0 0 1 4.95-.5c0 1.5-2.45 1.3-2.45 3"
-        stroke="currentColor"
+        stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
       />
-      <circle cx="12" cy="16.5" r="0.75" fill="currentColor" />
+      <circle cx="12" cy="16.5" r="0.75" fill={color} />
     </svg>
   )
 }
@@ -97,11 +98,17 @@ export function AppSidebar() {
       </nav>
 
       <div className="mt-auto space-y-2 border-t border-[#dcdce0] pt-4">
-        {/* TODO: wire Help to a real destination */}
-        <button type="button" className={navItemInactive} disabled>
-          <HelpIcon />
-          Βοήθεια
-        </button>
+        <NavLink
+          to="/app/help"
+          className={({ isActive }) => (isActive ? navItemActive : navItemInactive)}
+        >
+          {({ isActive }) => (
+            <>
+              <HelpIcon active={isActive} />
+              Βοήθεια
+            </>
+          )}
+        </NavLink>
         <button type="button" className={navItemInactive} onClick={logout}>
           <LogoutIcon />
           Αποσύνδεση

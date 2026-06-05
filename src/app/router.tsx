@@ -23,6 +23,7 @@ import { AdminActivitiesPage } from '../pages/admin/AdminActivitiesPage.tsx'
 import { RequireAuth } from '../components/auth/RequireAuth.tsx'
 import { RequireAdmin } from '../components/auth/RequireAdmin.tsx'
 import { EditActivityPage } from '../pages/app/EditActivityPage.tsx'
+import { HelpPage } from '../pages/app/HelpPage.tsx'
 
 /**
  * Root layout: renders AuthProvider around the entire route tree.
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
           { path: 'new/hiking', element: <HikingFormPage /> },
           { path: 'new/climbing', element: <RockClimbingFormPage /> },
           { path: 'new/expedition', element: <ExpeditionFormPage /> },
+          { path: 'help', element: <HelpPage /> },
           // Unknown /app/* child routes redirect back to /app home.
           { path: '*', element: <Navigate to="/app" replace /> },
         ],
