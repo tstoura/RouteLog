@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { seedGradeMappings } from './grade-mappings.seed'
 import { seedDemoUsers } from './demo-users.seed'
+import { seedClimbingRoutes } from './climbing-routes.seed'
 
 const prisma = new PrismaClient()
 
@@ -12,6 +13,9 @@ async function main() {
 
   // Phase 11A: Demo club, users, and memberships for Auth MVP development.
   await seedDemoUsers(prisma)
+
+  // Climbing route catalog — 10 routes recovered from the original mock data.
+  await seedClimbingRoutes(prisma)
 
   console.log('Seed: done.')
 }
