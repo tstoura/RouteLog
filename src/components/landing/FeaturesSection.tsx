@@ -13,21 +13,21 @@ export function FeaturesSection() {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           <FeatureCard
             title="Καταγραφή Δράσεων"
-            description="Εισαγωγή δραστηριοτήτων με δομημένα δεδομένα"
+            description="Οργανωμένη καταχώριση δραστηριοτήτων ορειβασίας, αναρρίχησης και αποστολών εξωτερικού."
             iconBoxClassName="bg-[#005f56]"
             smallIcon={<PlusNavIcon size={20} stroke="#ffffff" />}
             watermark={<PlusNavIcon size={72} stroke="rgba(0, 95, 86, 0.2)" />}
           />
           <FeatureCard
-            title="Διαδρομές"
-            description="Ανακάλυψε διαδρομές και χρήσιμες πληροφορίες"
+            title="Αναρριχητικές Διαδρομές"
+            description="Πληροφορίες για αναρριχητικές διαδρομές, πεδία και προβολή σχολίων χρηστών."
             iconBoxClassName="bg-[#cfe6f2]"
             smallIcon={<RoutesNavIcon size={20} colorClass="text-[#00453e]" />}
             watermark={<RoutesNavIcon size={72} colorClass="text-[#00453e]" />}
           />
           <FeatureCard
             title="Ιστορικό Δραστηριοτήτων"
-            description="Όλες οι δράσεις σας σε ένα σημείο"
+            description="Προβολή, αναζήτηση και διαχείριση των καταγραφών σας."
             iconBoxClassName="bg-[#e8eef0]"
             smallIcon={<ClockNavIcon size={20} stroke="#475569" />}
             watermark={<ClockNavIcon size={72} stroke="#00453e" />}

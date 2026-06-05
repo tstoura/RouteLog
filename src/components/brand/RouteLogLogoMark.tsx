@@ -7,6 +7,7 @@ type Props = {
   to?: string
   /** Tailwind height class for the raster mark (wordmark + tagline). */
   size?: 'md' | 'lg' | 'xl' | 'sidebar'
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>
 }
 
 const sizeClass: Record<NonNullable<Props['size']>, string> = {
@@ -19,12 +20,13 @@ const sizeClass: Record<NonNullable<Props['size']>, string> = {
 /**
  * Raster mark (transparent PNG). Tweak `size` for header vs marketing.
  */
-export function RouteLogLogoMark({ className = '', to = '/', size = 'lg' }: Props) {
+export function RouteLogLogoMark({ className = '', to = '/', size = 'lg', onClick }: Props) {
   return (
     <Link
       to={to}
       className={`inline-flex shrink-0 items-center ${className}`}
       aria-label="RouteLog — αρχική"
+      onClick={onClick}
     >
       <img
         src={LOGO_SRC}

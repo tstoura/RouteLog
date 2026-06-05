@@ -1,6 +1,21 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+
+const linkClass = 'hover:text-[#022c22] transition-colors'
 
 export function Footer() {
+  const { pathname } = useLocation()
+  const onLanding = pathname === '/'
+
+  // On the landing page use native anchors so the browser hash-scrolls smoothly.
+  // From any other page use React Router <Link> to navigate there first.
+  const FeaturesLink = onLanding
+    ? <a href="#features" className={linkClass}>ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ</a>
+    : <Link to="/#features" className={linkClass}>ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ</Link>
+
+  const AboutLink = onLanding
+    ? <a href="#about" className={linkClass}>ΣΧΕΤΙΚΑ</a>
+    : <Link to="/#about" className={linkClass}>ΣΧΕΤΙΚΑ</Link>
+
   return (
     <footer className="relative bg-[#ebeeeb] px-6 py-12 shadow-[0px_-4px_30px_-10px_rgba(0,95,86,0.08)]">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
@@ -15,11 +30,8 @@ export function Footer() {
         </div>
 
         <div className="flex flex-wrap gap-8 text-xs font-medium tracking-[-0.3px] text-[#64748b]">
-          <Link to="/#features" className="hover:text-[#022c22]">
-            ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ
-          </Link>
-          <span className="cursor-default">ΣΧΕΤΙΚΑ</span>
-          <span className="cursor-default">ΠΕΡΙΟΔΙΚΟ</span>
+          {FeaturesLink}
+          {AboutLink}
         </div>
 
         <div className="flex flex-wrap gap-8 text-xs font-medium tracking-[-0.3px] text-[#64748b]">
