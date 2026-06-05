@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth, isAdminUser } from '../../auth/AuthContext.tsx'
 
 export function CTASection() {
-  const { isAuthenticated, isLoading, user, logout } = useAuth()
+  const { isAuthenticated, user, logout } = useAuth()
   const appDest = isAdminUser(user) ? '/admin' : '/app'
 
   return (
@@ -19,10 +19,7 @@ export function CTASection() {
             : 'Γίνετε μέλος μιας κοινότητας αφοσιωμένων ορειβατών που εμπιστεύονται το RouteLog για τη διαχείριση των τεχνικών δεδομένων των δραστηριοτήτων τους.'}
         </p>
 
-        {isLoading ? (
-          /* Pulse placeholder — avoids register button flash for returning users */
-          <div className="h-[66px] w-56 animate-pulse rounded-lg bg-[rgba(0,95,86,0.15)]" aria-hidden />
-        ) : isAuthenticated ? (
+        {isAuthenticated ? (
           <div className="flex flex-col items-center gap-3 sm:flex-row">
             <Link
               to={appDest}
