@@ -9,7 +9,10 @@ import {
   FieldHints,
   FieldLabel,
   FormActions,
+  FormSidePanel,
   RadioGroupField,
+  SidePanelPointsCard,
+  SidePanelRecordTypeStatus,
   SectionIconBasics,
   SectionIconNotes,
   SectionIconParticipation,
@@ -31,26 +34,6 @@ import type { ActivityListItem } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
 import { MapPin } from 'lucide-react'
 import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
-
-// ── Read-only record type indicator ───────────────────────────────────────────
-
-function RecordTypeLabel({ isOfficial }: { isOfficial: boolean }) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-[#e2e8e0] bg-[#f8fafc] px-4 py-3">
-      <div
-        className={[
-          'shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.8px]',
-          isOfficial
-            ? 'bg-[#d1fae5] text-[#047857]'
-            : 'bg-[#f1f5f9] text-[#64748b]',
-        ].join(' ')}
-      >
-        {isOfficial ? 'ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ' : 'ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ'}
-      </div>
-      <p className="text-xs text-[#94a3b8]">Ο τύπος καταγραφής δεν αλλάζει κατά την επεξεργασία.</p>
-    </div>
-  )
-}
 
 // ── Read-only route card ───────────────────────────────────────────────────────
 
@@ -205,7 +188,6 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
 
   return (
     <form className="space-y-8" onSubmit={handleSubmit}>
-      <RecordTypeLabel isOfficial={isOfficial} />
       <ReadOnlyRouteCard
         routeName={c.routeName}
         climbingField={c.climbingField}
@@ -326,26 +308,6 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
             </div>
           </FormSection>
 
-          {isOfficial && (
-            <div className="rounded-xl bg-[#00453e] px-6 py-5 text-white">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[1.4px]">ΥΠΟΛΟΓΙΣΜΕΝΟΙ ΒΑΘΜΟΙ</p>
-                  <p className={`mt-1 text-3xl font-semibold tracking-[-1px] ${preview.isLoading ? 'opacity-60' : ''}`}>
-                    {preview.isLoading ? '...' : preview.points ?? '—'}
-                  </p>
-                </div>
-                <p className="max-w-[220px] text-right text-xs leading-relaxed text-[rgba(140,214,202,0.85)]">
-                  {preview.isLoading
-                    ? 'Υπολογισμός...'
-                    : preview.isReady
-                      ? 'Βαθμοί ΕΟΟΑ'
-                      : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'}
-                </p>
-              </div>
-            </div>
-          )}
-
           {submitError ? (
             <div role="alert" className="rounded-lg border border-[#fca5a5] bg-[#fef2f2] px-4 py-3 text-sm text-[#b91c1c]">
               {submitError}
@@ -358,6 +320,22 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
             onCancel={onCancel}
           />
         </div>
+
+        <FormSidePanel colSpan={4}>
+          <SidePanelRecordTypeStatus isOfficial={isOfficial} />
+          {isOfficial && (
+            <SidePanelPointsCard
+              value={preview.isLoading ? '...' : preview.points ?? '—'}
+              description={
+                preview.isLoading
+                  ? 'Υπολογισμός...'
+                  : preview.isReady
+                    ? 'Βαθμοί ΕΟΟΑ'
+                    : 'Συμπληρώστε τα απαραίτητα πεδία για να εμφανιστούν οι βαθμοί.'
+              }
+            />
+          )}
+        </FormSidePanel>
       </div>
     </form>
   )

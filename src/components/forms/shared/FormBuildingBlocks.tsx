@@ -411,3 +411,162 @@ export function ScoreSummaryCard({
     </aside>
   )
 }
+
+// ── Side-panel building blocks (Tasks 1–3) ────────────────────────────────────
+
+/**
+ * Sticky right-column wrapper used by all activity forms.
+ * Visible on all screen sizes — on mobile it flows naturally below the form;
+ * on desktop (lg+) it becomes sticky alongside the form.
+ */
+export function FormSidePanel({
+  children,
+  colSpan = 4,
+}: {
+  children: ReactNode
+  colSpan?: 3 | 4
+}) {
+  return (
+    <aside
+      className={[
+        'space-y-4',
+        colSpan === 3 ? 'lg:col-span-3' : 'lg:col-span-4',
+        'lg:sticky lg:top-24 lg:self-start',
+      ].join(' ')}
+    >
+      {children}
+    </aside>
+  )
+}
+
+/**
+ * Green EOOA points preview card — shown only when isOfficial=true and the
+ * user has a club membership.
+ */
+export function SidePanelPointsCard({
+  value,
+  description,
+}: {
+  value: string
+  description: string
+}) {
+  return (
+    <div className="rounded-xl bg-[#00453e] p-8 text-center text-white shadow-[0px_25px_50px_-12px_rgba(6,78,59,0.1)]">
+      <h3 className="text-sm font-extrabold uppercase tracking-[1.4px]">ΒΑΘΜΟΙ ΔΡΑΣΗΣ</h3>
+      <p className="py-4 text-6xl font-semibold tracking-[-3px]">{value}</p>
+      <p className="mx-auto max-w-[200px] text-sm leading-[22px] text-[rgba(140,214,202,0.85)]">{description}</p>
+    </div>
+  )
+}
+
+/**
+ * Interactive official/personal record-type toggle shown in the sticky side
+ * panel for club members on create forms.
+ */
+export function SidePanelRecordTypeToggle({
+  value,
+  onChange,
+}: {
+  value: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-5">
+      <p className="mb-4 text-xs font-extrabold uppercase tracking-[1.4px] text-[#64748b]">
+        ΤΥΠΟΣ ΚΑΤΑΓΡΑΦΗΣ
+      </p>
+      <button
+        type="button"
+        aria-pressed={value}
+        aria-label={value ? 'Απενεργοποίηση επίσημης καταγραφής' : 'Ενεργοποίηση επίσημης καταγραφής'}
+        onClick={() => onChange(!value)}
+        className="flex w-full items-start gap-3 text-left"
+      >
+        <div
+          className={[
+            'relative mt-0.5 h-6 w-12 shrink-0 rounded-full transition-colors',
+            value ? 'bg-[#00453e]' : 'bg-[#cbd5e1]',
+          ].join(' ')}
+        >
+          <span
+            className={[
+              'absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm transition-transform',
+              value ? 'translate-x-6' : 'translate-x-0',
+            ].join(' ')}
+          />
+        </div>
+        <div className="space-y-0.5">
+          <p
+            className={[
+              'text-sm font-semibold uppercase tracking-[0.35px]',
+              value ? 'text-[#00453e]' : 'text-[#64748b]',
+            ].join(' ')}
+          >
+            {value ? 'ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ' : 'ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ'}
+          </p>
+          <p className="text-xs leading-relaxed text-[#94a3b8]">
+            {value
+              ? 'Η καταχώρηση θα συμπεριληφθεί στα επίσημα στοιχεία του συλλόγου.'
+              : 'Αποθηκεύεται μόνο στο προσωπικό σας αρχείο.'}
+          </p>
+          {value && (
+            <p className="text-xs font-semibold uppercase tracking-[1.4px] text-[rgba(0,69,62,0.7)]">
+              ΟΡΙΣΜΕΝΑ ΣΤΟΙΧΕΙΑ ΑΠΑΙΤΟΥΝΤΑΙ ΜΟΝΟ ΓΙΑ ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ.
+            </p>
+          )}
+        </div>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Static personal-only status card shown for users with no club membership.
+ *
+ * Intentionally has NO toggle — it must not look interactive.
+ */
+export function SidePanelPersonalOnly() {
+  return (
+    <div className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-5">
+      <p className="mb-3 text-xs font-extrabold uppercase tracking-[1.4px] text-[#64748b]">
+        ΤΥΠΟΣ ΚΑΤΑΓΡΑΦΗΣ
+      </p>
+      <div className="space-y-2">
+        <span className="inline-block rounded-full bg-[#f1f5f9] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.8px] text-[#64748b]">
+          ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ
+        </span>
+        <p className="text-sm text-[#475569]">
+          Δεν έχετε δηλώσει σύλλογο, επομένως η δράση θα αποθηκευτεί στο προσωπικό σας αρχείο.
+        </p>
+        <p className="text-xs text-[rgba(0,69,62,0.7)]">
+          Μπορείτε να δηλώσετε σύλλογο από το προφίλ σας.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Read-only record-type status shown in the sticky side panel of edit forms.
+ * The type cannot be changed during editing.
+ */
+export function SidePanelRecordTypeStatus({ isOfficial }: { isOfficial: boolean }) {
+  return (
+    <div className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-5">
+      <p className="mb-3 text-xs font-extrabold uppercase tracking-[1.4px] text-[#64748b]">
+        ΤΥΠΟΣ ΚΑΤΑΓΡΑΦΗΣ
+      </p>
+      <div className="space-y-2">
+        <span
+          className={[
+            'inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.8px]',
+            isOfficial ? 'bg-[#d1fae5] text-[#047857]' : 'bg-[#f1f5f9] text-[#64748b]',
+          ].join(' ')}
+        >
+          {isOfficial ? 'ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ' : 'ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ'}
+        </span>
+        <p className="text-xs text-[#94a3b8]">Ο τύπος καταγραφής δεν αλλάζει κατά την επεξεργασία.</p>
+      </div>
+    </div>
+  )
+}

@@ -11,9 +11,10 @@ import {
   FieldHints,
   FieldLabel,
   FormActions,
-  OfficialParticipationSection,
-  PersonalOnlySection,
-  ScoreSummaryCard,
+  FormSidePanel,
+  SidePanelPersonalOnly,
+  SidePanelPointsCard,
+  SidePanelRecordTypeToggle,
   SectionIconBasics,
   SectionIconNotes,
   SectionIconParticipation,
@@ -378,12 +379,6 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
             </div>
           </FormSection>
 
-          {hasClub ? (
-            <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
-          ) : (
-            <PersonalOnlySection />
-          )}
-
           {submitError ? (
             <div
               role="alert"
@@ -398,11 +393,18 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
           />
         </div>
 
-        <ScoreSummaryCard
-          description={scoreDesc}
-          value={scoreValue}
-          icon="Σ"
-        />
+        <FormSidePanel colSpan={4}>
+          {hasClub ? (
+            <>
+              <SidePanelRecordTypeToggle value={isOfficial} onChange={setIsOfficial} />
+              {effectiveIsOfficial && (
+                <SidePanelPointsCard value={scoreValue} description={scoreDesc} />
+              )}
+            </>
+          ) : (
+            <SidePanelPersonalOnly />
+          )}
+        </FormSidePanel>
       </div>
     </form>
   )

@@ -11,10 +11,11 @@ import {
   FieldHints,
   FieldLabel,
   FormActions,
-  OfficialParticipationSection,
-  PersonalOnlySection,
+  FormSidePanel,
   RadioGroupField,
-  ScoreSummaryCard,
+  SidePanelPersonalOnly,
+  SidePanelPointsCard,
+  SidePanelRecordTypeToggle,
   SectionIconBasics,
   SectionIconNotes,
   SectionIconParticipation,
@@ -836,12 +837,6 @@ export function RockClimbingActivityForm({
               </div>
             </FormSection>
 
-            {hasClub ? (
-              <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
-            ) : (
-              <PersonalOnlySection />
-            )}
-
             {submitError ? (
               <div
                 role="alert"
@@ -854,11 +849,18 @@ export function RockClimbingActivityForm({
             <FormActions submitText={isSubmitting ? 'Υποβολή...' : 'Υποβολή Καταχώρησης'} />
           </div>
 
-          <ScoreSummaryCard
-            description={scoreDesc}
-            value={scoreValue}
-            colSpan={3}
-          />
+          <FormSidePanel colSpan={3}>
+            {hasClub ? (
+              <>
+                <SidePanelRecordTypeToggle value={isOfficial} onChange={setIsOfficial} />
+                {effectiveIsOfficial && (
+                  <SidePanelPointsCard value={scoreValue} description={scoreDesc} />
+                )}
+              </>
+            ) : (
+              <SidePanelPersonalOnly />
+            )}
+          </FormSidePanel>
         </div>
       </form>
     </>

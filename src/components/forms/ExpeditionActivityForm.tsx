@@ -8,10 +8,11 @@ import {
   FieldHints,
   FieldLabel,
   FormActions,
-  OfficialParticipationSection,
-  PersonalOnlySection,
+  FormSidePanel,
   RadioGroupField,
-  ScoreSummaryCard,
+  SidePanelPersonalOnly,
+  SidePanelPointsCard,
+  SidePanelRecordTypeToggle,
   SectionIconBasics,
   SectionIconNotes,
   SectionIconParticipation,
@@ -445,12 +446,6 @@ export function ExpeditionActivityForm({
             </div>
           </FormSection>
 
-          {hasClub ? (
-            <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
-          ) : (
-            <PersonalOnlySection />
-          )}
-
           {submitError ? (
             <div
               role="alert"
@@ -463,11 +458,18 @@ export function ExpeditionActivityForm({
           <FormActions submitText={isSubmitting ? 'Υποβολή...' : 'Υποβολή Καταχώρησης'} />
         </div>
 
-        <ScoreSummaryCard
-          description={scoreDesc}
-          value={scoreValue}
-          icon="Σ"
-        />
+        <FormSidePanel colSpan={4}>
+          {hasClub ? (
+            <>
+              <SidePanelRecordTypeToggle value={isOfficial} onChange={setIsOfficial} />
+              {effectiveIsOfficial && (
+                <SidePanelPointsCard value={scoreValue} description={scoreDesc} />
+              )}
+            </>
+          ) : (
+            <SidePanelPersonalOnly />
+          )}
+        </FormSidePanel>
       </div>
     </form>
   )
