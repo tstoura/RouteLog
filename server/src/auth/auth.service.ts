@@ -117,7 +117,11 @@ export class AuthService {
   // ── Login ──────────────────────────────────────────────────────────────────
 
   async login(dto: LoginDto): Promise<AuthServiceResult> {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } })
+    // Single query: fetch user + memberships together to avoid a second round-trip.
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { memberships: { include: { club: true }, orderBy: { createdAt: 'asc' } } },
+    })
 
     // Generic 401 — do not reveal whether the email exists.
     if (!user) {
@@ -129,7 +133,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.')
     }
 
-    return this.buildAuthResult(user.id)
+    // Pass the already-fetched record to skip the redundant re-fetch inside buildAuthResult.
+    return this.buildAuthResultFromRecord(user)
   }
 
   // ── Refresh ────────────────────────────────────────────────────────────────
@@ -148,13 +153,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token.')
     }
 
-    // Ensure user still exists (not deleted since the token was issued).
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } })
+    // Single query: fetch user + memberships together; also validates the user still exists.
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { memberships: { include: { club: true }, orderBy: { createdAt: 'asc' } } },
+    })
     if (!user) {
       throw new UnauthorizedException('User no longer exists.')
     }
 
-    return this.buildAuthResult(payload.sub)
+    return this.buildAuthResultFromRecord(user)
   }
 
   // ── Get current user (for /auth/me) ───────────────────────────────────────
@@ -279,9 +287,8 @@ export class AuthService {
 
   /**
    * Builds the full auth result for a user id.
-   * Fetches user + memberships, signs both tokens.
-   * The caller (controller) decides which fields to send in the JSON response.
-   * refreshToken must never appear in the JSON body — only in the httpOnly cookie.
+   * Used by register() which does not yet have the memberships loaded.
+   * Makes 2 DB queries (user + memberships).
    */
   private async buildAuthResult(userId: string): Promise<AuthServiceResult> {
     const userRecord = await this.prisma.user.findUnique({ where: { id: userId } })
@@ -289,6 +296,33 @@ export class AuthService {
 
     const memberships = await this.clubsService.getMembershipsForUser(userId)
 
+    return this.signTokens(userRecord, memberships)
+  }
+
+  /**
+   * Builds the full auth result from an already-fetched user record with memberships
+   * included. Used by login() and refresh() which load user+memberships in a single
+   * query, avoiding redundant round-trips to the database.
+   */
+  private buildAuthResultFromRecord(
+    userRecord: Awaited<ReturnType<typeof this.prisma.user.findUnique>> & {
+      memberships: Array<{ clubId: string; role: string; club: { name: string } }>
+    },
+  ): AuthServiceResult {
+    return this.signTokens(userRecord, userRecord.memberships)
+  }
+
+  /**
+   * Signs access + refresh tokens and assembles the final AuthServiceResult.
+   * Pure: no DB calls.
+   */
+  private signTokens(
+    userRecord: {
+      id: string; email: string; firstName: string; lastName: string
+      systemRole: string; preferredActivity: string | null; onboardingCompleted: boolean
+    },
+    memberships: Array<{ clubId: string; role: string; club: { name: string } }>,
+  ): AuthServiceResult {
     const userResponse: AuthUserResponse = {
       id: userRecord.id,
       email: userRecord.email,

@@ -207,8 +207,8 @@ describe('AuthService', () => {
   describe('login', () => {
     it('returns accessToken and refreshToken for valid credentials', async () => {
       const hash = await bcrypt.hash('password123', 10)
-      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, passwordHash: hash })
-      mockClubsService.getMembershipsForUser.mockResolvedValue(EMPTY_MEMBERSHIPS)
+      // findUnique now returns user with memberships included (single query).
+      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, passwordHash: hash, memberships: EMPTY_MEMBERSHIPS })
 
       const result = await service.login({ email: 'test@example.com', password: 'password123' })
       expect(result.accessToken).toBe('mock.jwt.token')
@@ -225,7 +225,7 @@ describe('AuthService', () => {
 
     it('throws 401 when password is wrong', async () => {
       const hash = await bcrypt.hash('correctpassword', 10)
-      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, passwordHash: hash })
+      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, passwordHash: hash, memberships: EMPTY_MEMBERSHIPS })
       await expect(
         service.login({ email: 'test@example.com', password: 'wrongpassword' }),
       ).rejects.toThrow(UnauthorizedException)
@@ -239,8 +239,8 @@ describe('AuthService', () => {
 
     it('returns new accessToken + refreshToken + user for a valid refresh JWT', async () => {
       mockJwtService.verify.mockReturnValue(VALID_REFRESH_PAYLOAD)
-      mockUser.findUnique.mockResolvedValue(MOCK_USER_RECORD)
-      mockClubsService.getMembershipsForUser.mockResolvedValue(EMPTY_MEMBERSHIPS)
+      // findUnique now returns user with memberships included (single query).
+      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, memberships: EMPTY_MEMBERSHIPS })
 
       const result = await service.refresh('valid.refresh.token')
 
@@ -265,8 +265,7 @@ describe('AuthService', () => {
 
     it('uses JWT_REFRESH_SECRET to verify the token', async () => {
       mockJwtService.verify.mockReturnValue(VALID_REFRESH_PAYLOAD)
-      mockUser.findUnique.mockResolvedValue(MOCK_USER_RECORD)
-      mockClubsService.getMembershipsForUser.mockResolvedValue(EMPTY_MEMBERSHIPS)
+      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, memberships: EMPTY_MEMBERSHIPS })
 
       await service.refresh('valid.refresh.token')
 
@@ -279,8 +278,7 @@ describe('AuthService', () => {
 
     it('refresh response does not contain refreshToken directly in user object', async () => {
       mockJwtService.verify.mockReturnValue(VALID_REFRESH_PAYLOAD)
-      mockUser.findUnique.mockResolvedValue(MOCK_USER_RECORD)
-      mockClubsService.getMembershipsForUser.mockResolvedValue(EMPTY_MEMBERSHIPS)
+      mockUser.findUnique.mockResolvedValue({ ...MOCK_USER_RECORD, memberships: EMPTY_MEMBERSHIPS })
 
       const result = await service.refresh('valid.refresh.token')
 

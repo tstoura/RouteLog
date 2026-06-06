@@ -53,11 +53,19 @@ const EXPEDITION_POINTS_COL = 14
 const EPILOGI = 'Επιλογή'
 
 // ── Path to the EOOA template file ────────────────────────────────────────────
-// Resolved relative to the working directory (server/).  Override via
-// EXPORT_TEMPLATE_PATH env variable when deploying with a different layout.
+// Primary:  server/templates/ — bundled inside the Docker image (production).
+// Fallback: repo-root docs/export/ — used in local development.
+// Override: set EXPORT_TEMPLATE_PATH env variable to use a custom path.
 function resolveTemplatePath(): string {
   const envOverride = process.env['EXPORT_TEMPLATE_PATH']
   if (envOverride) return envOverride
+
+  // In the production Docker image, process.cwd() = /app (WORKDIR).
+  // The template is copied to /app/templates/ by the Dockerfile.
+  const bundled = path.join(process.cwd(), 'templates', 'eooa-official-template.xlsx')
+  if (require('fs').existsSync(bundled)) return bundled
+
+  // Local development fallback: the file lives in the repo root docs/ folder.
   return path.join(process.cwd(), '..', 'docs', 'export', 'eooa-official-template.xlsx')
 }
 

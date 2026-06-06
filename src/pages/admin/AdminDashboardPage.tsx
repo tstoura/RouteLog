@@ -141,8 +141,8 @@ export function AdminDashboardPage() {
           className="rounded-xl border border-[#e8eef0] bg-white p-5 text-left shadow-[0px_4px_14px_-4px_rgba(0,69,62,0.08)] transition hover:border-[#00453e]/25 hover:shadow-md"
         >
           <p className="text-xs font-bold uppercase tracking-wide text-[#64748b]">Εξαγωγή Δεδομένων</p>
-          <p className="mt-2 text-sm font-semibold text-[#022c22]">Προς ομοσπονδία (Excel)</p>
-          <p className="mt-2 text-xs text-[#94a3b8]">Επιλογή μελών και εξαγωγή — δοκιμαστική λειτουργία</p>
+          <p className="mt-2 text-sm font-semibold text-[#022c22]">Προς την Ομοσπονδία (ΕΟΟΑ)</p>
+          <p className="mt-2 text-xs text-[#94a3b8]">Επιλογή μελών και εξαγωγή δεδομένων σε αρχείο Excel.</p>
         </button>
       </div>
 
