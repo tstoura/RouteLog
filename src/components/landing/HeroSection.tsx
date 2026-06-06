@@ -18,7 +18,7 @@ function ArrowIcon() {
 }
 
 export function HeroSection() {
-  const { isAuthenticated, isLoading, user, logout } = useAuth()
+  const { isAuthenticated, user, logout } = useAuth()
   const appDest = isAdminUser(user) ? '/admin' : '/app'
 
   return (
@@ -27,7 +27,7 @@ export function HeroSection() {
         <img
           src={LANDING_ASSETS.hero}
           alt=""
-          className="absolute left-0 top-[-19%] h-[139%] w-full max-w-none object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-[center_30%]"
         />
       </div>
       <div
@@ -35,7 +35,7 @@ export function HeroSection() {
         aria-hidden
       />
       <div className="relative mx-auto flex w-full max-w-[1280px] flex-1 flex-col items-start px-6 py-12">
-        <div className="flex max-w-[42rem] flex-col gap-6">
+        <div className="flex max-w-[42rem] flex-col items-start gap-6">
           <Badge>Πλατφορμα Καταγραφης Δραστηριοτητων</Badge>
           <h1 className="font-heading text-4xl font-bold leading-tight tracking-[-0.05em] text-white sm:text-5xl md:text-6xl lg:text-[72px] lg:leading-[72px] lg:tracking-[-1.8px]">
             <span className="block">Καταγράψτε τις</span>
@@ -49,12 +49,14 @@ export function HeroSection() {
             αναρρίχησης βράχου και αποστολών εξωτερικού με ακρίβεια και συνέπεια.
           </p>
 
-          {/* CTA buttons — three states: loading / authenticated / unauthenticated */}
+          {/* CTA buttons — two states: authenticated / unauthenticated.
+              No loading gate here: isAuthenticated starts false so public buttons
+              render immediately. If the refresh resolves with a valid session the
+              UI swaps to the app button — a barely-perceptible change on fast
+              connections and invisible on slow ones. Hiding buttons behind isLoading
+              caused a blank/skeleton state on mobile with a cold backend. */}
           <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-start">
-            {isLoading ? (
-              /* While refresh cookie check is in flight — prevent register/login flicker */
-              <div className="h-[54px] w-40 animate-pulse rounded-lg bg-white/20" aria-hidden />
-            ) : isAuthenticated ? (
+            {isAuthenticated ? (
               <>
                 <Link
                   to={appDest}

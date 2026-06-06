@@ -532,7 +532,7 @@ export function SidePanelPersonalOnly() {
         ΤΥΠΟΣ ΚΑΤΑΓΡΑΦΗΣ
       </p>
       <div className="space-y-2">
-        <span className="inline-block rounded-full bg-[#f1f5f9] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.8px] text-[#64748b]">
+        <span className="inline-block rounded-full bg-[rgba(0,69,62,0.12)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.8px] text-[#00453e]">
           ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ
         </span>
         <p className="text-sm text-[#475569]">
