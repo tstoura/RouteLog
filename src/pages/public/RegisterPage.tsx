@@ -18,7 +18,9 @@ export function RegisterPage() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [selectedClubId, setSelectedClubId] = useState<string>('')
   const [preferredActivity, setPreferredActivity] = useState<string>('')
   const [clubs, setClubs] = useState<ClubOption[]>([])
@@ -51,6 +53,10 @@ export function RegisterPage() {
     }
     if (password.length < 8) {
       setError('Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('Οι κωδικοί πρόσβασης δεν ταιριάζουν.')
       return
     }
 
@@ -124,7 +130,7 @@ export function RegisterPage() {
           type="email"
           name="email"
           autoComplete="email"
-          placeholder="example@email.com"
+          placeholder="email@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isSubmitting}
@@ -136,7 +142,7 @@ export function RegisterPage() {
           name="password"
           autoComplete="new-password"
           type={showPassword ? 'text' : 'password'}
-          placeholder="Τουλάχιστον 8 χαρακτήρες"
+          placeholder="Κωδικός πρόσβασης"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={isSubmitting}
@@ -148,6 +154,28 @@ export function RegisterPage() {
               aria-label={showPassword ? 'Απόκρυψη κωδικού' : 'Εμφάνιση κωδικού'}
             >
               {showPassword ? <EyeOff className="size-5" strokeWidth={2} /> : <Eye className="size-5" strokeWidth={2} />}
+            </button>
+          }
+        />
+
+        <AuthLabeledField
+          label="ΕΠΙΒΕΒΑΙΩΣΗ ΚΩΔΙΚΟΥ"
+          leftIcon={<Lock className="size-[18px]" strokeWidth={2} aria-hidden />}
+          name="confirmPassword"
+          autoComplete="new-password"
+          type={showConfirmPassword ? 'text' : 'password'}
+          placeholder="Επιβεβαίωση κωδικού πρόσβασης"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          disabled={isSubmitting}
+          rightSlot={
+            <button
+              type="button"
+              className="cursor-pointer rounded-lg p-2 text-[#64748b] transition hover:bg-white/80 hover:text-[#334155]"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              aria-label={showConfirmPassword ? 'Απόκρυψη κωδικού' : 'Εμφάνιση κωδικού'}
+            >
+              {showConfirmPassword ? <EyeOff className="size-5" strokeWidth={2} /> : <Eye className="size-5" strokeWidth={2} />}
             </button>
           }
         />

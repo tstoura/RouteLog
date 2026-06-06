@@ -36,7 +36,7 @@ export function HeroSection() {
       />
       <div className="relative mx-auto flex w-full max-w-[1280px] flex-1 flex-col items-start px-6 py-12">
         <div className="flex max-w-[42rem] flex-col items-start gap-6">
-          <Badge>Πλατφορμα Καταγραφης Δραστηριοτητων</Badge>
+          <Badge className="whitespace-nowrap text-[10px] tracking-[0.5px] sm:text-xs sm:tracking-[1.2px]">Πλατφορμα Καταγραφης Δραστηριοτητων</Badge>
           <h1 className="font-heading text-4xl font-bold leading-tight tracking-[-0.05em] text-white sm:text-5xl md:text-6xl lg:text-[72px] lg:leading-[72px] lg:tracking-[-1.8px]">
             <span className="block">Καταγράψτε τις</span>
             <span className="block">Δράσεις σας.</span>

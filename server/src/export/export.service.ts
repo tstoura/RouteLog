@@ -1,3 +1,4 @@
+import * as fs from 'fs'
 import * as path from 'path'
 import * as ExcelJS from 'exceljs'
 import {
@@ -63,10 +64,24 @@ function resolveTemplatePath(): string {
   // In the production Docker image, process.cwd() = /app (WORKDIR).
   // The template is copied to /app/templates/ by the Dockerfile.
   const bundled = path.join(process.cwd(), 'templates', 'eooa-official-template.xlsx')
-  if (require('fs').existsSync(bundled)) return bundled
+  if (fs.existsSync(bundled)) return bundled
 
   // Local development fallback: the file lives in the repo root docs/ folder.
   return path.join(process.cwd(), '..', 'docs', 'export', 'eooa-official-template.xlsx')
+}
+
+// ── Template buffer cache ──────────────────────────────────────────────────────
+// The template file is read from disk once per process lifetime and reused on
+// every export request.  ExcelJS still re-parses the XML each time (required
+// for a fresh mutable workbook), but the disk I/O is eliminated after the first
+// call — meaningful on a slow-disk container like Render free-tier.
+let _templateBuffer: Buffer | undefined
+
+async function loadTemplateBuffer(): Promise<Buffer> {
+  if (!_templateBuffer) {
+    _templateBuffer = await fs.promises.readFile(resolveTemplatePath())
+  }
+  return _templateBuffer
 }
 
 // ── Prisma include shape for activity queries ──────────────────────────────────
@@ -257,7 +272,9 @@ export class ExportService {
     expeditionActivities: ActivityWithDetails[],
   ): Promise<Buffer> {
     const wb = new ExcelJS.Workbook()
-    await wb.xlsx.readFile(resolveTemplatePath())
+    // Use the cached buffer instead of re-reading from disk each time.
+    // ExcelJS's type signature expects ArrayBuffer but accepts Buffer at runtime.
+    await wb.xlsx.load(await loadTemplateBuffer() as unknown as ArrayBuffer)
 
     this.fillHikingSheet(wb, hikingActivities)
     this.fillClimbingSheet(wb, climbingActivities)
@@ -323,14 +340,29 @@ export class ExportService {
       row.commit()
     })
 
-    // Clear unused pre-formatted rows so no default dropdown values remain.
-    // This loop only runs when activities count is below the template capacity.
+    // Clear unused pre-formatted rows (stop before the ΣΥΝΟΛΟ row at row 53).
     for (
       let r = DATA_START_ROW + activities.length;
-      r <= HIKING_CLIMBING_LAST_TEMPLATE_ROW;
+      r < HIKING_CLIMBING_LAST_TEMPLATE_ROW;
       r++
     ) {
       clearDataRow(sheet, r, HIKING_POINTS_COL)
+    }
+
+    // Row 53: ΣΥΝΟΛΟ label + SUM of the points column.
+    // The row keeps its orange template styling; we just write the values.
+    const totalRow = sheet.getRow(HIKING_CLIMBING_LAST_TEMPLATE_ROW)
+    totalRow.getCell(HIKING_POINTS_COL - 1).value = 'ΣΥΝΟΛΟ'
+    totalRow.getCell(HIKING_POINTS_COL).value = {
+      formula: `SUM(L${DATA_START_ROW}:L${HIKING_CLIMBING_LAST_TEMPLATE_ROW - 1})`,
+    }
+    totalRow.commit()
+
+    // The EOOA template contains stray formula/value cells outside the data
+    // columns that produce visible artefacts (e.g. "1") in the exported file.
+    // Explicitly nullify them so the output is clean.
+    for (const ref of ['N16', 'N28', 'N36', 'O33', 'P33']) {
+      sheet.getCell(ref).value = null
     }
   }
 
@@ -399,13 +431,22 @@ export class ExportService {
       row.commit()
     })
 
+    // Clear unused pre-formatted rows (stop before the ΣΥΝΟΛΟ row at row 53).
     for (
       let r = DATA_START_ROW + activities.length;
-      r <= HIKING_CLIMBING_LAST_TEMPLATE_ROW;
+      r < HIKING_CLIMBING_LAST_TEMPLATE_ROW;
       r++
     ) {
       clearDataRow(sheet, r, CLIMBING_POINTS_COL)
     }
+
+    // Row 53: ΣΥΝΟΛΟ label in col M (13) + SUM of points in col N (14).
+    const totalRow = sheet.getRow(HIKING_CLIMBING_LAST_TEMPLATE_ROW)
+    totalRow.getCell(CLIMBING_POINTS_COL - 1).value = 'ΣΥΝΟΛΟ'
+    totalRow.getCell(CLIMBING_POINTS_COL).value = {
+      formula: `SUM(N${DATA_START_ROW}:N${HIKING_CLIMBING_LAST_TEMPLATE_ROW - 1})`,
+    }
+    totalRow.commit()
   }
 
   /**
@@ -473,6 +514,11 @@ export class ExportService {
       r++
     ) {
       clearDataRow(sheet, r, EXPEDITION_POINTS_COL)
+    }
+
+    // Nullify stray template cells outside the data columns.
+    for (const ref of ['P28']) {
+      sheet.getCell(ref).value = null
     }
   }
 }
