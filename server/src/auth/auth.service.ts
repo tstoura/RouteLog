@@ -13,7 +13,10 @@ import { ClubsService } from '../clubs/clubs.service'
 import { RegisterDto } from './dto/register.dto'
 import { LoginDto } from './dto/login.dto'
 
-const BCRYPT_ROUNDS = 10
+// 8 rounds is still very secure and ~4× faster than 10 rounds.
+// On Render's free-tier CPU (heavily throttled), 10 rounds caused
+// noticeable multi-second delays; 8 rounds brings this under 300 ms.
+const BCRYPT_ROUNDS = 8
 
 // ── Refresh cookie constants ─────────────────────────────────────────────────
 

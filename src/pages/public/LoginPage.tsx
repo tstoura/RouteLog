@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, Mountain, Mail } from 'lucide-react'
 import { AuthIconCircle } from '../../components/auth/AuthIconCircle.tsx'
@@ -17,7 +17,17 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [slowWarning, setSlowWarning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Pre-warm the Render backend as soon as the login page mounts.
+  // The server may be sleeping after inactivity; hitting /health while
+  // the user fills in the form gives it a head start before submit.
+  const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001'
+  useEffect(() => {
+    fetch(`${BASE_URL}/health`, { method: 'GET' }).catch(() => {})
+  }, [BASE_URL])
 
   // Capture an explicit redirect target set by RequireAuth/RequireAdmin.
   const explicitFrom = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
@@ -37,6 +47,8 @@ export function LoginPage() {
     }
 
     setIsSubmitting(true)
+    setSlowWarning(false)
+    slowTimer.current = setTimeout(() => setSlowWarning(true), 8000)
     try {
       const loggedInUser = await login({ email: email.trim().toLowerCase(), password })
       if (explicitFrom) {
@@ -60,6 +72,8 @@ export function LoginPage() {
       }
     } finally {
       setIsSubmitting(false)
+      setSlowWarning(false)
+      if (slowTimer.current) clearTimeout(slowTimer.current)
     }
   }
 
@@ -114,6 +128,12 @@ export function LoginPage() {
             {error}
           </p>
         ) : null}
+
+        {slowWarning && (
+          <p className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-xs leading-relaxed text-[#64748b]">
+            Παρακαλώ περιμένετε, η σύνδεση διαρκεί λίγο περισσότερο από το συνηθισμένο.
+          </p>
+        )}
 
         <button
           type="submit"
