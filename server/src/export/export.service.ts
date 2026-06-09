@@ -164,27 +164,24 @@ export class ExportService {
    * pre-formatted row, keeping the sheet visually consistent.
    */
   async exportClub(clubId: string, dto: ExportClubDto, callerUserId: string): Promise<Buffer> {
-    // 1. Verify club exists.
-    const club = await this.prisma.club.findUnique({ where: { id: clubId } })
+    // Run all three independent operations in parallel to eliminate sequential
+    // network round-trips to Supabase.  assertRequesterIsAuthorized throws
+    // ForbiddenException/NotFoundException if the caller is not allowed, which
+    // causes Promise.all to reject before we proceed.  The activities query runs
+    // concurrently but its result is only used if auth passes.
+    const [club, , activities] = await Promise.all([
+      this.prisma.club.findUnique({ where: { id: clubId } }),
+      this.assertRequesterIsAuthorized(callerUserId, clubId),
+      this.queryOfficialActivities(clubId, dto.selectedUserIds, dto.year),
+    ])
+
     if (!club) throw new NotFoundException(`Club ${clubId} not found`)
 
-    // 2. Authorize the caller.
-    //    dto.requesterUserId is intentionally not used — callerUserId comes from JWT.
-    await this.assertRequesterIsAuthorized(callerUserId, clubId)
-
-    // 3. Query official activities.
-    const activities = await this.queryOfficialActivities(
-      clubId,
-      dto.selectedUserIds,
-      dto.year,
-    )
-
-    // 4. Separate by category.
+    // Separate by category and build the Excel file.
     const hiking = activities.filter((a) => a.category === 'hiking')
     const climbing = activities.filter((a) => a.category === 'climbing')
     const expedition = activities.filter((a) => a.category === 'expedition')
 
-    // 5. Build Excel file and return buffer.
     return this.buildExcel(hiking, climbing, expedition)
   }
 

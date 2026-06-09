@@ -20,7 +20,7 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
   // Resolved club ID from AdminClubContext:
   //   - club_admin: their club_admin membership clubId (automatic)
   //   - super_admin: the club they selected from the dropdown
-  const { selectedClubId: resolvedClubId } = useAdminClub()
+  const { selectedClubId: resolvedClubId, selectedClubName } = useAdminClub()
   const currentYear = new Date().getFullYear()
 
   const [year, setYear] = useState<string>(String(currentYear))
@@ -106,7 +106,10 @@ export function ExportDataModal({ open, onClose, onConfirmExport }: Props) {
         selectedUserIds: Array.from(selectedIds),
         year: parsedYear,
       })
-      downloadBlob(blob, `routelog-export-${parsedYear}.xlsx`)
+      const clubSlug = selectedClubName
+        ? selectedClubName.replace(/\s+/g, '-')
+        : resolvedClubId ?? 'club'
+      downloadBlob(blob, `routelog-${clubSlug}-ΔΡΑΣΕΙΣ-${parsedYear}.xlsx`)
       onConfirmExport()
       onClose()
     } catch (err) {
