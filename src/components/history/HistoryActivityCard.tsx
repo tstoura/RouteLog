@@ -60,16 +60,16 @@ export function HistoryActivityCard({ entry, fromHistory }: Props) {
         : 'bg-[rgba(255,220,200,0.45)] text-[#5a3d2a]'
 
   const article = (
-    <article className="relative flex h-full min-h-[320px] flex-col justify-between rounded-xl border border-[rgba(190,201,198,0.15)] bg-white p-6 shadow-[0px_0px_0px_1px_rgba(190,201,198,0.15)] transition hover:border-[#00453e]/25 hover:shadow-md">
+    <article className="relative flex h-full min-h-[320px] flex-col justify-between overflow-hidden rounded-xl border border-[rgba(190,201,198,0.15)] bg-white p-6 shadow-[0px_0px_0px_1px_rgba(190,201,198,0.15)] transition hover:border-[#00453e]/25 hover:shadow-md">
       <div className="space-y-4">
         {/* Header: category tag + date */}
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${tagTint}`}
           >
             {entry.categoryLabel}
           </span>
-          <span className="whitespace-nowrap text-sm font-medium text-[#4c616c]">
+          <span className="shrink-0 whitespace-nowrap text-sm font-medium text-[#4c616c]">
             {entry.dateLabel}
           </span>
         </div>
