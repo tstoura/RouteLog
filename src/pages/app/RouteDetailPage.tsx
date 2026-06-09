@@ -23,7 +23,7 @@ function buildBasics(r: ClimbingRouteResponse): DetailInfoRow[] {
   return [
     { label: 'ΔΙΑΔΡΟΜΗ', value: r.name },
     { label: 'ΠΕΔΙΟ', value: r.climbingField },
-    { label: 'ΒΟΥΝΟ / ΠΕΡΙΟΧΗ', value: r.mountainOrArea },
+    { label: 'ΠΕΡΙΟΧΗ / ΒΟΥΝΟ', value: r.mountainOrArea },
   ]
 }
 

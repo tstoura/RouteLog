@@ -20,6 +20,19 @@ import type { AuthUser, AuthMembership, LoginPayload, RegisterPayload } from '..
 import { clearAccessToken, setAccessToken } from './tokenStorage.ts'
 import { clearAdminClubId } from '../admin/adminClubStorage.ts'
 
+/**
+ * Decode a JWT's `exp` claim (seconds since epoch) without verifying the
+ * signature — the backend already verified it; we just need the expiry time.
+ */
+function getTokenExpiryMs(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]!)) as Record<string, unknown>
+    return typeof payload['exp'] === 'number' ? payload['exp'] * 1000 : null
+  } catch {
+    return null
+  }
+}
+
 // ── Context shape ──────────────────────────────────────────────────────────
 
 type AuthContextValue = {
@@ -58,6 +71,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   // Prevent double-run in StrictMode
   const initialCheckDone = useRef(false)
+  // Timer handle for proactive token refresh
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /**
+   * Schedule a silent token refresh before the current access token expires.
+   * Fires at 80 % of the token's remaining lifetime (or at least 60 s before
+   * expiry) so that active sessions never hit a 401 due to expiry.
+   */
+  const scheduleProactiveRefresh = useCallback((accessToken: string) => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+
+    const expiryMs = getTokenExpiryMs(accessToken)
+    if (!expiryMs) return
+
+    const remaining = expiryMs - Date.now()
+    // Refresh 60 s before expiry, but no later than 80 % of remaining lifetime.
+    const delay = Math.min(remaining * 0.8, remaining - 60_000)
+    if (delay <= 0) return // Already expired; the 401-retry path handles this.
+
+    refreshTimer.current = setTimeout(async () => {
+      try {
+        const { accessToken: newToken, user: me } = await apiRefresh()
+        setAccessToken(newToken)
+        setUser(me)
+        scheduleProactiveRefresh(newToken) // chain the next refresh
+      } catch {
+        // Proactive refresh failed (e.g. Render cold-start). The 401-retry
+        // in apiFetch will recover silently on the next API call.
+      }
+    }, delay)
+  }, [])
 
   /**
    * On startup, call POST /auth/refresh to restore the session from the
@@ -72,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { accessToken, user: me } = await apiRefresh()
       setAccessToken(accessToken)
       setUser(me)
+      scheduleProactiveRefresh(accessToken)
     } catch {
       // No valid refresh cookie — user is not authenticated.
       clearAccessToken()
@@ -79,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [scheduleProactiveRefresh])
 
   useEffect(() => {
     if (initialCheckDone.current) return
@@ -91,15 +136,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { accessToken, user: me } = await apiLogin(payload)
     setAccessToken(accessToken)
     setUser(me)
+    scheduleProactiveRefresh(accessToken)
     return me
-  }, [])
+  }, [scheduleProactiveRefresh])
 
   const register = useCallback(async (payload: RegisterPayload): Promise<AuthUser> => {
     const { accessToken, user: me } = await apiRegister(payload)
     setAccessToken(accessToken)
     setUser(me)
+    scheduleProactiveRefresh(accessToken)
     return me
-  }, [])
+  }, [scheduleProactiveRefresh])
 
   /**
    * Logout: clear local credentials, then hard-navigate to "/" via
@@ -126,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    *   user is fully signed out.
    */
   const logout = useCallback(() => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
     clearAccessToken()
     clearAdminClubId()
     void apiLogout()

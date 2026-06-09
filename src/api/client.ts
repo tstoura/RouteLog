@@ -12,7 +12,7 @@
  *    Auth endpoints (/auth/*) are excluded from retry to prevent loops.
  */
 
-import { getAccessToken, setAccessToken, clearAccessToken } from '../auth/tokenStorage.ts'
+import { getAccessToken, setAccessToken } from '../auth/tokenStorage.ts'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001'
 
@@ -110,8 +110,10 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
       return retryJson as T
     }
 
-    // Refresh failed — clear stale token and surface the 401.
-    clearAccessToken()
+    // Refresh failed — surface the 401 but do NOT clear the token.
+    // Clearing it would cause the very next request to send no Authorization
+    // header at all ("No authorization token provided") instead of a proper 401.
+    // The proactive refresh in AuthContext handles permanent expiry gracefully.
     const json401: unknown = await res.json().catch(() => null)
     throw new ApiError(401, json401, extractErrorMessage(json401, 401))
   }

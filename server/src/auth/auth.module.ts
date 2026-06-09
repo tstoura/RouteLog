@@ -24,7 +24,7 @@ import { ClubsModule } from '../clubs/clubs.module'
           // Cast to 'any' because ConfigService returns plain string but
           // @nestjs/jwt expects the ms-compatible StringValue type.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '15m') as any,
+          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ?? '1h') as any,
         },
       }),
     }),
