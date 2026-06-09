@@ -31,6 +31,7 @@ export function RouteCombobox({
   const reactId = useId()
   const listboxId = idProp ?? `route-combobox-${reactId}`
   const containerRef = useRef<HTMLDivElement>(null)
+  const listboxRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
 
@@ -40,6 +41,10 @@ export function RouteCombobox({
     [routes, value, queryActive],
   )
   const showEmpty = queryActive && matches.length === 0
+
+  // Total keyboard-navigable items: route matches + footer "new route" button
+  const totalItems = matches.length + 1 // +1 for footer button
+  const footerIndex = matches.length
 
   const close = useCallback(() => {
     setOpen(false)
@@ -56,10 +61,55 @@ export function RouteCombobox({
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open, close])
 
+  // Scroll the active option into view whenever activeIndex changes
+  useEffect(() => {
+    if (!open || activeIndex < 0) return
+    const listbox = listboxRef.current
+    if (!listbox) return
+    const activeEl = listbox.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
+    activeEl?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex, open])
+
   const handleSelect = (route: ClimbingRouteFormRecord) => {
     onSelectRoute(route)
     close()
   }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || !queryActive) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (showEmpty) return
+      setActiveIndex((prev) => (prev + 1) % totalItems)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (showEmpty) return
+      setActiveIndex((prev) => (prev <= 0 ? totalItems - 1 : prev - 1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (showEmpty) return
+      if (activeIndex >= 0 && activeIndex < matches.length) {
+        handleSelect(matches[activeIndex])
+      } else if (activeIndex === footerIndex) {
+        close()
+        onFooterNewRoute()
+      } else if (matches.length === 1) {
+        // no item highlighted but only one result — select it
+        handleSelect(matches[0])
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      close()
+    } else if (e.key === 'Tab') {
+      close()
+    }
+  }
+
+  const activeOptionId =
+    open && activeIndex >= 0 && activeIndex < matches.length
+      ? `${listboxId}-option-${activeIndex}`
+      : undefined
 
   return (
     <div ref={containerRef} className="relative">
@@ -73,6 +123,7 @@ export function RouteCombobox({
           aria-expanded={open}
           aria-controls={`${listboxId}-listbox`}
           aria-autocomplete="list"
+          aria-activedescendant={activeOptionId}
           value={value}
           onChange={(e) => {
             onChange(e.target.value)
@@ -80,6 +131,7 @@ export function RouteCombobox({
             setActiveIndex(-1)
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={handleKeyDown}
           placeholder="Αναζητήστε υπάρχουσα διαδρομή"
           autoComplete="off"
           className="w-full rounded-lg border border-[#e2e8e0] bg-white py-3 pl-11 pr-3 text-sm text-[#1a1c1e] outline-none ring-[#005f56] transition placeholder:text-sm placeholder:text-[#94a3b8] focus:border-[#005f56] focus:ring-2"
@@ -88,6 +140,7 @@ export function RouteCombobox({
 
       {open && queryActive ? (
         <div
+          ref={listboxRef}
           id={`${listboxId}-listbox`}
           role="listbox"
           className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-72 overflow-auto rounded-xl border border-[#e8eef0] bg-white py-2 shadow-[0_12px_40px_-8px_rgba(15,23,42,0.18)]"
@@ -115,6 +168,8 @@ export function RouteCombobox({
                 return (
                   <button
                     key={route.id}
+                    id={`${listboxId}-option-${idx}`}
+                    data-index={idx}
                     type="button"
                     role="option"
                     aria-selected={active}
@@ -136,12 +191,19 @@ export function RouteCombobox({
               <div className="border-t border-[#eef2f2] px-2 py-2">
                 <button
                   type="button"
+                  data-index={footerIndex}
+                  onMouseEnter={() => setActiveIndex(footerIndex)}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     close()
                     onFooterNewRoute()
                   }}
-                  className="w-full cursor-pointer rounded-lg bg-[rgba(0,69,62,0.08)] px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-[#00453e] transition hover:bg-[rgba(0,69,62,0.14)]"
+                  className={[
+                    'w-full cursor-pointer rounded-lg px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide text-[#00453e] transition',
+                    activeIndex === footerIndex
+                      ? 'bg-[rgba(0,69,62,0.14)]'
+                      : 'bg-[rgba(0,69,62,0.08)] hover:bg-[rgba(0,69,62,0.14)]',
+                  ].join(' ')}
                 >
                   + ΝΕΑ ΔΙΑΔΡΟΜΗ
                 </button>

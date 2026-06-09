@@ -293,7 +293,11 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
                     onChange={setFieldType}
                   />
                   <FieldHints>
-                    <FieldHint>{HIKING_FIELD_TYPE_HELPER}</FieldHint>
+                    <FieldHint>
+                      {effectiveIsOfficial
+                        ? HIKING_FIELD_TYPE_HELPER
+                        : 'Οι συνθήκες του πεδίου κατά τη δραστηριότητα.'}
+                    </FieldHint>
                   </FieldHints>
                 </div>
 
@@ -341,7 +345,11 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
                 </button>
               </div>
               <FieldHints>
-                <FieldHint>Ο αριθμός των μελών του συλλόγου που συμμετείχαν.</FieldHint>
+                <FieldHint>
+                  {effectiveIsOfficial
+                    ? 'Ο αριθμός των μελών του συλλόγου που συμμετείχαν.'
+                    : 'Ο αριθμός των συμμετεχόντων στην ανάβαση.'}
+                </FieldHint>
                 {hasClub && isOfficial && (
                   <FieldHint>Απαιτούνται τουλάχιστον 3 άτομα για επίσημη καταγραφή.</FieldHint>
                 )}

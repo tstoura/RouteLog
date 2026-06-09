@@ -532,7 +532,7 @@ export function RockClimbingActivityForm({
                     {!autofill ? (
                       <FieldHints>
                         <FieldHint>
-                          Αναζήτησε υπάρχουσα διαδρομή ή καταχωρήστε νέα.
+                          Αναζητήστε υπάρχουσα διαδρομή ή καταχωρήστε νέα.
                           <br />
                           <span className="italic">
                             Αν επιλέξετε υπάρχουσα διαδρομή, τα υπόλοιπα στοιχεία συμπληρώνονται
@@ -595,9 +595,9 @@ export function RockClimbingActivityForm({
                     onChange={setSeason}
                   />
                   <FieldHints>
-                    <FieldHint>Οι συνθήκες κατά την ανάβαση (θερινές ή χειμερινές).</FieldHint>
+                    <FieldHint>Οι συνθήκες κατά την αναρρίχηση (θερινές ή χειμερινές).</FieldHint>
                     <FieldHint>
-                      <span className="italic">Επίλεξε με βάση τις συνθήκες της ημέρας.</span>
+                      <span className="italic">Επιλέξτε με βάση τις συνθήκες της ημέρας.</span>
                     </FieldHint>
                   </FieldHints>
                 </div>
@@ -611,7 +611,7 @@ export function RockClimbingActivityForm({
                     onChange={setRepeat}
                   />
                   <FieldHints>
-                    <FieldHint>Δηλώστε αν πρόκειται για νέα ανάβαση ή επανάληψη.</FieldHint>
+                    <FieldHint>Δηλώστε αν πρόκειται για νέα αναρριχητική διαδρομή ή υπάρχουσα.</FieldHint>
                   </FieldHints>
                 </div>
               </div>
@@ -628,9 +628,11 @@ export function RockClimbingActivityForm({
                   />
                   <FieldHints>
                     <FieldHint>Προαιρετικά: περιγράφει τον τρόπο που ολοκληρώθηκε η διαδρομή.</FieldHint>
-                    <FieldHint>
-                      <span className="italic">Δεν επηρεάζει τη βαθμολόγηση ΕΟΟΑ και δεν εξάγεται.</span>
-                    </FieldHint>
+                    {effectiveIsOfficial && (
+                      <FieldHint>
+                        <span className="italic">Δεν επηρεάζει τη βαθμολόγηση ΕΟΟΑ και δεν εξάγεται.</span>
+                      </FieldHint>
+                    )}
                   </FieldHints>
                 </div>
 
@@ -673,7 +675,7 @@ export function RockClimbingActivityForm({
                             Επιλέξτε τον βαθμό δυσκολίας της διαδρομής.
                             <br />
                             <span className="italic">
-                              Αν επιλέξεις υπάρχουσα διαδρομή, προτείνεται αυτόματα τιμή.
+                              Αν επιλέξετε υπάρχουσα διαδρομή, προτείνεται αυτόματα τιμή.
                             </span>
                           </>
                         )}
@@ -774,9 +776,15 @@ export function RockClimbingActivityForm({
                   </div>
                   <FieldHints>
                     <FieldHint>
-                      Αριθμός συμμετεχόντων από τον σύλλογο.
-                      <br />
-                      <span className="italic">Λαμβάνονται υπόψη μόνο μέλη του συλλόγου.</span>
+                      {effectiveIsOfficial ? (
+                        <>
+                          Αριθμός συμμετεχόντων από τον σύλλογο.
+                          <br />
+                          <span className="italic">Λαμβάνονται υπόψη μόνο μέλη του συλλόγου.</span>
+                        </>
+                      ) : (
+                        'Αριθμός συμμετεχόντων στην αναρρίχηση.'
+                      )}
                     </FieldHint>
                   </FieldHints>
                 </div>
@@ -800,7 +808,7 @@ export function RockClimbingActivityForm({
                     <FieldHint>
                       {participantsNum > 1
                         ? 'Καταχώρησε τα ονόματα των υπόλοιπων σχοινοσυντρόφων (χωρίς εσένα).'
-                        : 'Αν αναρριχήθηκες μόνος/η, αφήστε αυτό το πεδίο κενό.'}
+                        : 'Αν αναρριχηθήκατε μόνος/η, αφήστε αυτό το πεδίο κενό.'}
                     </FieldHint>
                   </FieldHints>
                 </div>
@@ -814,7 +822,7 @@ export function RockClimbingActivityForm({
                   <Textarea
                     value={privateNotes}
                     onChange={(e) => setPrivateNotes(e.target.value)}
-                    placeholder="Κατάγραψε μια προσωπική σημείωση ή ανάμνηση από τη δράση"
+                    placeholder="Καταγράψτε μια προσωπική σημείωση ή ανάμνηση από τη δράση"
                     className="min-h-[150px]"
                   />
                   <FieldHints>
@@ -827,7 +835,7 @@ export function RockClimbingActivityForm({
                   <Textarea
                     value={publicNotes}
                     onChange={(e) => setPublicNotes(e.target.value)}
-                    placeholder="Κατάγραψε πληροφορίες ή εμπειρίες χρήσιμες για άλλους χρήστες"
+                    placeholder="Καταγράψτε πληροφορίες ή εμπειρίες χρήσιμες για άλλους χρήστες"
                     className="min-h-[150px]"
                   />
                   <FieldHints>

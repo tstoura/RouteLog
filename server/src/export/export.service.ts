@@ -90,6 +90,7 @@ const ACTIVITY_WITH_DETAILS = {
   hikingDetail: true,
   climbingDetail: true,
   expeditionDetail: true,
+  user: { select: { firstName: true, lastName: true } },
 } as const
 
 type ActivityWithDetails = Prisma.ActivityGetPayload<{
@@ -424,7 +425,9 @@ export class ExportService {
       row.getCell(10).value = mixedGrade
       row.getCell(11).value = Number(d.routeLength)
       row.getCell(12).value = d.participantsNum
-      row.getCell(13).value = d.participantsText
+      const ownName = `${act.user.firstName} ${act.user.lastName}`
+      const partners = d.participantsText?.trim()
+      row.getCell(13).value = partners ? `${ownName}, ${partners}` : ownName
       row.getCell(CLIMBING_POINTS_COL).value =
         act.points !== null ? Number(act.points) : null
 

@@ -1,13 +1,13 @@
-import type { ComponentProps, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { BarChart3, FileText, Info, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { FormSection } from '../../ui/FormSection.tsx'
 import { Select } from '../../ui/Select.tsx'
 import { CustomSelect } from '../../ui/CustomSelect.tsx'
+import { CustomDatePicker } from '../../ui/CustomDatePicker.tsx'
 import { Textarea } from '../../ui/Textarea.tsx'
 import { Button } from '../../ui/Button.tsx'
-import { Input } from '../../ui/Input.tsx'
 
 export type Option = { value: string; label: string }
 
@@ -42,15 +42,23 @@ export function SectionIconNotes() {
   return <FileText className={formSectionIconClass} strokeWidth={2} aria-hidden />
 }
 
-type DateInputProps = Omit<ComponentProps<typeof Input>, 'className'> & { className?: string }
+type DateInputProps = {
+  value?: string
+  onChange?: (e: { target: { value: string } }) => void
+  max?: string
+  disabled?: boolean
+  className?: string
+  /** Accepted but ignored — the native `type="date"` attr is not needed by the custom picker */
+  type?: string
+}
 
-export function DateInputWithCalendar({ className = '', ...rest }: DateInputProps) {
+export function DateInputWithCalendar({ className = '', max, type: _type, ...rest }: DateInputProps) {
   const today = new Date().toISOString().slice(0, 10)
   return (
-    <Input
+    <CustomDatePicker
       {...rest}
-      max={rest.max ?? today}
-      className={`h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] ${className}`}
+      max={max ?? today}
+      className={className}
     />
   )
 }
