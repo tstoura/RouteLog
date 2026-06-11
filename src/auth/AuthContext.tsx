@@ -21,6 +21,27 @@ import { clearAccessToken, setAccessToken } from './tokenStorage.ts'
 import { clearAdminClubId } from '../admin/adminClubStorage.ts'
 
 /**
+ * Client-side logout flag stored in localStorage.
+ *
+ * Problem: POST /auth/logout clears the httpOnly refresh cookie on the server,
+ * but if Render is sleeping when logout is called, the request silently fails
+ * (.catch is swallowed) and the cookie remains valid.  The next page load then
+ * restores the old session via hydrateFromRefreshCookie — making the user
+ * appear logged in (potentially as a different role) even though they clicked
+ * "logout".
+ *
+ * Solution: set this flag synchronously in logout() before any async work.
+ * hydrateFromRefreshCookie() checks it first; if present it skips the refresh
+ * entirely and treats the browser as logged out.  The flag is cleared on the
+ * next successful login/register so the session works normally again.
+ */
+const LOGOUT_FLAG_KEY = 'routelog_logged_out'
+
+function setLogoutFlag() { localStorage.setItem(LOGOUT_FLAG_KEY, '1') }
+function clearLogoutFlag() { localStorage.removeItem(LOGOUT_FLAG_KEY) }
+function isLogoutFlagSet(): boolean { return localStorage.getItem(LOGOUT_FLAG_KEY) === '1' }
+
+/**
  * Decode a JWT's `exp` claim (seconds since epoch) without verifying the
  * signature — the backend already verified it; we just need the expiry time.
  */
@@ -96,9 +117,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccessToken(newToken)
         setUser(me)
         scheduleProactiveRefresh(newToken) // chain the next refresh
-      } catch {
-        // Proactive refresh failed (e.g. Render cold-start). The 401-retry
-        // in apiFetch will recover silently on the next API call.
+      } catch (err) {
+        // If the server explicitly rejected the refresh token (401), the
+        // session is dead — force logout so the user lands on login cleanly.
+        // For transient errors (Render cold-start), do nothing: the 401-retry
+        // in apiFetch will recover on the next user-triggered API call.
+        const status = (err as { status?: number })?.status
+        if (status === 401) {
+          setLogoutFlag()
+          clearAccessToken()
+          setUser(null)
+          clearAdminClubId()
+          window.location.replace('/')
+        }
       }
     }, delay)
   }, [])
@@ -112,6 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Failure (401 / no cookie) → unauthenticated state.
    */
   const hydrateFromRefreshCookie = useCallback(async () => {
+    // If the user explicitly logged out (even if the server-side cookie clear
+    // failed because Render was sleeping), honour that intent and stay logged out.
+    if (isLogoutFlagSet()) {
+      clearLogoutFlag()
+      clearAccessToken()
+      setUser(null)
+      setIsLoading(false)
+      return
+    }
     try {
       const { accessToken, user: me } = await apiRefresh()
       setAccessToken(accessToken)
@@ -134,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (payload: LoginPayload): Promise<AuthUser> => {
     const { accessToken, user: me } = await apiLogin(payload)
+    clearLogoutFlag() // user deliberately logging in — clear any stale logout flag
     setAccessToken(accessToken)
     setUser(me)
     scheduleProactiveRefresh(accessToken)
@@ -142,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (payload: RegisterPayload): Promise<AuthUser> => {
     const { accessToken, user: me } = await apiRegister(payload)
+    clearLogoutFlag()
     setAccessToken(accessToken)
     setUser(me)
     scheduleProactiveRefresh(accessToken)
@@ -174,6 +216,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const logout = useCallback(() => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    // Set the logout flag SYNCHRONOUSLY before any async work so that even if
+    // apiLogout() fails (Render sleeping), the next page load will not restore
+    // this session from the still-valid httpOnly refresh cookie.
+    setLogoutFlag()
     clearAccessToken()
     clearAdminClubId()
     void apiLogout()

@@ -12,7 +12,7 @@
  *    Auth endpoints (/auth/*) are excluded from retry to prevent loops.
  */
 
-import { getAccessToken, setAccessToken } from '../auth/tokenStorage.ts'
+import { getAccessToken, setAccessToken, clearAccessToken } from '../auth/tokenStorage.ts'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001'
 
@@ -43,28 +43,51 @@ function shouldSkipRetry(path: string): boolean {
   return SKIP_RETRY_PREFIXES.some((prefix) => path.startsWith(prefix))
 }
 
+type RefreshResult = 'ok' | 'auth_error' | 'network_error'
+
 /**
  * Attempts to refresh the access token via the httpOnly refresh cookie.
- * Returns true and updates the in-memory token on success; returns false on failure.
- * Uses raw fetch (not apiFetch) to avoid circular calls.
+ *
+ * Returns:
+ *   'ok'           — new token obtained and stored in memory.
+ *   'auth_error'   — server returned 401 (cookie missing/expired/invalid).
+ *                    The session is definitively dead; caller should force logout.
+ *   'network_error'— fetch failed or server returned a non-401 error.
+ *                    Likely a transient Render cold-start; caller should NOT
+ *                    clear the token — the user can retry their action.
  */
-async function tryRefreshAccessToken(): Promise<boolean> {
+async function tryRefreshAccessToken(): Promise<RefreshResult> {
   try {
     const res = await fetch(`${BASE_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
     })
-    if (!res.ok) return false
+    if (!res.ok) {
+      return res.status === 401 ? 'auth_error' : 'network_error'
+    }
     const data = (await res.json()) as { accessToken?: string }
     if (typeof data.accessToken === 'string') {
       setAccessToken(data.accessToken)
-      return true
+      return 'ok'
     }
-    return false
+    return 'network_error'
   } catch {
-    return false
+    // Network-level failure (fetch threw) — backend likely sleeping.
+    return 'network_error'
   }
+}
+
+/**
+ * Called when the refresh cookie is definitively invalid (server returned 401).
+ * Clears the in-memory token, sets the localStorage logout flag (so
+ * hydrateFromRefreshCookie skips the next page-load refresh), and hard-navigates
+ * to the landing page so the user can log in again cleanly.
+ */
+function forceLogout(): void {
+  clearAccessToken()
+  localStorage.setItem('routelog_logged_out', '1')
+  window.location.replace('/')
 }
 
 function extractErrorMessage(json: unknown, status: number): string {
@@ -91,8 +114,9 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 
   // If unauthorized and this is not an auth endpoint, try a one-time token refresh.
   if (res.status === 401 && !shouldSkipRetry(path)) {
-    const refreshed = await tryRefreshAccessToken()
-    if (refreshed) {
+    const refreshResult = await tryRefreshAccessToken()
+
+    if (refreshResult === 'ok') {
       // Retry the original request with the new access token.
       const retryRes = await fetch(`${BASE_URL}${path}`, {
         headers: {
@@ -110,10 +134,19 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
       return retryJson as T
     }
 
-    // Refresh failed — surface the 401 but do NOT clear the token.
-    // Clearing it would cause the very next request to send no Authorization
-    // header at all ("No authorization token provided") instead of a proper 401.
-    // The proactive refresh in AuthContext handles permanent expiry gracefully.
+    if (refreshResult === 'auth_error') {
+      // The refresh cookie is definitively dead (server returned 401).
+      // Force logout so the user lands on the login page cleanly instead of
+      // seeing a raw "Invalid or expired token" error.
+      forceLogout()
+      // forceLogout() triggers a hard navigation; this throw is a safety net
+      // in case the redirect takes a moment.
+      throw new ApiError(401, null, 'Η σύνδεσή σας έχει λήξει. Παρακαλώ συνδεθείτε ξανά.')
+    }
+
+    // 'network_error' — transient failure (Render sleeping). Keep the old
+    // token in memory so the next request can retry the refresh. Surface the
+    // original 401 so the component can show a meaningful message.
     const json401: unknown = await res.json().catch(() => null)
     throw new ApiError(401, json401, extractErrorMessage(json401, 401))
   }
