@@ -20,6 +20,7 @@ import {
   SectionIconParticipation,
   SectionIconTechnical,
   SelectFieldControlled,
+  toWholeNumber,
 } from './shared/FormBuildingBlocks.tsx'
 import {
   HIKING_DIFFICULTY_GRADE_HELPER,
@@ -235,10 +236,10 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
               <label className="flex flex-col gap-3">
                 <FieldLabel>ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
                 <Input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
                   value={maxAltitude}
-                  onChange={(e) => setMaxAltitude(e.target.value)}
+                  onChange={(e) => setMaxAltitude(toWholeNumber(e.target.value))}
                   placeholder="Υψόμετρο"
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />
@@ -250,10 +251,10 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
               <label className="flex flex-col gap-3">
                 <FieldLabel>ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ (M)</FieldLabel>
                 <Input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
                   value={totalElevationGain}
-                  onChange={(e) => setTotalElevationGain(e.target.value)}
+                  onChange={(e) => setTotalElevationGain(toWholeNumber(e.target.value))}
                   placeholder="Σ.Υ.Α."
                   className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                 />

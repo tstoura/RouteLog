@@ -18,6 +18,7 @@ import {
   SectionIconParticipation,
   SectionIconTechnical,
   SelectFieldControlled,
+  toWholeNumber,
 } from './shared/FormBuildingBlocks.tsx'
 import { Input } from '../ui/Input.tsx'
 import { Textarea } from '../ui/Textarea.tsx'
@@ -321,10 +322,10 @@ export function ExpeditionActivityForm({
               <label className="flex flex-col gap-3">
                 <FieldLabel>{effectiveIsOfficial ? 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)' : 'ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M) (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
                 <Input
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
                   value={altitude}
-                  onChange={(e) => setAltitude(e.target.value)}
+                  onChange={(e) => setAltitude(toWholeNumber(e.target.value))}
                   placeholder="Μέγιστο υψόμετρο"
                   className={expeditionInputClass}
                 />
@@ -336,10 +337,10 @@ export function ExpeditionActivityForm({
               <label className="flex flex-col gap-3">
                 <FieldLabel>{effectiveIsOfficial ? 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ' : 'ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ (ΠΡΟΑΙΡΕΤΙΚΟ)'}</FieldLabel>
                 <Input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
                   value={totalElevationGain}
-                  onChange={(e) => setTotalElevationGain(e.target.value)}
+                  onChange={(e) => setTotalElevationGain(toWholeNumber(e.target.value))}
                   placeholder="Σ.Υ.Α."
                   className={expeditionInputClass}
                 />

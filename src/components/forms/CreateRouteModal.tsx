@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Link2, MapPin, X } from 'lucide-react'
+import { toWholeNumber, toDecimalNumber } from './shared/FormBuildingBlocks.tsx'
 import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
 import {
   CLIMBING_SCALE_FORM_OPTIONS,
@@ -197,17 +198,17 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
 
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2">
+              <FieldLabelReq>Βουνό / Περιοχή</FieldLabelReq>
+              <Input value={mountain} onChange={(e) => setMountain(e.target.value)} placeholder="Βουνό/Περιοχή" className="h-12" required />
+              <p className="text-xs text-[#94a3b8]">Η ευρύτερη περιοχή ή το βουνό όπου βρίσκεται η διαδρομή.</p>
+            </label>
+            <label className="space-y-2">
               <FieldLabelReq>Πεδίο</FieldLabelReq>
               <div className="relative">
                 <Input value={field} onChange={(e) => setField(e.target.value)} placeholder="Πεδίο" className="h-12 pr-10" required />
                 <MapPin className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-[#94a3b8]" aria-hidden />
               </div>
               <p className="text-xs text-[#94a3b8]">Το αναρριχητικό πεδίο στο οποίο βρίσκεται η διαδρομή.</p>
-            </label>
-            <label className="space-y-2">
-              <FieldLabelReq>Βουνό / Περιοχή</FieldLabelReq>
-              <Input value={mountain} onChange={(e) => setMountain(e.target.value)} placeholder="Βουνό/Περιοχή" className="h-12" required />
-              <p className="text-xs text-[#94a3b8]">Η ευρύτερη περιοχή ή το βουνό όπου βρίσκεται η διαδρομή.</p>
             </label>
           </div>
 
@@ -232,21 +233,25 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
 
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm font-bold text-[#00453e]">Υψόμετρο</span>
+              <span className="text-sm font-bold text-[#00453e]">Τελικό Υψόμετρο (m)</span>
               <Input
+                type="text"
+                inputMode="numeric"
                 value={altitude}
-                onChange={(e) => setAltitude(e.target.value)}
+                onChange={(e) => setAltitude(toWholeNumber(e.target.value))}
                 placeholder="Υψόμετρο αναρρίχησης (m)"
                 className="h-12 placeholder:text-xs"
               />
               <p className="text-xs text-[#94a3b8]">Το υψόμετρο στο οποίο καταλήγει η αναρρίχηση.</p>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-bold text-[#00453e]">Ανάπτυγμα Διαδρομής</span>
+              <span className="text-sm font-bold text-[#00453e]">Ανάπτυγμα Αναρρίχησης</span>
               <Input
+                type="text"
+                inputMode="decimal"
                 value={length}
-                onChange={(e) => setLength(e.target.value)}
-                placeholder="Συνολικό μήκος αναρρίχησης"
+                onChange={(e) => setLength(toDecimalNumber(e.target.value))}
+                placeholder="Συνολικό μήκος αναρρίχησης (m)"
                 className="h-12 placeholder:text-xs"
               />
               <p className="text-xs text-[#94a3b8]">Το συνολικό μήκος της αναρρίχησης.</p>

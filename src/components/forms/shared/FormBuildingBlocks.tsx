@@ -52,6 +52,31 @@ type DateInputProps = {
   type?: string
 }
 
+/**
+ * Normalises a raw text-input value for whole-number (integer) meter fields.
+ * Strips dots, commas and spaces that users commonly type as thousands
+ * separators (e.g. "1.500" → "1500", "1,500" → "1500").
+ * Non-digit characters other than separators are also removed so the stored
+ * string is always a plain integer or empty.
+ */
+export function toWholeNumber(raw: string): string {
+  return raw.replace(/[.,\s]/g, '').replace(/\D/g, '')
+}
+
+/**
+ * Normalises a raw text-input value for decimal numeric fields (e.g. route
+ * length in metres). Strips any character that is not a digit, dot or comma,
+ * normalises commas to dots, and ensures at most one decimal point.
+ * Prevents users from entering letters or units (e.g. "20μ", "20m").
+ */
+export function toDecimalNumber(raw: string): string {
+  // Remove anything that isn't a digit, dot or comma
+  const stripped = raw.replace(/[^\d.,]/g, '').replace(/,/g, '.')
+  // Keep only the first decimal point
+  const [integer, ...rest] = stripped.split('.')
+  return rest.length > 0 ? `${integer}.${rest.join('')}` : integer
+}
+
 export function DateInputWithCalendar({ className = '', max, type: _type, ...rest }: DateInputProps) {
   const today = new Date().toISOString().slice(0, 10)
   return (

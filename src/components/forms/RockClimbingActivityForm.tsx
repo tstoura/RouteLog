@@ -21,6 +21,7 @@ import {
   SectionIconParticipation,
   SectionIconTechnical,
   SelectFieldControlled,
+  toWholeNumber,
 } from './shared/FormBuildingBlocks.tsx'
 import { AutoFilledBadge } from './AutoFilledBadge.tsx'
 import { CreateRouteModal } from './CreateRouteModal.tsx'
@@ -148,7 +149,7 @@ export function RockClimbingActivityForm({
   // ── Basic ──────────────────────────────────────────────────────────────────
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [season, setSeason] = useState('summer')
-  const [repeat, setRepeat] = useState('new')
+  const [repeat, setRepeat] = useState('repeat')
 
   // ── Route ──────────────────────────────────────────────────────────────────
   const [routeId, setRouteId] = useState(seed.routeId)
@@ -396,7 +397,7 @@ export function RockClimbingActivityForm({
         return
       }
       if (!routeLength || Number(routeLength) <= 0) {
-        setSubmitError('Το ανάπτυγμα διαδρομής είναι υποχρεωτικό για επίσημη καταγραφή.')
+        setSubmitError('Το ανάπτυγμα αναρρίχησης είναι υποχρεωτικό για επίσημη καταγραφή.')
         return
       }
       if (participantsNum < 1) {
@@ -700,10 +701,10 @@ export function RockClimbingActivityForm({
                   <label className="flex flex-col gap-3">
                     <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
                     <Input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
                       value={altitude}
-                      onChange={(e) => setAltitude(e.target.value)}
+                      onChange={(e) => setAltitude(toWholeNumber(e.target.value))}
                       placeholder="Υψόμετρο αναρρίχησης (m)"
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
@@ -720,7 +721,7 @@ export function RockClimbingActivityForm({
                   </label>
 
                   <label className="flex flex-col gap-3">
-                    <FieldLabel>ΑΝΑΠΤΥΓΜΑ ΔΙΑΔΡΟΜΗΣ (M)</FieldLabel>
+                    <FieldLabel>ΑΝΑΠΤΥΓΜΑ ΑΝΑΡΡΙΧΗΣΗΣ (M)</FieldLabel>
                     <Input
                       type="number"
                       min="0.01"
@@ -805,6 +806,7 @@ export function RockClimbingActivityForm({
                     </div>
                   </div>
                   <FieldHints>
+                    <FieldHint>Γράψτε τα ονόματα των σχοινοσυντρόφων σας, χωρισμένα με κόμμα.</FieldHint>
                     <FieldHint>
                       {participantsNum > 1
                         ? 'Καταχώρησε τα ονόματα των υπόλοιπων σχοινοσυντρόφων (χωρίς εσένα).'

@@ -18,6 +18,7 @@ import {
   SectionIconParticipation,
   SectionIconTechnical,
   SelectFieldControlled,
+  toWholeNumber,
 } from './shared/FormBuildingBlocks.tsx'
 import {
   CLIMBING_COMPLETION_OPTIONS,
@@ -230,7 +231,7 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
               <div className="grid gap-6 md:grid-cols-2">
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
-                  <Input type="number" min="0" value={altitude} onChange={(e) => setAltitude(e.target.value)} placeholder="Υψόμετρο" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+                  <Input type="text" inputMode="numeric" value={altitude} onChange={(e) => setAltitude(toWholeNumber(e.target.value))} placeholder="Υψόμετρο" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
                   {isOfficial && (
                     <FieldHints>
                       <FieldHint>

@@ -18,6 +18,7 @@ import {
   SectionIconParticipation,
   SectionIconTechnical,
   SelectFieldControlled,
+  toWholeNumber,
 } from './shared/FormBuildingBlocks.tsx'
 import {
   EXPEDITION_DIFFICULTY_GRADE_HELPER,
@@ -193,11 +194,11 @@ export function ExpeditionEditForm({ activity, onSaved, onCancel }: ExpeditionEd
               <div className="grid gap-6 md:grid-cols-2">
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΜΕΓΙΣΤΟ ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
-                  <Input type="number" min="0" value={altitude} onChange={(e) => setAltitude(e.target.value)} placeholder="Υψόμετρο" className={inputClass} />
+                  <Input type="text" inputMode="numeric" value={altitude} onChange={(e) => setAltitude(toWholeNumber(e.target.value))} placeholder="Υψόμετρο" className={inputClass} />
                 </label>
                 <label className="flex flex-col gap-3">
                   <FieldLabel>ΣΥΝΟΛΙΚΗ ΥΨΟΜΕΤΡΙΚΗ ΑΝΑΒΑΣΗ (M)</FieldLabel>
-                  <Input type="number" min="0" value={totalElevationGain} onChange={(e) => setTotalElevationGain(e.target.value)} placeholder="Σ.Υ.Α." className={inputClass} />
+                  <Input type="text" inputMode="numeric" value={totalElevationGain} onChange={(e) => setTotalElevationGain(toWholeNumber(e.target.value))} placeholder="Σ.Υ.Α." className={inputClass} />
                 </label>
               </div>
 
