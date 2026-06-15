@@ -13,6 +13,8 @@ type Props = {
   className?: string
   /** Values that should be rendered disabled/unselectable (e.g. empty placeholder options). */
   disabledValues?: string[]
+  /** Use when the trigger is not inside a `<label>` with descriptive text (e.g. sibling `FieldLabel`). */
+  ariaLabel?: string
 }
 
 /**
@@ -28,6 +30,7 @@ export function CustomSelect({
   disabled = false,
   className = '',
   disabledValues = [],
+  ariaLabel,
 }: Props) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -52,6 +55,7 @@ export function CustomSelect({
         type="button"
         onClick={() => !disabled && setOpen((v) => !v)}
         disabled={disabled}
+        aria-label={ariaLabel}
         className={[
           `flex ${heightClass} w-full items-center justify-between rounded-lg border px-3 text-sm transition`,
           'bg-white ring-[#005f56]',

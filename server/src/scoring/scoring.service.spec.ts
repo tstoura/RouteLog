@@ -419,6 +419,144 @@ describe('ScoringService', () => {
     })
   })
 
+  // ── EOOA minimum scoring floors — optional-field regression ────────────────
+  //
+  // These tests verify that the scoring formulas already apply the correct EOOA
+  // minimum thresholds via max(...) internally, which is why the service can
+  // safely store explicit sub-threshold values and the output remains the same.
+  //
+  // Hiking:   distanceLength / 15 → floored to 1 when below 15 km.
+  // Climbing: altitude / 1000     → floored to 1 when below 1000 m.
+  //           routeLength         → floored to 100 m via max(routeLength, 100).
+
+  describe('calculateHikingPoints — distanceLength EOOA floor (15 km)', () => {
+    const base = {
+      maxAltitude: 2000,
+      totalElevationGain: 1000,
+      fieldType: 'ski_mountaineering',
+      difficultyGrade: 'pezoporia',
+      participantsNum: 4,
+    }
+
+    // Formula: (2000/2000)*(1000/1000)*sqrt(max(d/15,1))*1.8*1.0*sqrt(4) = 3.6*sqrt(max(d/15,1))
+
+    it('distanceLength=0 produces same points as distanceLength=15 (EOOA floor at 15 km)', () => {
+      const withZero = service.calculateHikingPoints({ ...base, distanceLength: 0 })
+      const withMin  = service.calculateHikingPoints({ ...base, distanceLength: 15 })
+      // sqrt(max(0/15, 1)) = sqrt(1) = 1 → 3.6
+      expect(withZero).toBeCloseTo(withMin, 10)
+      expect(withZero).toBeCloseTo(3.6, 4)
+    })
+
+    it('distanceLength=10 (below 15 km) produces same points as distanceLength=15', () => {
+      const with10  = service.calculateHikingPoints({ ...base, distanceLength: 10 })
+      const with15  = service.calculateHikingPoints({ ...base, distanceLength: 15 })
+      // sqrt(max(10/15, 1)) = sqrt(1) = 1 — floor applies
+      expect(with10).toBeCloseTo(with15, 10)
+    })
+
+    it('distanceLength=30 (above 15 km) produces more points than distanceLength=15', () => {
+      const with30 = service.calculateHikingPoints({ ...base, distanceLength: 30 })
+      const with15 = service.calculateHikingPoints({ ...base, distanceLength: 15 })
+      // sqrt(30/15) = sqrt(2) ≈ 1.4142 → 3.6 * sqrt(2) ≈ 5.0912
+      expect(with30).toBeGreaterThan(with15)
+      expect(with30).toBeCloseTo(3.6 * Math.sqrt(2), 4)
+    })
+  })
+
+  describe('calculateClimbingPoints — altitude EOOA floor (1000 m)', () => {
+    // Use altitude=1000 as the baseline (not > 1000, so no season coefficient).
+    const base = {
+      altitude: 1000,
+      routeLength: 100,
+      season: 'summer',
+      repetitionType: 'repeat',
+      participantsNum: 2,
+      difficultyScale: 'uiaa',
+      difficultyGrade: 'VI',
+      mappedGrade: null,
+      mixedClimbing: null,
+    }
+
+    // Formula at altitude=1000 summer: 1 * 1 * sqrt(1) * 10 * (100/1500) * 2 ≈ 1.3333
+
+    it('altitude=0 produces same points as altitude=1000 (EOOA floor)', () => {
+      const withZero = service.calculateClimbingPoints({ ...base, altitude: 0 })
+      const withMin  = service.calculateClimbingPoints({ ...base, altitude: 1000 })
+      // sqrt(max(0/1000, 1)) = sqrt(1) = 1 — identical altitudeFactor
+      expect(withZero).toBeCloseTo(withMin, 10)
+      expect(withZero).toBeCloseTo(1.3333, 4)
+    })
+
+    it('altitude=800 (below 1000 m) produces same points as altitude=1000', () => {
+      const with800  = service.calculateClimbingPoints({ ...base, altitude: 800 })
+      const with1000 = service.calculateClimbingPoints({ ...base, altitude: 1000 })
+      // sqrt(max(0.8, 1)) = sqrt(1) = 1 — floor applies
+      expect(with800).toBeCloseTo(with1000, 10)
+    })
+
+    it('altitude=1000 does not trigger season coefficient (threshold is strictly > 1000)', () => {
+      const summer = service.calculateClimbingPoints({ ...base, altitude: 1000, season: 'summer' })
+      const winter = service.calculateClimbingPoints({ ...base, altitude: 1000, season: 'winter' })
+      // altitude NOT > 1000 → seasonCoeff = 1 for both → identical
+      expect(summer).toBeCloseTo(winter, 10)
+    })
+
+    it('altitude=1200 (above 1000 m) produces more points than altitude=1000', () => {
+      const with1200 = service.calculateClimbingPoints({ ...base, altitude: 1200, season: 'summer' })
+      const with1000 = service.calculateClimbingPoints({ ...base, altitude: 1000, season: 'summer' })
+      // sqrt(1200/1000) = sqrt(1.2) > 1 → higher altitudeFactor
+      expect(with1200).toBeGreaterThan(with1000)
+      expect(with1200).toBeCloseTo(1.4606, 4)
+    })
+
+    it('altitude=1200 winter applies season coefficient (altitude > 1000)', () => {
+      const summer = service.calculateClimbingPoints({ ...base, altitude: 1200, season: 'summer' })
+      const winter = service.calculateClimbingPoints({ ...base, altitude: 1200, season: 'winter' })
+      // altitude > 1000 → winter seasonCoeff = 2
+      expect(winter).toBeCloseTo(summer * 2, 6)
+    })
+  })
+
+  describe('calculateClimbingPoints — routeLength EOOA floor (100 m)', () => {
+    const base = {
+      altitude: 1200,
+      routeLength: 100,
+      season: 'summer',
+      repetitionType: 'repeat',
+      participantsNum: 2,
+      difficultyScale: 'uiaa',
+      difficultyGrade: 'VI',
+      mappedGrade: null,
+      mixedClimbing: null,
+    }
+
+    // Formula: max(routeLength, 100) / 1500
+
+    it('routeLength=0 produces same points as routeLength=100 (EOOA floor)', () => {
+      const withZero = service.calculateClimbingPoints({ ...base, routeLength: 0 })
+      const withMin  = service.calculateClimbingPoints({ ...base, routeLength: 100 })
+      // max(0, 100)/1500 = max(100, 100)/1500 — identical factor
+      expect(withZero).toBeCloseTo(withMin, 10)
+      expect(withZero).toBeCloseTo(1.4606, 4)
+    })
+
+    it('routeLength=50 (below 100 m) produces same points as routeLength=100', () => {
+      const with50  = service.calculateClimbingPoints({ ...base, routeLength: 50 })
+      const with100 = service.calculateClimbingPoints({ ...base, routeLength: 100 })
+      // max(50, 100)/1500 = 100/1500 — floor applies
+      expect(with50).toBeCloseTo(with100, 10)
+    })
+
+    it('routeLength=200 (above 100 m) produces more points than routeLength=100', () => {
+      const with200 = service.calculateClimbingPoints({ ...base, routeLength: 200 })
+      const with100 = service.calculateClimbingPoints({ ...base, routeLength: 100 })
+      // 200/1500 > 100/1500 → higher factor
+      expect(with200).toBeGreaterThan(with100)
+      expect(with200).toBeCloseTo(2.9212, 4)
+    })
+  })
+
   // ── resolveClimbingGrade ───────────────────────────────────────────────────
 
   describe('resolveClimbingGrade', () => {

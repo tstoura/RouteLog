@@ -12,7 +12,6 @@ import {
   fieldTypeToLabel,
   formatDateLabel,
   organizationTypeToLabel,
-  repetitionTypeToLabel,
   seasonToLabel,
 } from '../../lib/activityLabels.ts'
 import type { ActivityDetailModel, DetailInfoRow } from '../../types/activityDetail.ts'
@@ -112,11 +111,10 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       { label: 'Καταγραφή', value: status === 'official' ? 'Επίσημη' : 'Προσωπική' },
     ]
     const technical: DetailInfoRow[] = [
-      { label: 'Ανάβαση', value: repetitionTypeToLabel(c.repetitionType) },
-      { label: 'Υψόμετρο', value: c.altitude > 0 ? `${c.altitude} m` : '—' },
-      { label: 'Ανάπτυγμα', value: c.routeLength > 0 ? `${c.routeLength} m` : '—' },
       { label: 'Κλίμακα', value: scaleDisplay },
       { label: 'Βαθμός', value: gradeDisplay },
+      { label: 'Ανάπτυγμα', value: c.routeLength > 0 ? `${c.routeLength} m` : '—' },
+      { label: 'Τελικό Υψόμετρο', value: c.altitude > 0 ? `${c.altitude} m` : '—' },
     ]
     if (c.completionType) {
       technical.push({ label: 'Τρόπος Ολοκλήρωσης', value: completionTypeToLabel(c.completionType) })

@@ -19,6 +19,9 @@ import {
   SectionIconTechnical,
   SelectFieldControlled,
   toWholeNumber,
+  toDecimalNumber,
+  handleFormEnterAsTab,
+  ParticipantCountStepper,
 } from './shared/FormBuildingBlocks.tsx'
 import {
   CLIMBING_COMPLETION_OPTIONS,
@@ -117,8 +120,14 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
 
   // ── Live points preview (official activities only) ──────────────────────────
   const preview = usePointsPreview('climbing', {
-    altitude: Number(altitude) || 0,
-    routeLength: Number(routeLength) || 0,
+    altitude:
+      isOfficial && (!altitude.trim() || Number(altitude) < 1)
+        ? 1000
+        : Number(altitude) || 0,
+    routeLength:
+      isOfficial && (!routeLength.trim() || Number(routeLength) < 0.01)
+        ? 100
+        : Number(routeLength) || 0,
     season,
     repetitionType,
     participantsNum,
@@ -135,14 +144,6 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
     setSubmitError(null)
 
     if (isOfficial) {
-      if (!altitude || Number(altitude) <= 0) {
-        setSubmitError('Το υψόμετρο είναι υποχρεωτικό για επίσημη καταγραφή.')
-        return
-      }
-      if (!routeLength || Number(routeLength) <= 0) {
-        setSubmitError('Το ανάπτυγμα διαδρομής είναι υποχρεωτικό για επίσημη καταγραφή.')
-        return
-      }
       const hasRegularDifficulty =
         scaleKey && scaleKey !== '-' && gradeVal && gradeVal !== '-' && gradeVal !== ''
       const hasMixedDifficulty = Boolean(mixedClimbing)
@@ -154,12 +155,20 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
 
     setIsSubmitting(true)
     try {
+      const altNum = Number(altitude)
+      const lenNum = Number(routeLength)
+      const officialAltProvided = Boolean(altitude.trim() && altNum >= 1)
+      const officialLenProvided = Boolean(routeLength.trim() && lenNum >= 0.01)
       const payload: PatchClimbingPayload = {
         date,
         season,
         repetitionType,
-        altitude: Number(altitude) || undefined,
-        routeLength: Number(routeLength) || undefined,
+        altitude: isOfficial
+          ? officialAltProvided ? altNum : undefined
+          : altNum >= 1 ? altNum : undefined,
+        routeLength: isOfficial
+          ? officialLenProvided ? lenNum : undefined
+          : lenNum >= 0.01 ? lenNum : undefined,
         participantsNum,
         participantsText: participantsText.trim() || undefined,
         difficultyScale: scaleKey && scaleKey !== '-' ? scaleKey : undefined,
@@ -188,7 +197,7 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
   )
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit}>
+    <form className="space-y-8" onSubmit={handleSubmit} onKeyDown={handleFormEnterAsTab}>
       <ReadOnlyRouteCard
         routeName={c.routeName}
         climbingField={c.climbingField}
@@ -216,12 +225,18 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
 
               <div className="flex flex-col gap-3">
                 <RadioGroupField
-                  label="ΑΝΑΒΑΣΗ"
+                  label="ΧΑΡΑΚΤΗΡΙΣΜΟΣ ΔΙΑΔΡΟΜΗΣ"
                   name="repetitionType-edit"
                   options={CLIMBING_REPETITION_OPTIONS}
                   value={repetitionType}
                   onChange={setRepetitionType}
                 />
+                <FieldHints>
+                  <FieldHint>Δηλώστε αν πρόκειται για νέα χάραξη διαδρομής ή επανάληψη υπάρχουσας.</FieldHint>
+                  <p className="text-[11px] italic leading-snug text-[#94a3b8]">
+                    Επιλέξτε Νέα, αν η διαδρομή ανοίχθηκε από εσάς.
+                  </p>
+                </FieldHints>
               </div>
             </div>
           </FormSection>
@@ -230,27 +245,28 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
             <div className="flex flex-col gap-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <label className="flex flex-col gap-3">
-                  <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
-                  <Input type="text" inputMode="numeric" value={altitude} onChange={(e) => setAltitude(toWholeNumber(e.target.value))} placeholder="Υψόμετρο" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+                  <FieldLabel>ΤΕΛΙΚΟ ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
+                  <Input type="text" inputMode="numeric" value={altitude} onChange={(e) => setAltitude(toWholeNumber(e.target.value))} placeholder="Τελικό υψόμετρο (m)" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
                   {isOfficial && (
                     <FieldHints>
+                      <FieldHint>Το τελικό υψόμετρο στο οποίο κατέληξε η αναρρίχηση.</FieldHint>
                       <FieldHint>
-                        Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
-                        <br />
-                        <span className="italic">Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.</span>
+                        <span className="italic">
+                          Για υψόμετρο μικρότερο των 1000m, η συμπλήρωση είναι προαιρετική.
+                        </span>
                       </FieldHint>
                     </FieldHints>
                   )}
                 </label>
                 <label className="flex flex-col gap-3">
-                  <FieldLabel>ΑΝΑΠΤΥΓΜΑ (M)</FieldLabel>
-                  <Input type="number" min="0.01" step="0.01" value={routeLength} onChange={(e) => setRouteLength(e.target.value)} placeholder="Ανάπτυγμα" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
+                  <FieldLabel>ΑΝΑΠΤΥΓΜΑ ΑΝΑΡΡΙΧΗΣΗΣ (M)</FieldLabel>
+                  <Input type="text" inputMode="decimal" value={routeLength} onChange={(e) => setRouteLength(toDecimalNumber(e.target.value))} placeholder="Ανάπτυγμα αναρρίχησης (m)" className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]" />
                   {isOfficial && (
                     <FieldHints>
                       <FieldHint>
-                        Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
-                        <br />
-                        <span className="italic">Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                        <span className="italic">
+                          Για ανάπτυγμα μικρότερο των 100m, η συμπλήρωση είναι προαιρετική.
+                        </span>
                       </FieldHint>
                     </FieldHints>
                   )}
@@ -277,11 +293,18 @@ export function ClimbingEditForm({ activity, onSaved, onCancel }: ClimbingEditFo
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-3 md:max-w-[340px]">
                 <FieldLabel>ΑΤΟΜΑ</FieldLabel>
-                <div className="flex items-center rounded-lg border border-[#e2e8e0] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                  <button type="button" onClick={handleDecrement} aria-label="Μείωση" className="cursor-pointer px-4 py-4 text-lg text-[#64748b]">−</button>
-                  <Input type="number" min="1" value={participantsNum} onChange={(e) => setParticipantsNum(Math.max(1, Number(e.target.value)))} className="h-14 rounded-none border-0 text-center shadow-none ring-0 focus:ring-0" />
-                  <button type="button" onClick={handleIncrement} aria-label="Αύξηση" className="cursor-pointer px-4 py-4 text-lg text-[#64748b]">+</button>
-                </div>
+                <ParticipantCountStepper
+                  displayValue={participantsNum === 0 ? '' : String(participantsNum)}
+                  onChange={(e) => {
+                    const cleaned = toWholeNumber(e.target.value)
+                    setParticipantsNum(cleaned === '' ? 0 : Math.max(0, parseInt(cleaned, 10)))
+                  }}
+                  onBlur={() => setParticipantsNum((n) => Math.max(1, n))}
+                  onDecrement={handleDecrement}
+                  onIncrement={handleIncrement}
+                  decrementAriaLabel="Μείωση"
+                  incrementAriaLabel="Αύξηση"
+                />
               </div>
 
               <label className="flex flex-col gap-3">

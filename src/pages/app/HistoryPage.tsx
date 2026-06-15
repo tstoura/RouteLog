@@ -103,7 +103,7 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
       { iconKey: 'pin', text: `${c.climbingField} · ${c.mountainOrArea}` },
     ]
     if (item.isOfficial || c.altitude > 0) {
-      rows.push({ iconKey: 'mountain', text: `Υψόμετρο: ${c.altitude} m` })
+      rows.push({ iconKey: 'mountain', text: `Τελικό Υψόμετρο: ${c.altitude} m` })
     }
     if (item.isOfficial || c.routeLength > 0) {
       rows.push({ iconKey: 'ruler', text: `Ανάπτυγμα: ${c.routeLength} m` })

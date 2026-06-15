@@ -124,6 +124,19 @@ export class ActivitiesService {
       throw new NotFoundException(`User with id ${callerUserId} not found`)
     }
 
+    // Distance (km): official empty/invalid → EOOA minimum 15 km (same floor as sqrt(max(d/15,1))).
+    const distanceKmStored = dto.isOfficial
+      ? (() => {
+          const v =
+            dto.distanceLength === undefined || dto.distanceLength === null ? NaN : Number(dto.distanceLength)
+          return !Number.isFinite(v) || v <= 0 ? 15 : v
+        })()
+      : (() => {
+          const v =
+            dto.distanceLength === undefined || dto.distanceLength === null ? NaN : Number(dto.distanceLength)
+          return !Number.isFinite(v) || v < 0 ? 0 : v
+        })()
+
     // ── Official-activity business rules ────────────────────────────────────
     let points: number | null = null
     let officialClubId: string | null = null
@@ -169,7 +182,7 @@ export class ActivitiesService {
         const rawPoints = this.scoring.calculateHikingPoints({
           maxAltitude: dto.maxAltitude,
           totalElevationGain: dto.totalElevationGain,
-          distanceLength: dto.distanceLength,
+          distanceLength: distanceKmStored,
           fieldType: dto.fieldType,
           difficultyGrade: dto.difficultyGrade,
           participantsNum: dto.participantsNum,
@@ -202,7 +215,7 @@ export class ActivitiesService {
             endPoint: dto.endPoint ?? '',
             maxAltitude: dto.maxAltitude,
             totalElevationGain: dto.totalElevationGain,
-            distanceLength: dto.distanceLength,
+            distanceLength: distanceKmStored,
             fieldType: dto.fieldType,
             difficultyGrade: dto.difficultyGrade,
             participantsNum: dto.participantsNum,
@@ -283,6 +296,23 @@ export class ActivitiesService {
       )
     }
 
+    // EOOA formula floors (§3.10–3.11 hiking §2.5 distance): when official fields are omitted,
+    // persist the same numeric defaults the scoring formula already applies via max(...).
+    const persistAltitude = dto.isOfficial
+      ? dto.altitude != null && Number(dto.altitude) >= 1
+        ? Math.round(Number(dto.altitude))
+        : 1000
+      : dto.altitude != null && Number(dto.altitude) >= 1
+        ? Math.round(Number(dto.altitude))
+        : 0
+    const persistRouteLength = dto.isOfficial
+      ? dto.routeLength != null && Number(dto.routeLength) >= 0.01
+        ? Number(dto.routeLength)
+        : 100
+      : dto.routeLength != null && Number(dto.routeLength) >= 0.01
+        ? Number(dto.routeLength)
+        : 0
+
     // ── Official-activity business rules ────────────────────────────────────
     let points: number | null = null
     let mappedScale: string | null = null
@@ -297,14 +327,6 @@ export class ActivitiesService {
       // participants_text required for official records when there are additional partners.
       if (dto.participantsNum > 1 && !dto.participantsText) {
         throw new UnprocessableEntityException('participants_text is required for official climbing records when participantsNum > 1.')
-      }
-
-      // altitude and route_length must be > 0 for official.
-      if (!dto.altitude || dto.altitude <= 0) {
-        throw new UnprocessableEntityException('altitude must be greater than 0 for official climbing records.')
-      }
-      if (!dto.routeLength || dto.routeLength <= 0) {
-        throw new UnprocessableEntityException('route_length must be greater than 0 for official climbing records.')
       }
 
       // At least one difficulty must exist for official records.
@@ -363,8 +385,8 @@ export class ActivitiesService {
       // Calculate points.
       try {
         const rawPoints = await this.scoring.calculateClimbingPoints({
-          altitude: dto.altitude!,
-          routeLength: dto.routeLength!,
+          altitude: persistAltitude,
+          routeLength: persistRouteLength,
           season: dto.season,
           repetitionType: dto.repetitionType,
           participantsNum: dto.participantsNum,
@@ -439,8 +461,8 @@ export class ActivitiesService {
             // TODO (Phase B): once altitude and routeLength columns are made nullable via
             //   Prisma migration, replace ?? 0 with ?? null so personal records without
             //   these values store NULL instead of the sentinel 0.
-            altitude: dto.altitude ?? 0,
-            routeLength: dto.routeLength ?? 0,
+            altitude: persistAltitude,
+            routeLength: persistRouteLength,
             participantsNum: dto.participantsNum,
             participantsText: dto.participantsText ?? '',
             completionType: dto.completionType ?? null,
@@ -728,7 +750,13 @@ export class ActivitiesService {
     const endPoint           = dto.endPoint           ?? d.endPoint
     const maxAltitude        = dto.maxAltitude        ?? d.maxAltitude
     const totalElevationGain = dto.totalElevationGain ?? d.totalElevationGain
-    const distanceLength     = dto.distanceLength     !== undefined ? dto.distanceLength : Number(d.distanceLength)
+    const distanceLengthMerged = dto.distanceLength !== undefined ? Number(dto.distanceLength) : Number(d.distanceLength)
+    const distanceLength =
+      existing.isOfficial && (!Number.isFinite(distanceLengthMerged) || distanceLengthMerged <= 0)
+        ? 15
+        : !Number.isFinite(distanceLengthMerged) || distanceLengthMerged < 0
+          ? 0
+          : distanceLengthMerged
     const fieldType          = dto.fieldType          ?? d.fieldType
     const difficultyGrade    = dto.difficultyGrade    ?? d.difficultyGrade
     const participantsNum    = dto.participantsNum    ?? d.participantsNum
@@ -840,8 +868,12 @@ export class ActivitiesService {
     // Merge fields — snapshot fields (routeId, routeName, mountainOrArea, climbingField) are never changed.
     const season          = dto.season          ?? d.season
     const repetitionType  = dto.repetitionType  ?? d.repetitionType
-    const altitude        = dto.altitude        ?? d.altitude
-    const routeLength     = dto.routeLength     !== undefined ? dto.routeLength : Number(d.routeLength)
+    let altitude          = dto.altitude        !== undefined ? Number(dto.altitude) : d.altitude
+    let routeLength       = dto.routeLength     !== undefined ? Number(dto.routeLength) : Number(d.routeLength)
+    if (existing.isOfficial) {
+      if (!Number.isFinite(altitude) || altitude < 1) altitude = 1000
+      if (!Number.isFinite(routeLength) || routeLength < 0.01) routeLength = 100
+    }
     const participantsNum = dto.participantsNum  ?? d.participantsNum
     const participantsText = dto.participantsText !== undefined ? dto.participantsText : d.participantsText
     const completionType  = dto.completionType  !== undefined ? dto.completionType : d.completionType
@@ -889,12 +921,6 @@ export class ActivitiesService {
         throw new UnprocessableEntityException(
           `repetition_type "${repetitionType}" is not valid. Allowed values: ${CLIMBING_REPETITION_TYPES.join(', ')}.`,
         )
-      }
-      if (!altitude || altitude <= 0) {
-        throw new UnprocessableEntityException('altitude must be greater than 0 for official climbing records.')
-      }
-      if (!routeLength || routeLength <= 0) {
-        throw new UnprocessableEntityException('route_length must be greater than 0 for official climbing records.')
       }
       if (!hasRegularDifficulty && !hasMixedDifficulty) {
         throw new UnprocessableEntityException(
@@ -1198,7 +1224,9 @@ export class ActivitiesService {
   private previewHikingPoints(payload: Record<string, unknown>): PreviewPointsResult {
     const maxAltitude = Number(payload.maxAltitude) || 0
     const totalElevationGain = Number(payload.totalElevationGain) || 0
-    const distanceLength = Number(payload.distanceLength) || 0
+    const distanceRaw = Number(payload.distanceLength)
+    const distanceLength =
+      Number.isFinite(distanceRaw) && distanceRaw > 0 ? distanceRaw : 15
     const fieldType = String(payload.fieldType ?? '')
     const difficultyGrade = String(payload.difficultyGrade ?? '')
     const participantsNum = Number(payload.participantsNum) || 0
@@ -1229,8 +1257,11 @@ export class ActivitiesService {
   }
 
   private async previewClimbingPoints(payload: Record<string, unknown>): Promise<PreviewPointsResult> {
-    const altitude = Number(payload.altitude) || 0
-    const routeLength = Number(payload.routeLength) || 0
+    const altitudeRaw = Number(payload.altitude) || 0
+    const routeLengthRaw = Number(payload.routeLength) || 0
+    // Match createClimbing official defaults so preview works with empty optional fields.
+    const altitude = altitudeRaw >= 1 ? altitudeRaw : 1000
+    const routeLength = routeLengthRaw >= 0.01 ? routeLengthRaw : 100
     const season = String(payload.season ?? '')
     const repetitionType = String(payload.repetitionType ?? '')
     const participantsNum = Number(payload.participantsNum) || 0
@@ -1239,8 +1270,6 @@ export class ActivitiesService {
     const mixedClimbing = payload.mixedClimbing ? String(payload.mixedClimbing) : null
 
     if (
-      altitude <= 0 ||
-      routeLength <= 0 ||
       !CLIMBING_SEASONS.includes(season as ClimbingSeason) ||
       !CLIMBING_REPETITION_TYPES.includes(repetitionType as ClimbingRepetitionType) ||
       participantsNum < 1

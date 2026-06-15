@@ -19,6 +19,8 @@ import {
   SectionIconTechnical,
   SelectFieldControlled,
   toWholeNumber,
+  handleFormEnterAsTab,
+  ParticipantCountStepper,
 } from './shared/FormBuildingBlocks.tsx'
 import { Input } from '../ui/Input.tsx'
 import { Textarea } from '../ui/Textarea.tsx'
@@ -211,7 +213,7 @@ export function ExpeditionActivityForm({
   }
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit}>
+    <form className="space-y-8" onSubmit={handleSubmit} onKeyDown={handleFormEnterAsTab}>
       <ActivityTypeTabs active="expedition" onTabSelect={onActivityTabSelect} />
 
       <div className="grid gap-8 lg:grid-cols-12">
@@ -368,33 +370,18 @@ export function ExpeditionActivityForm({
 
           <FormSection title="ΣΥΜΜΕΤΟΧΗ & ΠΡΟΣΘΕΤΑ ΣΤΟΙΧΕΙΑ" icon={<SectionIconParticipation />}>
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="flex flex-col gap-3">
+              <div className="flex min-w-0 flex-col gap-3">
                 <FieldLabel>ΑΤΟΜΑ</FieldLabel>
-                <div className="flex items-center rounded-lg border border-[#e2e8e0] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                  <button
-                    type="button"
-                    onClick={handleDecrement}
-                    aria-label="Μείωση αριθμού ατόμων"
-                    className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
-                  >
-                    −
-                  </button>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={participantsNum}
-                    onChange={(e) => setParticipantsNum(Math.max(1, Number(e.target.value)))}
-                    className="h-14 rounded-none border-0 text-center shadow-none ring-0 focus:ring-0"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleIncrement}
-                    aria-label="Αύξηση αριθμού ατόμων"
-                    className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
-                  >
-                    +
-                  </button>
-                </div>
+                <ParticipantCountStepper
+                  displayValue={participantsNum === 0 ? '' : String(participantsNum)}
+                  onChange={(e) => {
+                    const cleaned = toWholeNumber(e.target.value)
+                    setParticipantsNum(cleaned === '' ? 0 : Math.max(0, parseInt(cleaned, 10)))
+                  }}
+                  onBlur={() => setParticipantsNum((n) => Math.max(1, n))}
+                  onDecrement={handleDecrement}
+                  onIncrement={handleIncrement}
+                />
                 <FieldHints>
                   <FieldHint>Συμπεριλάβετε όλα τα μέλη της ομάδας.</FieldHint>
                 </FieldHints>

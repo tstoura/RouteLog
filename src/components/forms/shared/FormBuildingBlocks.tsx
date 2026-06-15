@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ChangeEvent, KeyboardEvent, ReactNode } from 'react'
 import { useState } from 'react'
 import { BarChart3, FileText, Info, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +8,7 @@ import { CustomSelect } from '../../ui/CustomSelect.tsx'
 import { CustomDatePicker } from '../../ui/CustomDatePicker.tsx'
 import { Textarea } from '../../ui/Textarea.tsx'
 import { Button } from '../../ui/Button.tsx'
+import { Input } from '../../ui/Input.tsx'
 
 export type Option = { value: string; label: string }
 
@@ -21,7 +22,9 @@ export function FieldLabel({ children }: { children: string }) {
 }
 
 export function FieldHint({ children }: { children: ReactNode }) {
-  return <p className="text-xs leading-[17.5px] text-[#94a3b8]">{children}</p>
+  return (
+    <p className="max-w-full break-words text-xs leading-[17.5px] text-[#94a3b8]">{children}</p>
+  )
 }
 
 const formSectionIconClass = 'size-[18px] shrink-0 text-[#00453e]'
@@ -50,6 +53,8 @@ type DateInputProps = {
   className?: string
   /** Accepted but ignored — the native `type="date"` attr is not needed by the custom picker */
   type?: string
+  /** Passed to the date trigger when it is not inside a wrapping `<label>`. */
+  ariaLabel?: string
 }
 
 /**
@@ -75,6 +80,84 @@ export function toDecimalNumber(raw: string): string {
   // Keep only the first decimal point
   const [integer, ...rest] = stripped.split('.')
   return rest.length > 0 ? `${integer}.${rest.join('')}` : integer
+}
+
+/**
+ * Form-level onKeyDown handler: makes Enter behave like Tab inside <input>
+ * elements, advancing focus to the next focusable form element instead of
+ * submitting the form. Textareas, selects, and buttons are unaffected.
+ */
+export function handleFormEnterAsTab(e: KeyboardEvent<HTMLFormElement>) {
+  if (e.key !== 'Enter') return
+  const target = e.target as HTMLElement
+  if (target.tagName !== 'INPUT') return
+  e.preventDefault()
+  const focusable = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>(
+      'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not([type="button"])',
+    ),
+  )
+  const idx = focusable.indexOf(target)
+  if (idx !== -1 && idx < focusable.length - 1) {
+    focusable[idx + 1].focus()
+  }
+}
+
+/**
+ * − | numeric value | + in one bordered row. Stays a single unit at narrow widths
+ * (flex-nowrap, overflow-hidden, flexible centre slot).
+ */
+export function ParticipantCountStepper({
+  displayValue,
+  onChange,
+  onBlur,
+  onDecrement,
+  onIncrement,
+  decrementAriaLabel = 'Μείωση αριθμού ατόμων',
+  incrementAriaLabel = 'Αύξηση αριθμού ατόμων',
+  inputAriaLabel = 'Αριθμός ατόμων',
+}: {
+  displayValue: string
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void
+  onBlur: () => void
+  onDecrement: () => void
+  onIncrement: () => void
+  decrementAriaLabel?: string
+  incrementAriaLabel?: string
+  /** Accessible name for the numeric field (visual label is often «ΑΤΟΜΑ» above). */
+  inputAriaLabel?: string
+}) {
+  return (
+    <div className="flex h-14 w-full min-w-0 flex-nowrap items-stretch overflow-hidden rounded-lg border border-[#e2e8e0] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
+      <button
+        type="button"
+        onClick={onDecrement}
+        aria-label={decrementAriaLabel}
+        className="shrink-0 cursor-pointer px-2.5 text-lg text-[#64748b] sm:px-4"
+      >
+        −
+      </button>
+      <div className="flex min-w-0 flex-1 items-stretch justify-center">
+        <Input
+          type="text"
+          inputMode="numeric"
+          value={displayValue}
+          onChange={onChange}
+          onBlur={onBlur}
+          aria-label={inputAriaLabel}
+          className="h-full w-full min-w-0 rounded-none border-0 px-1 text-center text-base tabular-nums shadow-none ring-0 focus:ring-0"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onIncrement}
+        aria-label={incrementAriaLabel}
+        className="shrink-0 cursor-pointer px-2.5 text-lg text-[#64748b] sm:px-4"
+      >
+        +
+      </button>
+    </div>
+  )
 }
 
 export function DateInputWithCalendar({ className = '', max, type: _type, ...rest }: DateInputProps) {
@@ -168,6 +251,7 @@ export function SelectField({
 
 export function SelectFieldControlled({
   label,
+  ariaLabel,
   options,
   value,
   onChange,
@@ -175,8 +259,10 @@ export function SelectFieldControlled({
   disabled,
   disabledValues,
 }: {
-  /** If omitted, only the select is shown (custom label rendered outside). */
+  /** If omitted, use `ariaLabel` and render a sibling `FieldLabel` outside this component. */
   label?: string
+  /** Names the select trigger when `label` is omitted (required in that case for a11y). */
+  ariaLabel?: string
   options: Option[]
   value: string
   onChange: (value: string) => void
@@ -185,19 +271,28 @@ export function SelectFieldControlled({
   /** Option values that should be rendered as disabled (e.g. empty placeholder options). */
   disabledValues?: string[]
 }) {
-  return (
-    <label className="flex flex-col gap-3">
-      {label ? <FieldLabel>{label}</FieldLabel> : null}
-      <CustomSelect
-        value={value}
-        onChange={onChange}
-        options={options}
-        disabled={disabled}
-        disabledValues={disabledValues}
-        className={selectClassName}
-      />
-    </label>
+  const control = (
+    <CustomSelect
+      value={value}
+      onChange={onChange}
+      options={options}
+      disabled={disabled}
+      disabledValues={disabledValues}
+      className={selectClassName}
+      ariaLabel={label ? undefined : ariaLabel}
+    />
   )
+
+  if (label) {
+    return (
+      <label className="flex flex-col gap-3">
+        <FieldLabel>{label}</FieldLabel>
+        {control}
+      </label>
+    )
+  }
+
+  return <div className="flex flex-col gap-3">{control}</div>
 }
 
 export type ActivityFormTabKind = 'hiking' | 'climbing' | 'expedition'
@@ -462,7 +557,7 @@ export function FormSidePanel({
   return (
     <aside
       className={[
-        'space-y-4',
+        'min-w-0 space-y-4',
         colSpan === 3 ? 'lg:col-span-3' : 'lg:col-span-4',
         'lg:sticky lg:top-24 lg:self-start',
       ].join(' ')}
@@ -504,7 +599,7 @@ export function SidePanelRecordTypeToggle({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-5">
+    <div className="min-w-0 rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-5">
       <p className="mb-4 text-xs font-extrabold uppercase tracking-[1.4px] text-[#64748b]">
         ΤΥΠΟΣ ΚΑΤΑΓΡΑΦΗΣ
       </p>
@@ -513,37 +608,39 @@ export function SidePanelRecordTypeToggle({
         aria-pressed={value}
         aria-label={value ? 'Απενεργοποίηση επίσημης καταγραφής' : 'Ενεργοποίηση επίσημης καταγραφής'}
         onClick={() => onChange(!value)}
-        className="flex w-full items-start gap-3 text-left"
+        className="flex w-full min-w-0 flex-col gap-3 text-left"
       >
-        <div
-          className={[
-            'relative mt-0.5 h-6 w-12 shrink-0 rounded-full transition-colors',
-            value ? 'bg-[#00453e]' : 'bg-[#cbd5e1]',
-          ].join(' ')}
-        >
-          <span
+        <div className="flex min-w-0 items-center gap-3">
+          <div
             className={[
-              'absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm transition-transform',
-              value ? 'translate-x-6' : 'translate-x-0',
+              'relative h-6 w-12 shrink-0 rounded-full transition-colors',
+              value ? 'bg-[#00453e]' : 'bg-[#cbd5e1]',
             ].join(' ')}
-          />
-        </div>
-        <div className="space-y-0.5">
+          >
+            <span
+              className={[
+                'absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm transition-transform',
+                value ? 'translate-x-6' : 'translate-x-0',
+              ].join(' ')}
+            />
+          </div>
           <p
             className={[
-              'text-sm font-semibold uppercase tracking-[0.35px]',
+              'min-w-0 text-sm font-semibold uppercase tracking-[0.35px]',
               value ? 'text-[#00453e]' : 'text-[#64748b]',
             ].join(' ')}
           >
             {value ? 'ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ' : 'ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ'}
           </p>
+        </div>
+        <div className="min-w-0 space-y-2">
           <p className="text-xs leading-relaxed text-[#94a3b8]">
             {value
               ? 'Η καταχώρηση θα συμπεριληφθεί στα επίσημα στοιχεία του συλλόγου.'
               : 'Αποθηκεύεται μόνο στο προσωπικό σας αρχείο.'}
           </p>
           {value && (
-            <p className="text-xs font-semibold uppercase tracking-[1.4px] text-[rgba(0,69,62,0.7)]">
+            <p className="text-xs font-semibold uppercase leading-snug tracking-[0.5px] text-[rgba(0,69,62,0.7)]">
               ΟΡΙΣΜΕΝΑ ΣΤΟΙΧΕΙΑ ΑΠΑΙΤΟΥΝΤΑΙ ΜΟΝΟ ΓΙΑ ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ.
             </p>
           )}

@@ -4,6 +4,11 @@ import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
 
 type Props = {
   id?: string
+  /**
+   * Accessible name for the combobox input (visible «ΔΙΑΔΡΟΜΗ» is usually not a `<label>`).
+   * @default Διαδρομή
+   */
+  ariaLabel?: string
   value: string
   onChange: (value: string) => void
   routes: ClimbingRouteFormRecord[]
@@ -21,6 +26,7 @@ function routeMatchesQuery(route: ClimbingRouteFormRecord, q: string): boolean {
 
 export function RouteCombobox({
   id: idProp,
+  ariaLabel = 'Διαδρομή',
   value,
   onChange,
   routes,
@@ -114,12 +120,13 @@ export function RouteCombobox({
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-[#64748b]" aria-hidden>
-          <Search className="size-5" strokeWidth={2} />
+        <span className="pointer-events-none absolute left-2 top-1/2 z-[1] -translate-y-1/2 text-[#64748b]" aria-hidden>
+          <Search className="size-3.5" strokeWidth={2} />
         </span>
         <input
           id={listboxId}
           role="combobox"
+          aria-label={ariaLabel}
           aria-expanded={open}
           aria-controls={`${listboxId}-listbox`}
           aria-autocomplete="list"
@@ -134,7 +141,7 @@ export function RouteCombobox({
           onKeyDown={handleKeyDown}
           placeholder="Αναζητήστε υπάρχουσα διαδρομή"
           autoComplete="off"
-          className="w-full rounded-lg border border-[#e2e8e0] bg-white py-3 pl-11 pr-3 text-sm text-[#1a1c1e] outline-none ring-[#005f56] transition placeholder:text-sm placeholder:text-[#94a3b8] focus:border-[#005f56] focus:ring-2"
+          className="w-full min-w-0 rounded-lg border border-[#e2e8e0] bg-white py-3 pl-6 pr-3 text-sm text-[#1a1c1e] outline-none ring-[#005f56] transition placeholder:text-sm placeholder:text-[#94a3b8] focus:border-[#005f56] focus:ring-2"
         />
       </div>
 

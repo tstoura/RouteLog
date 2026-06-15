@@ -9,13 +9,15 @@ type Props = {
   max?: string            // YYYY-MM-DD — dates after this are disabled
   disabled?: boolean
   className?: string
+  /** Use when the trigger is not wrapped in a `<label>` (e.g. grid layouts). */
+  ariaLabel?: string
 }
 
 /**
  * Styled date picker that replaces the native <input type="date"> calendar.
  * Emits the same synthetic-event interface so all forms work without changes.
  */
-export function CustomDatePicker({ value, onChange, max, disabled, className = '' }: Props) {
+export function CustomDatePicker({ value, onChange, max, disabled, className = '', ariaLabel }: Props) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -48,6 +50,7 @@ export function CustomDatePicker({ value, onChange, max, disabled, className = '
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((v) => !v)}
+        aria-label={ariaLabel}
         className="flex h-14 w-full items-center justify-between rounded-lg border border-[#e2e8e0] bg-white px-3 py-2 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] ring-[#005f56] transition focus:border-[#005f56] focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className={displayValue ? 'text-[#1a1c1e]' : 'text-[#94a3b8]'}>

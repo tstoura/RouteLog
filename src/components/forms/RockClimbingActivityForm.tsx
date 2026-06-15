@@ -22,6 +22,9 @@ import {
   SectionIconTechnical,
   SelectFieldControlled,
   toWholeNumber,
+  toDecimalNumber,
+  handleFormEnterAsTab,
+  ParticipantCountStepper,
 } from './shared/FormBuildingBlocks.tsx'
 import { AutoFilledBadge } from './AutoFilledBadge.tsx'
 import { CreateRouteModal } from './CreateRouteModal.tsx'
@@ -231,8 +234,14 @@ export function RockClimbingActivityForm({
   // ── Live points preview ─────────────────────────────────────────────────────
   const effectiveIsOfficial = hasClub ? isOfficial : false
   const preview = usePointsPreview('climbing', {
-    altitude: Number(altitude) || 0,
-    routeLength: Number(routeLength) || 0,
+    altitude:
+      effectiveIsOfficial && (!altitude.trim() || Number(altitude) < 1)
+        ? 1000
+        : Number(altitude) || 0,
+    routeLength:
+      effectiveIsOfficial && (!routeLength.trim() || Number(routeLength) < 0.01)
+        ? 100
+        : Number(routeLength) || 0,
     season,
     repetitionType: repeat,
     participantsNum,
@@ -392,14 +401,6 @@ export function RockClimbingActivityForm({
       Boolean(scaleKey) && scaleKey !== '-' && Boolean(gradeVal) && gradeVal !== '-'
 
     if (effectiveIsOfficial) {
-      if (!altitude || Number(altitude) < 1) {
-        setSubmitError('Το υψόμετρο είναι υποχρεωτικό για επίσημη καταγραφή.')
-        return
-      }
-      if (!routeLength || Number(routeLength) <= 0) {
-        setSubmitError('Το ανάπτυγμα αναρρίχησης είναι υποχρεωτικό για επίσημη καταγραφή.')
-        return
-      }
       if (participantsNum < 1) {
         setSubmitError('Απαιτείται τουλάχιστον 1 άτομο.')
         return
@@ -421,6 +422,8 @@ export function RockClimbingActivityForm({
     setIsSubmitting(true)
     const altitudeVal = Number(altitude)
     const routeLengthVal = Number(routeLength)
+    const officialAltProvided = Boolean(altitude.trim() && altitudeVal >= 1)
+    const officialLenProvided = Boolean(routeLength.trim() && routeLengthVal >= 0.01)
     try {
       const result = await submitClimbingActivity({
         isOfficial: effectiveIsOfficial,
@@ -429,10 +432,10 @@ export function RockClimbingActivityForm({
         season,
         repetitionType: repeat,
         altitude: effectiveIsOfficial
-          ? altitudeVal || 1
+          ? officialAltProvided ? altitudeVal : undefined
           : altitudeVal >= 1 ? altitudeVal : undefined,
         routeLength: effectiveIsOfficial
-          ? routeLengthVal || 0.01
+          ? officialLenProvided ? routeLengthVal : undefined
           : routeLengthVal >= 0.01 ? routeLengthVal : undefined,
         participantsNum,
         participantsText: participantsText.trim() || undefined,
@@ -467,18 +470,18 @@ export function RockClimbingActivityForm({
         />
       ) : null}
 
-      <form className="space-y-8" onSubmit={handleSubmit}>
+      <form className="space-y-8" onSubmit={handleSubmit} onKeyDown={handleFormEnterAsTab}>
         <ActivityTypeTabs active="climbing" onTabSelect={onActivityTabSelect} />
 
         <div className="grid gap-8 lg:grid-cols-12">
-          <div className="space-y-8 lg:col-span-9">
+          <div className="space-y-8 lg:col-span-8">
             <FormSection title="ΒΑΣΙΚΑ ΣΤΟΙΧΕΙΑ" icon={<SectionIconBasics />}>
               <div className="grid gap-6 md:grid-cols-2">
-                <div className="col-span-full grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                <div className="col-span-full grid min-w-0 grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
                   <div className="col-start-1 row-start-1">
                     <FieldLabel>ΗΜΕΡΟΜΗΝΙΑ</FieldLabel>
                   </div>
-                  <div className="col-start-1 row-start-4 flex items-start justify-between gap-3 md:col-start-2 md:row-start-1">
+                  <div className="col-start-1 row-start-4 flex min-w-0 items-start justify-between gap-3 md:col-start-2 md:row-start-1">
                     <FormLabelRow label="ΔΙΑΔΡΟΜΗ" showBadge={false} />
                     <button
                       type="button"
@@ -493,9 +496,10 @@ export function RockClimbingActivityForm({
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
+                      ariaLabel="Ημερομηνία δραστηριότητας"
                     />
                   </div>
-                  <div className="col-start-1 row-start-5 md:col-start-2 md:row-start-2">
+                  <div className="col-start-1 row-start-5 min-w-0 md:col-start-2 md:row-start-2">
                     <RouteCombobox
                       value={routeName}
                       onChange={handleRouteComboboxChange}
@@ -525,7 +529,7 @@ export function RockClimbingActivityForm({
                       </FieldHint>
                     </FieldHints>
                   </div>
-                  <div className="col-start-1 row-start-6 flex flex-col gap-3 md:col-start-2 md:row-start-3">
+                  <div className="col-start-1 row-start-6 flex min-w-0 flex-col gap-3 md:col-start-2 md:row-start-3">
                     {routeError ? (
                       <p className="text-xs font-medium text-[#b91c1c]">{routeError}</p>
                     ) : null}
@@ -606,13 +610,16 @@ export function RockClimbingActivityForm({
                 <div className="flex flex-col gap-3 md:col-span-2">
                   <RadioGroupField
                     name="repeat"
-                    label="ΕΠΑΝΑΛΗΨΗ"
+                    label="ΧΑΡΑΚΤΗΡΙΣΜΟΣ ΔΙΑΔΡΟΜΗΣ"
                     options={CLIMBING_REPETITION_OPTIONS}
                     value={repeat}
                     onChange={setRepeat}
                   />
                   <FieldHints>
-                    <FieldHint>Δηλώστε αν πρόκειται για νέα αναρριχητική διαδρομή ή υπάρχουσα.</FieldHint>
+                    <FieldHint>Δηλώστε αν πρόκειται για νέα χάραξη διαδρομής ή επανάληψη υπάρχουσας.</FieldHint>
+                    <p className="text-[11px] italic leading-snug text-[#94a3b8]">
+                      Επιλέξτε Νέα, αν η διαδρομή ανοίχθηκε από εσάς.
+                    </p>
                   </FieldHints>
                 </div>
               </div>
@@ -641,6 +648,7 @@ export function RockClimbingActivityForm({
                   <div className="flex flex-col gap-3">
                     <FieldLabel>ΚΛΙΜΑΚΑ ΔΥΣΚΟΛΙΑΣ</FieldLabel>
                     <SelectFieldControlled
+                      ariaLabel="Κλίμακα δυσκολίας"
                       options={CLIMBING_SCALE_ACTIVITY_OPTIONS}
                       value={scaleKey}
                       onChange={handleScaleChange}
@@ -659,6 +667,7 @@ export function RockClimbingActivityForm({
                   <div className="flex flex-col gap-3">
                     <FieldLabel>ΒΑΘΜΟΣ ΔΥΣΚΟΛΙΑΣ</FieldLabel>
                     <SelectFieldControlled
+                      ariaLabel="Βαθμός δυσκολίας"
                       options={gradeOptions}
                       value={gradeVal}
                       onChange={setGradeVal}
@@ -699,22 +708,23 @@ export function RockClimbingActivityForm({
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="flex flex-col gap-3">
-                    <FieldLabel>ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
+                    <FieldLabel>ΤΕΛΙΚΟ ΥΨΟΜΕΤΡΟ (M)</FieldLabel>
                     <Input
                       type="text"
                       inputMode="numeric"
                       value={altitude}
                       onChange={(e) => setAltitude(toWholeNumber(e.target.value))}
-                      placeholder="Υψόμετρο αναρρίχησης (m)"
+                      placeholder="Τελικό υψόμετρο (m)"
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill && autofillHadAlt ? <AutoFilledBadge /> : null}
                     {effectiveIsOfficial && (
                       <FieldHints>
+                        <FieldHint>Το τελικό υψόμετρο στο οποίο κατέληξε η αναρρίχηση.</FieldHint>
                         <FieldHint>
-                          Για υψόμετρο έως 1000 m εφαρμόζεται ο ελάχιστος συντελεστής της βαθμολογίας.
-                          <br />
-                          <span className="italic">Για μεγαλύτερο υψόμετρο, η εποχή επηρεάζει τη βαθμολογία.</span>
+                          <span className="italic">
+                            Για υψόμετρο μικρότερο των 1000m, η συμπλήρωση είναι προαιρετική.
+                          </span>
                         </FieldHint>
                       </FieldHints>
                     )}
@@ -723,21 +733,20 @@ export function RockClimbingActivityForm({
                   <label className="flex flex-col gap-3">
                     <FieldLabel>ΑΝΑΠΤΥΓΜΑ ΑΝΑΡΡΙΧΗΣΗΣ (M)</FieldLabel>
                     <Input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       value={routeLength}
-                      onChange={(e) => setRouteLength(e.target.value)}
-                      placeholder="Συνολικό μήκος αναρρίχησης (m)"
+                      onChange={(e) => setRouteLength(toDecimalNumber(e.target.value))}
+                      placeholder="Ανάπτυγμα αναρρίχησης (m)"
                       className="h-14 text-base shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
                     />
                     {autofill && autofillHadLen ? <AutoFilledBadge /> : null}
                     {effectiveIsOfficial && (
                       <FieldHints>
                         <FieldHint>
-                          Για ανάπτυγμα έως 100 m εφαρμόζεται το ελάχιστο όριο της βαθμολογίας.
-                          <br />
-                          <span className="italic">Για μεγαλύτερο ανάπτυγμα, η πραγματική τιμή επηρεάζει τους βαθμούς.</span>
+                          <span className="italic">
+                            Για ανάπτυγμα μικρότερο των 100m, η συμπλήρωση είναι προαιρετική.
+                          </span>
                         </FieldHint>
                       </FieldHints>
                     )}
@@ -747,34 +756,19 @@ export function RockClimbingActivityForm({
             </FormSection>
 
             <FormSection title="ΣΥΜΜΕΤΟΧΗ & ΠΡΟΣΘΕΤΑ ΣΤΟΙΧΕΙΑ" icon={<SectionIconParticipation />}>
-              <div className="grid gap-6 md:grid-cols-4">
-                <div className="flex flex-col gap-3">
+              <div className="grid min-w-0 gap-6 md:grid-cols-6">
+                <div className="flex min-w-0 flex-col gap-3 md:col-span-2">
                   <FieldLabel>ΑΤΟΜΑ</FieldLabel>
-                  <div className="flex items-center rounded-lg border border-[#e2e8e0] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                    <button
-                      type="button"
-                      onClick={() => setParticipantsNum((n) => Math.max(1, n - 1))}
-                      aria-label="Μείωση αριθμού ατόμων"
-                      className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
-                    >
-                      −
-                    </button>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={participantsNum}
-                      onChange={(e) => setParticipantsNum(Math.max(1, Number(e.target.value)))}
-                      className="h-14 rounded-none border-0 text-center shadow-none ring-0 focus:ring-0"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setParticipantsNum((n) => n + 1)}
-                      aria-label="Αύξηση αριθμού ατόμων"
-                      className="cursor-pointer px-4 py-4 text-lg text-[#64748b]"
-                    >
-                      +
-                    </button>
-                  </div>
+                  <ParticipantCountStepper
+                    displayValue={participantsNum === 0 ? '' : String(participantsNum)}
+                    onChange={(e) => {
+                      const cleaned = toWholeNumber(e.target.value)
+                      setParticipantsNum(cleaned === '' ? 0 : Math.max(0, parseInt(cleaned, 10)))
+                    }}
+                    onBlur={() => setParticipantsNum((n) => Math.max(1, n))}
+                    onDecrement={() => setParticipantsNum((n) => Math.max(1, n - 1))}
+                    onIncrement={() => setParticipantsNum((n) => n + 1)}
+                  />
                   <FieldHints>
                     <FieldHint>
                       {effectiveIsOfficial ? (
@@ -790,10 +784,10 @@ export function RockClimbingActivityForm({
                   </FieldHints>
                 </div>
 
-                <div className="flex flex-col gap-3 md:col-span-3">
+                <div className="flex min-w-0 flex-col gap-3 md:col-span-4">
                   <FieldLabel>ΣΧΟΙΝΟΣΥΝΤΡΟΦΟΙ</FieldLabel>
                   <div className="rounded-lg border border-[#e2e8e0] bg-white p-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex min-w-0 flex-wrap gap-2">
                       <span className="inline-flex items-center gap-1 rounded-full border border-[#d1fae5] bg-[#ecfdf5] px-3 py-1 text-xs font-semibold text-[#065f46]">
                         Εσείς
                       </span>
@@ -801,7 +795,7 @@ export function RockClimbingActivityForm({
                         value={participantsText}
                         onChange={(e) => setParticipantsText(e.target.value)}
                         placeholder="Προσθήκη σχοινοσύντροφου..."
-                        className="min-w-[200px] flex-1 border-0 shadow-none focus:ring-0"
+                        className="min-w-0 flex-1 border-0 shadow-none focus:ring-0 sm:min-w-[12rem]"
                       />
                     </div>
                   </div>
@@ -859,7 +853,7 @@ export function RockClimbingActivityForm({
             <FormActions submitText={isSubmitting ? 'Υποβολή...' : 'Υποβολή Καταχώρησης'} />
           </div>
 
-          <FormSidePanel colSpan={3}>
+          <FormSidePanel colSpan={4}>
             {hasClub ? (
               <>
                 <SidePanelRecordTypeToggle value={isOfficial} onChange={setIsOfficial} />

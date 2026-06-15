@@ -19,6 +19,8 @@ import {
   SectionIconTechnical,
   SelectFieldControlled,
   toWholeNumber,
+  handleFormEnterAsTab,
+  ParticipantCountStepper,
 } from './shared/FormBuildingBlocks.tsx'
 import {
   EXPEDITION_DIFFICULTY_GRADE_HELPER,
@@ -148,7 +150,7 @@ export function ExpeditionEditForm({ activity, onSaved, onCancel }: ExpeditionEd
   }
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit}>
+    <form className="space-y-8" onSubmit={handleSubmit} onKeyDown={handleFormEnterAsTab}>
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8">
           <FormSection title="ΒΑΣΙΚΑ ΣΤΟΙΧΕΙΑ" icon={<SectionIconBasics />}>
@@ -217,11 +219,18 @@ export function ExpeditionEditForm({ activity, onSaved, onCancel }: ExpeditionEd
           <FormSection title="ΣΥΜΜΕΤΟΧΗ" icon={<SectionIconParticipation />}>
             <div className="flex flex-col gap-3 md:max-w-[340px]">
               <FieldLabel>ΑΤΟΜΑ</FieldLabel>
-              <div className="flex items-center rounded-lg border border-[#e2e8e0] bg-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]">
-                <button type="button" onClick={handleDecrement} aria-label="Μείωση" className="cursor-pointer px-4 py-4 text-lg text-[#64748b]">−</button>
-                <Input type="number" min="1" value={participantsNum} onChange={(e) => setParticipantsNum(Math.max(1, Number(e.target.value)))} className="h-14 rounded-none border-0 text-center shadow-none ring-0 focus:ring-0" />
-                <button type="button" onClick={handleIncrement} aria-label="Αύξηση" className="cursor-pointer px-4 py-4 text-lg text-[#64748b]">+</button>
-              </div>
+              <ParticipantCountStepper
+                displayValue={participantsNum === 0 ? '' : String(participantsNum)}
+                onChange={(e) => {
+                  const cleaned = toWholeNumber(e.target.value)
+                  setParticipantsNum(cleaned === '' ? 0 : Math.max(0, parseInt(cleaned, 10)))
+                }}
+                onBlur={() => setParticipantsNum((n) => Math.max(1, n))}
+                onDecrement={handleDecrement}
+                onIncrement={handleIncrement}
+                decrementAriaLabel="Μείωση"
+                incrementAriaLabel="Αύξηση"
+              />
             </div>
           </FormSection>
 

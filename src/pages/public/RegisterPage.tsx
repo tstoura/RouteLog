@@ -195,6 +195,10 @@ export function RegisterPage() {
               ...clubs.map((c) => ({ value: c.id, label: c.name })),
             ]}
           />
+          <p className="text-xs leading-relaxed text-[#64748b]">
+            Μπορείτε να δηλώσετε τον σύλλογο στον οποίο ανήκετε και αργότερα, από το προφίλ σας. Οι επίσημες καταγραφές
+            σας θα είναι ορατές στον διαχειριστή του συλλόγου σας.
+          </p>
         </div>
 
         {/* Preferred activity */}

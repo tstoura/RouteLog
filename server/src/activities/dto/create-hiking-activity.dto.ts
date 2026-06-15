@@ -114,13 +114,15 @@ export class CreateHikingActivityDto {
 
   /**
    * Route distance (km). Used in scoring formula: sqrt(max(dist/15, 1)).
-   * Official: must be >= 0.
-   * Stores up to 2 decimal places.
+   * Official: optional — when omitted or ≤ 0, the service applies the EOOA floor of 15 km
+   * (same effect as the minimum distance factor in the formula).
+   * Personal: optional; omitted or invalid → stored as 0.
    */
+  @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Type(() => Number)
-  distanceLength: number
+  distanceLength?: number
 
   /**
    * Terrain / field type.

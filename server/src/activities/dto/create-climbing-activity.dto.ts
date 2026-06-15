@@ -108,28 +108,26 @@ export class CreateClimbingActivityDto {
   repetitionType: string
 
   /**
-   * Altitude of the climb in metres.
-   * Non-nullable in DB.
-   * Official: required, must be > 0 (checked in service).
-   * Personal: optional. If provided must be >= 1.
-   *           If omitted, stored as 0 (Phase A sentinel; Phase B migration will make column nullable).
+   * Altitude of the climb in metres (final altitude).
+   * Official: optional — when omitted or below 1 m, the service applies the EOOA floor of 1000 m
+   * (matches altitudeFactor = sqrt(max(alt/1000,1)) and season rule threshold §3.12).
+   * Personal: optional; omitted or invalid → stored as 0.
    */
-  @ValidateIf((o) => o.isOfficial === true || o.altitude !== undefined)
+  @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(0)
   @Type(() => Number)
   altitude?: number
 
   /**
-   * Route development / route length in metres.
-   * Non-nullable in DB.
-   * Official: required, must be > 0 (checked in service).
-   * Personal: optional. If provided must be >= 0.01.
-   *           If omitted, stored as 0 (Phase A sentinel; Phase B migration will make column nullable).
+   * Route length / ανάπτυγμα in metres.
+   * Official: optional — when omitted or below 0.01 m, the service applies the EOOA floor of 100 m
+   * (matches routeLengthFactor = max(length,100)/1500 §3.11).
+   * Personal: optional; omitted or invalid → stored as 0.
    */
-  @ValidateIf((o) => o.isOfficial === true || o.routeLength !== undefined)
+  @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
+  @Min(0)
   @Type(() => Number)
   routeLength?: number
 

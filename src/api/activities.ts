@@ -20,7 +20,8 @@ export type HikingActivityPayload = {
   endPoint: string
   maxAltitude: number
   totalElevationGain: number
-  distanceLength: number
+  /** Route distance in km. Official: omit or leave unset when empty — backend applies 15 km EOOA floor. */
+  distanceLength?: number
   /**
    * Backend values: "normal" | "winter_conditions" | "ski_mountaineering"
    * UI labels:       Κανονικό | Χειμερινών συνθηκών | Ορειβατικού σκι
@@ -67,13 +68,13 @@ export type ClimbingActivityPayload = {
    */
   repetitionType: string
   /**
-   * Official: required, >= 1.
-   * Personal: optional. Omit when not provided; backend stores 0 as Phase A sentinel.
+   * Official: optional; omit or empty → backend stores 1000 m (EOOA floor) for scoring.
+   * Personal: optional; omit when not provided; backend stores 0 as sentinel.
    */
   altitude?: number
   /**
-   * Official: required, >= 0.01.
-   * Personal: optional. Omit when not provided; backend stores 0 as Phase A sentinel.
+   * Official: optional; omit or empty → backend stores 100 m (EOOA floor) for scoring.
+   * Personal: optional; omit when not provided; backend stores 0 as sentinel.
    */
   routeLength?: number
   /** Required when isOfficial = true. */

@@ -22,7 +22,8 @@ import { PrismaService } from '../prisma/prisma.service'
  *   - selectedUserIds passed as filter in the Prisma where clause
  *   - year filter passed to the Prisma where clause when provided
  *   - only isOfficial = true activities are queried
- *   - club existence check runs before authorization
+ *   - club lookup, authorization, and activity query run in parallel (Promise.all);
+ *     if the club is missing, exportClub throws NotFoundException after await (no workbook).
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -151,11 +152,14 @@ describe('ExportService', () => {
       await expect(service.exportClub(CLUB_ID, dto, CALLER_USER_ID)).rejects.toThrow(NotFoundException)
     })
 
-    it('club not found → 404 Not Found (checked before auth)', async () => {
+    it('returns 404 when club does not exist', async () => {
       mockClub.findUnique.mockResolvedValue(null)
-      // User lookup should not even be reached.
+      // exportClub runs club lookup, assertRequesterIsAuthorized, and queryOfficialActivities
+      // in parallel — user lookup may occur even when the club is missing.
+      mockUser.findUnique.mockResolvedValue(clubAdminUser)
       await expect(service.exportClub(CLUB_ID, dto, CALLER_USER_ID)).rejects.toThrow(NotFoundException)
-      expect(mockUser.findUnique).not.toHaveBeenCalled()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((service as any).buildExcel).not.toHaveBeenCalled()
     })
   })
 
