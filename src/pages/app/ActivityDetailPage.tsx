@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BarChart3, Check, Info, Lock, MapPin, MessageSquare, Users } from 'lucide-react'
 import { deleteActivity, getActivityById, type ActivityListItem } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
+import { useAuth } from '../../auth/AuthContext.tsx'
 import {
   categoryToLabel,
   climbingScaleDisplayLabel,
@@ -27,6 +28,12 @@ import { DetailSidebarLinkCard } from '../../components/detail/DetailSidebarLink
 import { DetailSidebarMetricCard } from '../../components/detail/DetailSidebarMetricCard.tsx'
 
 const formSectionIconClass = 'size-[18px] shrink-0 text-[#00453e]'
+
+/** Personal sidebar card — members understand EOOA vs personal; non-members (or auth loading) get neutral copy. */
+const PERSONAL_RECORD_FOOTNOTE_MEMBER =
+  'Δεν υπολογίζονται βαθμοί ΕΟΟΑ για προσωπικές καταγραφές.'
+const PERSONAL_RECORD_FOOTNOTE_NON_MEMBER =
+  'Η καταγραφή αποθηκεύτηκε στο προσωπικό σας αρχείο.'
 
 // ── Backend → ActivityDetailModel mapper ──────────────────────────────────────
 
@@ -220,6 +227,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
 export function ActivityDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { hasClubMembership, isLoading: authLoading } = useAuth()
   const { activitySlug } = useParams<{ activitySlug: string }>()
 
   // Deterministic back target: the history page URL passed by HistoryPage as
@@ -330,6 +338,11 @@ export function ActivityDetailPage() {
     </>
   )
 
+  const personalRecordFootnote =
+    !authLoading && hasClubMembership
+      ? PERSONAL_RECORD_FOOTNOTE_MEMBER
+      : PERSONAL_RECORD_FOOTNOTE_NON_MEMBER
+
   const sidebar = (
     <>
       {data.status === 'official' ? (
@@ -342,8 +355,8 @@ export function ActivityDetailPage() {
         <DetailSidebarMetricCard
           variant="soft"
           title="ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ"
-          value="—"
-          footnote="Δεν υπολογίζονται βαθμοί ΕΟΟΑ για προσωπικές καταγραφές."
+          value={!authLoading && hasClubMembership ? '—' : ''}
+          footnote={personalRecordFootnote}
           hideFootnoteIcon
         />
       )}

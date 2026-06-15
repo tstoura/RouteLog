@@ -40,9 +40,11 @@ export function DetailSidebarMetricCard({
       >
         {title}
       </p>
-      <p className={`py-3 font-heading text-5xl font-bold tracking-tight ${isGreen ? 'text-white' : 'text-[#00453e]'}`}>
-        {value}
-      </p>
+      {value.trim() ? (
+        <p className={`py-3 font-heading text-5xl font-bold tracking-tight ${isGreen ? 'text-white' : 'text-[#00453e]'}`}>
+          {value}
+        </p>
+      ) : null}
       {footnote ? (
         <p
           className={`mx-auto flex max-w-[220px] items-center justify-center gap-1.5 text-xs leading-snug ${isGreen ? 'text-[rgba(200,230,210,0.95)]' : 'text-[#526772]'}`}
