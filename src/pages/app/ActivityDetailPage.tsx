@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { BarChart3, Check, Info, Lock, MessageSquare, Users } from 'lucide-react'
+import { BarChart3, Check, Info, Lock, MapPin, MessageSquare, Users } from 'lucide-react'
 import { deleteActivity, getActivityById, type ActivityListItem } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
 import {
@@ -14,6 +14,7 @@ import {
   organizationTypeToLabel,
   seasonToLabel,
 } from '../../lib/activityLabels.ts'
+import { climbingSameFieldRoutesHref } from '../../lib/climbingRoutesCatalogLink.ts'
 import type { ActivityDetailModel, DetailInfoRow } from '../../types/activityDetail.ts'
 import type { ActivityKind } from '../../types/activity.ts'
 import type { HistoryStatus } from '../../types/historyCard.ts'
@@ -86,7 +87,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       personalNote: { body: item.privateNotes ?? '' },
       routeEvaluation: { body: item.publicNotes ?? '' },
       sidebar,
-      routesDeepLink: '/app/routes',
+      routesDeepLink: null,
     }
   }
 
@@ -148,9 +149,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       personalNote: { body: item.privateNotes ?? '' },
       routeEvaluation: { body: item.publicNotes ?? '' },
       sidebar,
-      routesDeepLink: c.climbingField
-        ? `/app/routes?category=climbing&sector=${encodeURIComponent(c.climbingField)}`
-        : '/app/routes?category=climbing',
+      routesDeepLink: climbingSameFieldRoutesHref(c.climbingField),
     }
   }
 
@@ -192,7 +191,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       personalNote: { body: item.privateNotes ?? '' },
       routeEvaluation: { body: item.publicNotes ?? '' },
       sidebar,
-      routesDeepLink: '/app/routes',
+      routesDeepLink: null,
     }
   }
 
@@ -212,7 +211,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
     personalNote: { body: item.privateNotes ?? '' },
     routeEvaluation: { body: item.publicNotes ?? '' },
     sidebar,
-    routesDeepLink: '/app/routes',
+    routesDeepLink: null,
   }
 }
 
@@ -348,15 +347,10 @@ export function ActivityDetailPage() {
           hideFootnoteIcon
         />
       )}
-      {data.kind === 'rock_climbing' ? (
+      {data.kind === 'rock_climbing' && data.routesDeepLink ? (
         <DetailSidebarLinkCard
           to={data.routesDeepLink}
-          icon={
-            <svg className="size-6 text-[#00453e]" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path d="M20 20l-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          }
+          icon={<MapPin className="size-6 text-[#00453e]" strokeWidth={2} aria-hidden />}
         >
           <span className="text-sm font-semibold leading-snug text-[#0f3d36]">
             Δες όλες τις διαδρομές στο ίδιο πεδίο

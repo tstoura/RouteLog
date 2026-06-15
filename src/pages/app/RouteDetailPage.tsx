@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { BarChart3, Info, MessageSquare, Plus, Search } from 'lucide-react'
+import { BarChart3, Info, MapPin, MessageSquare, Plus } from 'lucide-react'
 import { getClimbingRouteById, getRouteActivityReviews, type ActivityReview, type ClimbingRouteResponse } from '../../api/climbingRoutes.ts'
 import { ApiError } from '../../api/client.ts'
 import { DetailBadge } from '../../components/detail/DetailBadge.tsx'
@@ -13,6 +13,7 @@ import { DetailSidebarMetricCard } from '../../components/detail/DetailSidebarMe
 import { Button } from '../../components/ui/Button.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { scaleToLabel, completionTypeToLabel, formatDateLabel } from '../../lib/activityLabels.ts'
+import { climbingSameFieldRoutesHref } from '../../lib/climbingRoutesCatalogLink.ts'
 import type { DetailInfoRow } from '../../types/activityDetail.ts'
 
 const formSectionIconClass = 'size-[18px] shrink-0 text-[#00453e]'
@@ -136,6 +137,8 @@ export function RouteDetailPage() {
 
   const badges = <DetailBadge variant="official">{difficultyLabel}</DetailBadge>
 
+  const sameFieldRoutesHref = climbingSameFieldRoutesHref(r.climbingField)
+
   const sidebar = (
     <>
       <DetailSidebarMetricCard
@@ -145,12 +148,16 @@ export function RouteDetailPage() {
         footnote={`${scaleToLabel(r.defaultScale)} · κλασική αναρρίχηση`}
         hideFootnoteIcon
       />
-      <DetailSidebarLinkCard
-        to="/app/history?kind=rock_climbing"
-        icon={<Search className="size-6 text-[#00453e]" strokeWidth={2} aria-hidden />}
-      >
-        <span className="text-sm font-semibold leading-snug text-[#0f3d36]">Δες σχετικές καταχωρήσεις στο Ιστορικό</span>
-      </DetailSidebarLinkCard>
+      {sameFieldRoutesHref ? (
+        <DetailSidebarLinkCard
+          to={sameFieldRoutesHref}
+          icon={<MapPin className="size-6 text-[#00453e]" strokeWidth={2} aria-hidden />}
+        >
+          <span className="text-sm font-semibold leading-snug text-[#0f3d36]">
+            Δες όλες τις διαδρομές στο ίδιο πεδίο
+          </span>
+        </DetailSidebarLinkCard>
+      ) : null}
     </>
   )
 

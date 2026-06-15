@@ -35,5 +35,6 @@ export type ActivityDetailModel = {
     scoreValue: string
     scoreFootnote: string
   }
-  routesDeepLink: string
+  /** Rock climbing: same-field Routes catalog; null hides the sidebar CTA. */
+  routesDeepLink: string | null
 }
