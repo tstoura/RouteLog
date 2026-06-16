@@ -92,9 +92,11 @@ export function getMe(): Promise<AuthUser> {
  * Returns { accessToken, user } on success; throws ApiError(401) if the cookie is
  * missing, invalid, or expired.
  * credentials: "include" is set automatically by apiFetch.
+ *
+ * Accepts an optional AbortSignal so callers can enforce a timeout.
  */
-export function refresh(): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/auth/refresh', { method: 'POST' })
+export function refresh(options?: Pick<RequestInit, 'signal'>): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/auth/refresh', { method: 'POST', ...options })
 }
 
 /**

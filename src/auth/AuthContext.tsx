@@ -152,16 +152,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false)
       return
     }
+    // Abort the refresh request if the backend doesn't respond within 20 seconds
+    // (e.g. Render cold start). On abort the catch block fires → isLoading = false
+    // → RequireAuth redirects to /login so the user isn't stuck on "Φόρτωση"
+    // indefinitely. By the time they submit the login form Render is awake.
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15_000)
     try {
-      const { accessToken, user: me } = await apiRefresh()
+      const { accessToken, user: me } = await apiRefresh({ signal: controller.signal })
       setAccessToken(accessToken)
       setUser(me)
       scheduleProactiveRefresh(accessToken)
     } catch {
-      // No valid refresh cookie — user is not authenticated.
+      // No valid refresh cookie, request timed out, or network error.
       clearAccessToken()
       setUser(null)
     } finally {
+      clearTimeout(timeoutId)
       setIsLoading(false)
     }
   }, [scheduleProactiveRefresh])
