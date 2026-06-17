@@ -27,11 +27,22 @@ export function HeroSection() {
         <img
           src={LANDING_ASSETS.hero}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-[center_30%]"
+          fetchPriority="high"
+          loading="eager"
+          className="absolute inset-0 h-full w-full object-cover object-[center_55%]"
         />
       </div>
+      {/* Base tint — uniform brand-green wash over the whole image */}
+      <div className="absolute inset-0 bg-[rgba(2,44,34,0.28)]" aria-hidden />
+      {/* Vignette — dark on both left (text) and right edges, open in the center */}
       <div
-        className="absolute inset-0 bg-gradient-to-r from-[rgba(2,44,34,0.8)] via-[rgba(2,44,34,0.4)] via-50% to-[rgba(2,44,34,0)]"
+        className="absolute inset-0 bg-gradient-to-r from-[rgba(2,44,34,0.82)] via-[rgba(2,44,34,0.42)] via-38% to-[rgba(2,44,34,0.68)]"
+        aria-hidden
+      />
+      {/* Snow lift — counters the green tint on the bottom-right so the natural
+          white of the snow shows through; fades to nothing toward the top-left */}
+      <div
+        className="absolute inset-0 bg-gradient-to-tl from-[rgba(255,255,255,0.13)] via-[rgba(255,255,255,0.04)] to-transparent"
         aria-hidden
       />
       <div className="relative mx-auto flex w-full max-w-[1280px] flex-1 flex-col items-start px-6 py-12">
@@ -68,7 +79,7 @@ export function HeroSection() {
                 <button
                   type="button"
                   onClick={logout}
-                  className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md transition hover:bg-white/15"
+                  className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md [will-change:transform] transition hover:bg-white/15"
                 >
                   Αποσύνδεση
                 </button>
@@ -84,7 +95,7 @@ export function HeroSection() {
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md transition hover:bg-white/15"
+                  className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-white/20 bg-white/10 px-8 py-[17px] text-base font-semibold text-white backdrop-blur-md [will-change:transform] transition hover:bg-white/15"
                 >
                   Δημιουργία Λογαριασμού
                 </Link>

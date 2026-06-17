@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom'
 
-const LOGO_SRC = '/brand/routelog-logo.png'
-
 type Props = {
   className?: string
   to?: string
@@ -18,7 +16,12 @@ const sizeClass: Record<NonNullable<Props['size']>, string> = {
 }
 
 /**
- * Raster mark (transparent PNG). Tweak `size` for header vs marketing.
+ * Raster mark. Uses responsive srcset to serve:
+ *   1× displays → routelog-logo-1x.webp  (248×80,  ~9 KB)
+ *   2× retina   → routelog-logo.webp     (496×160, ~29 KB)
+ * PNG fallback for browsers without WebP support.
+ * width/height reflect the 1× display size; the browser reserves the
+ * correct aspect-ratio space before the image loads (prevents CLS).
  */
 export function RouteLogLogoMark({ className = '', to = '/', size = 'lg', onClick }: Props) {
   return (
@@ -28,12 +31,20 @@ export function RouteLogLogoMark({ className = '', to = '/', size = 'lg', onClic
       aria-label="RouteLog — αρχική"
       onClick={onClick}
     >
-      <img
-        src={LOGO_SRC}
-        alt="RouteLog Logo - Track Your Adventures"
-        className={`${sizeClass[size]} object-contain object-left`}
-        decoding="async"
-      />
+      <picture>
+        <source
+          srcSet="/brand/routelog-logo-1x.webp 1x, /brand/routelog-logo.webp 2x"
+          type="image/webp"
+        />
+        <img
+          src="/brand/routelog-logo.png"
+          alt="RouteLog Logo - Track Your Adventures"
+          width={248}
+          height={80}
+          className={`${sizeClass[size]} object-contain object-left`}
+          decoding="async"
+        />
+      </picture>
     </Link>
   )
 }

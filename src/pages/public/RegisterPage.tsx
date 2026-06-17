@@ -209,7 +209,7 @@ export function RegisterPage() {
           <div className="grid grid-cols-2 gap-2">
             {[
               { value: '', label: 'Δεν έχω προτίμηση' },
-              { value: 'hiking', label: 'Ορειβασία / πεζοπορία' },
+              { value: 'hiking', label: 'Ορειβασία / Ορειβατικό Σκι' },
               { value: 'climbing', label: 'Αναρρίχηση βράχου' },
               { value: 'expedition', label: 'Αποστολές εξωτερικού' },
             ].map((opt) => {
