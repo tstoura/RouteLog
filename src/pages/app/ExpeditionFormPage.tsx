@@ -9,10 +9,8 @@ export function ExpeditionFormPage() {
   const navigate = useNavigate()
   const [showSuccess, setShowSuccess] = useState(false)
   const [formKey, setFormKey] = useState(0)
-  const [lastPoints, setLastPoints] = useState<number | null>(null)
 
-  const handleSubmitSuccess = (points: number | null) => {
-    setLastPoints(points)
+  const handleSubmitSuccess = () => {
     setShowSuccess(true)
     navigate('/app/new/expedition', { replace: true })
     setFormKey((k) => k + 1)
@@ -21,7 +19,6 @@ export function ExpeditionFormPage() {
 
   const handleNewActivity = () => {
     setShowSuccess(false)
-    setLastPoints(null)
     navigate('/app/new/expedition', { replace: true })
     setFormKey((k) => k + 1)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -58,7 +55,6 @@ export function ExpeditionFormPage() {
       <ExpeditionActivityForm
         key={formKey}
         onSubmitSuccess={handleSubmitSuccess}
-        lastSubmittedPoints={lastPoints}
         onActivityTabSelect={handleActivityTabSelect}
       />
     </ActivityFormLayout>

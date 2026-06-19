@@ -124,9 +124,6 @@ export class CreateClimbingActivityDto {
    * Optional when isOfficial=true AND participantsNum = 1 (climbed alone).
    * Optional for personal records.
    *
-   * TODO (Auth phase): once JWT auth is implemented, the export service should
-   * automatically prepend the authenticated user's display name so participantsText
-   * only needs to contain the additional partners' names.
    */
   @ValidateIf((o) => (o.isOfficial === true && o.participantsNum > 1) || o.participantsText !== undefined)
   @IsString()

@@ -4,10 +4,7 @@ import { ActivitiesService } from './activities.service'
 import { ScoringModule } from '../scoring/scoring.module'
 import { AuthModule } from '../auth/auth.module'
 
-/**
- * Phase 11C: AuthModule is imported so ActivitiesController can use
- * JwtAuthGuard (exported from AuthModule) to protect all activity endpoints.
- */
+/** AuthModule is imported so ActivitiesController can use JwtAuthGuard. */
 @Module({
   imports: [
     ScoringModule,

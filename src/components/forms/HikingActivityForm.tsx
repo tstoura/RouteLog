@@ -37,15 +37,13 @@ import { useAuth } from '../../auth/AuthContext.tsx'
 import { usePointsPreview } from '../../hooks/usePointsPreview.ts'
 
 export type HikingActivityFormProps = {
-  /** Called after a successful backend submission; receives the server-calculated points. */
-  onSubmitSuccess?: (points: number | null) => void
-  /** Points from the most recent successful submission, passed back by the parent. */
-  lastSubmittedPoints?: number | null
+  /** Called after a successful backend submission. */
+  onSubmitSuccess?: () => void
   /** Activity type tab click; parent handles reset / navigation. */
   onActivityTabSelect: (kind: ActivityFormTabKind) => void
 }
 
-export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _lastSubmittedPoints, onActivityTabSelect }: HikingActivityFormProps) {
+export function HikingActivityForm({ onSubmitSuccess, onActivityTabSelect }: HikingActivityFormProps) {
   const { user } = useAuth()
 
   // True when the user has at least one club membership.
@@ -149,7 +147,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
 
     setIsSubmitting(true)
     try {
-      const result = await submitHikingActivity({
+      await submitHikingActivity({
         isOfficial: effectiveIsOfficial,
         date,
         mountain: mountain.trim(),
@@ -167,7 +165,7 @@ export function HikingActivityForm({ onSubmitSuccess, lastSubmittedPoints: _last
         privateNotes: privateNotes.trim() || undefined,
         publicNotes: publicNotes.trim() || undefined,
       })
-      onSubmitSuccess?.(result.points)
+      onSubmitSuccess?.()
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(err.message)

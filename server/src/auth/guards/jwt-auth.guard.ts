@@ -9,15 +9,8 @@ import { AuthService, JwtPayload } from '../auth.service'
 
 /**
  * Guard that verifies the JWT Bearer token on protected endpoints.
- *
- * Usage: apply with @UseGuards(JwtAuthGuard) on a controller or route.
- *
- * Phase 11B scope: applied ONLY to GET /auth/me.
- * Phase 11C will apply it globally (or per-controller) to protect
- * activity, export, and user endpoints.
- *
- * On success, attaches the decoded payload to `request.user` so
- * controllers can access `req.user.sub` (userId) etc.
+ * Apply with @UseGuards(JwtAuthGuard) on a controller or individual route handler.
+ * On success, attaches the decoded payload to `request.user` so controllers can access `req.user.sub`.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {

@@ -200,12 +200,6 @@ export const FRENCH_GRADE_OPTIONS: ClimbingSelectOption[] = [
 ]
 
 /**
- * @legacy — alias of FRENCH_GRADE_OPTIONS. Kept for any code that still imports
- * CLIMBING_GRADE_OPTIONS directly; new code should use getGradeOptionsForScale().
- */
-export const CLIMBING_GRADE_OPTIONS: ClimbingSelectOption[] = FRENCH_GRADE_OPTIONS
-
-/**
  * Returns grade options for the given scale key.
  * Used by both the climbing activity form and the CreateRouteModal grade combobox.
  */
@@ -220,12 +214,7 @@ export function getGradeOptionsForScale(scaleKey: string): ClimbingSelectOption[
 /**
  * Backend value → UI label mapping for climbing_activity_details.mixed_climbing.
  * Backend allowed: "M1"–"M12" (mixed) | "WI1"–"WI12" (water ice).
- *
  * The first option (value: '') represents "no mixed/ice component".
- *
- * CONFLICT: The existing mixedOptions in RockClimbingActivityForm.tsx uses
- * Greek narrative strings ('μικτό', 'πάγος') instead of actual grade values.
- * Those will be replaced with this constant in Phase 10C.
  */
 export const MIXED_CLIMBING_OPTIONS: ClimbingSelectOption[] = [
   { value: '', label: 'Χωρίς μικτό / πάγο' },
@@ -266,13 +255,7 @@ export const MIXED_CLIMBING_HELPER =
 /**
  * Backend value → UI label mapping for climbing_activity_details.completion_type.
  * Optional in all cases. Not exported to the EOOA Excel template.
- * Used only for personal climbing history / tracking.
- *
  * Backend allowed: "on_sight" | "flash" | "red_point" | "top_rope"
- *
- * CONFLICT: The existing completionOptions in RockClimbingActivityForm.tsx uses
- * values without underscores ('onsight', 'redpoint', 'toprope'). Those will be
- * replaced with this constant in Phase 10C.
  */
 export const CLIMBING_COMPLETION_OPTIONS: ClimbingSelectOption[] = [
   { value: '', label: 'Επιλογή τρόπου ολοκλήρωσης (προαιρετικό)' },
@@ -286,13 +269,9 @@ export const CLIMBING_COMPLETION_OPTIONS: ClimbingSelectOption[] = [
 export const CLIMBING_COMPLETION_HELPER =
   'Προαιρετικά: δηλώνει τον τρόπο ολοκλήρωσης. Δεν επηρεάζει τη βαθμολόγηση ΕΟΟΑ και δεν εξάγεται.'
 
-// ── Legacy utility functions (kept for backward compatibility) ─────────────────
+// ── Legacy utility functions ───────────────────────────────────────────────────
 
-/**
- * Converts a Greek display label to its backend scale key.
- * Used by existing code that receives route data in Greek-label format.
- * @legacy
- */
+/** Converts a Greek display label to its backend scale key. */
 export function scaleKeyFromGreek(scale: ClimbingDifficultyScale | string | undefined): string {
   if (!scale) return ''
   if (scale === 'UIAA') return 'uiaa'
@@ -301,21 +280,9 @@ export function scaleKeyFromGreek(scale: ClimbingDifficultyScale | string | unde
   return ''
 }
 
-/**
- * Converts a backend scale key to its Greek display label.
- * Used by existing code that renders route data in Greek-label format.
- * @legacy
- */
+/** Converts a backend scale key to its Greek display label. */
 export function scaleKeyToGreek(key: string): ClimbingDifficultyScale {
   if (key === 'uiaa') return 'UIAA'
   if (key === 'alpine') return 'Alpine'
   return 'Γαλλική'
-}
-
-/** Map a raw grade label to a matching French grade option value. @legacy */
-export function coerceGradeOptionValue(raw: string | undefined): string {
-  if (!raw) return ''
-  const t = raw.trim().toLowerCase()
-  const hit = FRENCH_GRADE_OPTIONS.find((o) => o.value && o.value.toLowerCase() === t)
-  return hit?.value ?? t
 }

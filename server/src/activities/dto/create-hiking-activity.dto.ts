@@ -19,7 +19,7 @@ import { Type } from 'class-transformer'
  *   - All hiking_activity_details fields are always required in this DTO because
  *     the DB columns are non-nullable. The service layer adds EOOA-specific
  *     allowed-value checks for official activities.
- *   - club_id is accepted from the client but ignored; service infers it from membership.
+ *   - clubId is inferred from the user's ClubMembership in the service; never taken from the body.
  *   - Basic type validators (@IsInt, @IsString, etc.) always run.
  *
  * Auth: userId comes from the verified JWT (req.user.sub). Not accepted in the body.

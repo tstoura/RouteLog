@@ -7,11 +7,7 @@ import { USER_PUBLIC_SELECT } from './users.constants'
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Returns all users without password_hash.
-   * NOTE: This endpoint is development-safe for now.
-   * In Phase 5 it must be restricted to super_admin.
-   */
+  /** Returns all users without password_hash. Restricted to super_admin in the controller. */
   findAll() {
     return this.prisma.user.findMany({
       select: USER_PUBLIC_SELECT,
@@ -33,7 +29,7 @@ export class UsersService {
   }
 
   /**
-   * Used by AuthService (Phase 5) to verify credentials.
+   * Used by AuthService to verify credentials.
    * Returns the full record including passwordHash — never forward to a response.
    */
   findByEmailWithPassword(email: string) {

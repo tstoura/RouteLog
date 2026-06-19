@@ -147,10 +147,9 @@ export class ExportService {
   /**
    * Build and return an Excel buffer for official club activities.
    *
-   * @param clubId      Club to export (from route param — not inferred from membership).
-   * @param dto         Request body. dto.requesterUserId is present for backward compat
-   *                    but is IGNORED. callerUserId is the only trusted identity.
-   * @param callerUserId JWT-verified user id from req.user.sub.
+   * @param clubId       Club to export (from route param — not inferred from membership).
+   * @param dto          Request body (validated by DTO).
+   * @param callerUserId JWT-verified user id from req.user.sub — the only trusted identity.
    *
    * Authorization:
    *   - super_admin → always allowed.

@@ -1,5 +1,4 @@
 import type { ChangeEvent, KeyboardEvent, ReactNode } from 'react'
-import { useState } from 'react'
 import { BarChart3, FileText, Info, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { FormSection } from '../../ui/FormSection.tsx'
@@ -170,12 +169,6 @@ export function DateInputWithCalendar({ className = '', max, type: _type, ...res
     />
   )
 }
-
-/** Summer / winter season radios — shared by climbing and expedition activity forms. */
-export const ACTIVITY_SEASON_RADIO_OPTIONS: { value: string; label: string }[] = [
-  { value: 'θερινή', label: 'Θερινή' },
-  { value: 'χειμερινή', label: 'Χειμερινή' },
-]
 
 export function RadioGroupField({
   name,
@@ -370,103 +363,6 @@ export function NotesSection({
         </label>
       </div>
     </FormSection>
-  )
-}
-
-/**
- * Official / personal participation toggle.
- *
- * Controlled usage (Phase 10B+):
- *   <OfficialParticipationSection value={isOfficial} onChange={setIsOfficial} />
- *
- * Uncontrolled legacy usage (climbing form before Phase 10C):
- *   <OfficialParticipationSection />
- */
-export function OfficialParticipationSection({
-  value,
-  onChange,
-}: {
-  value?: boolean
-  onChange?: (v: boolean) => void
-} = {}) {
-  const [internalEnabled, setInternalEnabled] = useState(true)
-  const enabled = value !== undefined ? value : internalEnabled
-  const handleToggle = () => {
-    const next = !enabled
-    if (onChange) onChange(next)
-    else setInternalEnabled(next)
-  }
-  return (
-    <section className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-6">
-      <div className="flex gap-4">
-        <button
-          type="button"
-          aria-pressed={enabled}
-          aria-label={enabled ? 'Απενεργοποίηση επίσημης καταγραφής' : 'Ενεργοποίηση επίσημης καταγραφής'}
-          onClick={handleToggle}
-          className={[
-            'relative mt-1 h-6 w-12 shrink-0 cursor-pointer rounded-full transition-colors',
-            enabled ? 'bg-[#00453e]' : 'bg-[#cbd5e1]',
-          ].join(' ')}
-        >
-          <span
-            className={[
-              'absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm transition-transform',
-              enabled ? 'translate-x-6' : 'translate-x-0',
-            ].join(' ')}
-          />
-        </button>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold uppercase tracking-[0.35px] text-[#1a1c1e]">
-            ΣΥΜΜΕΤΟΧΗ ΣΤΗΝ ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ
-          </p>
-          <p className="text-sm italic text-[#475569]">
-            Η καταχώρηση θα συμπεριληφθεί στα επίσημα στοιχεία του συλλόγου.
-          </p>
-          <p className="text-xs font-semibold uppercase tracking-[1.4px] text-[rgba(0,69,62,0.7)]">
-            ΟΡΙΣΜΕΝΑ ΣΤΟΙΧΕΙΑ ΑΠΑΙΤΟΥΝΤΑΙ ΜΟΝΟ ΓΙΑ ΕΠΙΣΗΜΗ ΚΑΤΑΓΡΑΦΗ.
-          </p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/**
- * Non-interactive toggle section shown when the user has no club membership.
- *
- * Visually matches OfficialParticipationSection but:
- *   - toggle is permanently OFF and cannot be clicked
- *   - title says "ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ" (not "ΕΠΙΣΗΜΗ")
- *   - explains that a club must be declared first
- *
- * The payload is forced to isOfficial=false by the parent form — this component
- * is purely presentational.
- */
-export function PersonalOnlySection() {
-  return (
-    <section className="rounded-xl border border-[rgba(0,69,62,0.1)] bg-[rgba(0,69,62,0.05)] p-6">
-      <div className="flex gap-4">
-        {/* Static OFF toggle — not a button, cannot be interacted with */}
-        <div
-          className="relative mt-1 h-6 w-12 shrink-0 cursor-not-allowed rounded-full bg-[#cbd5e1] opacity-60"
-          aria-hidden="true"
-        >
-          <span className="absolute left-1 top-1 size-4 rounded-full bg-white shadow-sm" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold uppercase tracking-[0.35px] text-[#1a1c1e]">
-            ΠΡΟΣΩΠΙΚΗ ΚΑΤΑΓΡΑΦΗ
-          </p>
-          <p className="text-sm italic text-[#475569]">
-            Δεν έχετε δηλώσει σύλλογο, επομένως η δράση θα αποθηκευτεί στο προσωπικό σας αρχείο.
-          </p>
-          <p className="text-xs text-[rgba(0,69,62,0.7)]">
-            Μπορείτε να δηλώσετε σύλλογο από το προφίλ σας.
-          </p>
-        </div>
-      </div>
-    </section>
   )
 }
 

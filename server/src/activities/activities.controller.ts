@@ -45,7 +45,6 @@ export class ActivitiesController {
    * List activities for the authenticated user, optionally filtered by category.
    *
    * Query parameters:
-   *   userId   — ignored (backward compat); real userId comes from JWT.
    *   category — optional; "hiking" | "climbing" | "expedition"
    *   take     — page size, default 20, max 100
    *   skip     — offset, default 0

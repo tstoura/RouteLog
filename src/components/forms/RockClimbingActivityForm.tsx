@@ -92,10 +92,8 @@ function FormLabelRow({ label, showBadge }: { label: string; showBadge: boolean 
 export type RockClimbingActivityFormProps = {
   /** Prefill from `/app/new/climbing?route=…` */
   initialRouteSlug?: string | null
-  /** Called after successful backend submission; receives server-calculated points. */
-  onSubmitSuccess?: (points: number | null) => void
-  /** Points from the most recent successful submission, passed back by the parent. */
-  lastSubmittedPoints?: number | null
+  /** Called after successful backend submission. */
+  onSubmitSuccess?: () => void
   /** Activity type tab click; parent handles reset / navigation. */
   onActivityTabSelect: (kind: ActivityFormTabKind) => void
 }
@@ -104,21 +102,18 @@ export type RockClimbingActivityFormProps = {
 // Route prefill from ?route=<uuid> is handled asynchronously by a useEffect
 // after mount. The form always starts with empty route fields; the UUID fetch
 // populates them once the backend responds.
-
-function buildStateFromRouteSlug(_slug: string | null) {
-  return {
-    routeId: '',
-    routeName: '',
-    mountain: '',
-    fieldSector: '',
-    scaleKey: 'french' as string,
-    gradeVal: '',
-    altitude: '',
-    routeLength: '',
-    autofill: false,
-    autofillHadAlt: false,
-    autofillHadLen: false,
-  }
+const EMPTY_ROUTE_STATE = {
+  routeId: '',
+  routeName: '',
+  mountain: '',
+  fieldSector: '',
+  scaleKey: 'french' as string,
+  gradeVal: '',
+  altitude: '',
+  routeLength: '',
+  autofill: false,
+  autofillHadAlt: false,
+  autofillHadLen: false,
 }
 
 /** Returns true when the string is a valid UUID (v4 shape). */
@@ -132,11 +127,10 @@ function isUUID(s: string): boolean {
 export function RockClimbingActivityForm({
   initialRouteSlug = null,
   onSubmitSuccess,
-  lastSubmittedPoints: _lastSubmittedPoints,
   onActivityTabSelect,
 }: RockClimbingActivityFormProps) {
   const { user } = useAuth()
-  const seed = useMemo(() => buildStateFromRouteSlug(initialRouteSlug ?? null), [initialRouteSlug])
+  const seed = EMPTY_ROUTE_STATE
 
   // True when the user has at least one club membership.
   const hasClub = Boolean(user && user.memberships.length > 0)
@@ -425,7 +419,7 @@ export function RockClimbingActivityForm({
     const officialAltProvided = Boolean(altitude.trim() && altitudeVal >= 1)
     const officialLenProvided = Boolean(routeLength.trim() && routeLengthVal >= 0.01)
     try {
-      const result = await submitClimbingActivity({
+      await submitClimbingActivity({
         isOfficial: effectiveIsOfficial,
         routeId,
         date,
@@ -446,7 +440,7 @@ export function RockClimbingActivityForm({
         privateNotes: privateNotes.trim() || undefined,
         publicNotes: publicNotes.trim() || undefined,
       })
-      onSubmitSuccess?.(result.points)
+      onSubmitSuccess?.()
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(err.message)

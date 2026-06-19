@@ -95,10 +95,8 @@ export class ActivitiesService {
   /**
    * Creates a Hiking / Ski Mountaineering activity.
    *
-   * @param dto      Request body (validated by DTO). dto.userId and dto.clubId
-   *                 are present for backward compatibility but are IGNORED.
-   * @param callerUserId  JWT-verified user id from req.user.sub. This is the
-   *                 only trusted source of ownership.
+   * @param dto          Request body (validated by DTO).
+   * @param callerUserId JWT-verified user id from req.user.sub — the only trusted source of ownership.
    *
    * Creates both `activities` and `hiking_activity_details` in a single Prisma
    * nested write (treated as an implicit transaction).
@@ -231,8 +229,8 @@ export class ActivitiesService {
   /**
    * Creates a Rock Climbing activity.
    *
-   * @param dto      Request body. dto.userId and dto.clubId are IGNORED.
-   * @param callerUserId  JWT-verified user id from req.user.sub.
+   * @param dto          Request body (validated by DTO).
+   * @param callerUserId JWT-verified user id from req.user.sub — the only trusted source of ownership.
    *
    * Route snapshot (§3.2, docs/eooa-rules-alignment.md):
    *   The selected Route's identity fields (routeName, mountainOrArea, climbingField)
@@ -483,8 +481,8 @@ export class ActivitiesService {
   /**
    * Creates an Expeditions Abroad activity.
    *
-   * @param dto      Request body. dto.userId and dto.clubId are IGNORED.
-   * @param callerUserId  JWT-verified user id from req.user.sub.
+   * @param dto          Request body (validated by DTO).
+   * @param callerUserId JWT-verified user id from req.user.sub — the only trusted source of ownership.
    *
    * Official activities (is_official = true):
    *   - clubId is inferred from the user's ClubMembership (not from dto.clubId).
@@ -761,7 +759,7 @@ export class ActivitiesService {
     const difficultyGrade    = dto.difficultyGrade    ?? d.difficultyGrade
     const participantsNum    = dto.participantsNum    ?? d.participantsNum
 
-    let points: number | null = existing.points !== null ? Number(existing.points) : null
+    let points: number | null
 
     if (existing.isOfficial) {
       // ── Official re-validation ────────────────────────────────────────────
@@ -898,7 +896,7 @@ export class ActivitiesService {
     const hasRegularDifficulty = !!(difficultyScale && difficultyGrade)
     const hasMixedDifficulty   = !!mixedClimbing
 
-    let points: number | null = existing.points !== null ? Number(existing.points) : null
+    let points: number | null
     let mappedScale: string | null = d.mappedScale
     let mappedGrade: string | null = d.mappedGrade
 
@@ -1110,7 +1108,7 @@ export class ActivitiesService {
       )
     }
 
-    let points: number | null = existing.points !== null ? Number(existing.points) : null
+    let points: number | null
 
     if (existing.isOfficial) {
       if (!difficultyGrade) {

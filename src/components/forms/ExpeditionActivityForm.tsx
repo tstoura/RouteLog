@@ -53,14 +53,12 @@ const EXPEDITION_ORG_SELECT_OPTIONS = [
 ]
 
 export type ExpeditionActivityFormProps = {
-  onSubmitSuccess?: (points: number | null) => void
-  lastSubmittedPoints?: number | null
+  onSubmitSuccess?: () => void
   onActivityTabSelect: (kind: ActivityFormTabKind) => void
 }
 
 export function ExpeditionActivityForm({
   onSubmitSuccess,
-  lastSubmittedPoints: _lastSubmittedPoints,
   onActivityTabSelect,
 }: ExpeditionActivityFormProps) {
   const { user } = useAuth()
@@ -183,7 +181,7 @@ export function ExpeditionActivityForm({
 
     setIsSubmitting(true)
     try {
-      const result = await submitExpeditionActivity({
+      await submitExpeditionActivity({
         isOfficial: effectiveIsOfficial,
         date,
         country: country.trim(),
@@ -200,7 +198,7 @@ export function ExpeditionActivityForm({
         privateNotes: privateNotes.trim() || undefined,
         publicNotes: publicNotes.trim() || undefined,
       })
-      onSubmitSuccess?.(result.points)
+      onSubmitSuccess?.()
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(err.message)

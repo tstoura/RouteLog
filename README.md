@@ -7,7 +7,7 @@ The UI is in Greek.
 Developed as a thesis project at the Department of Electrical and Computer Engineering, University of Patras.
 
 **Deployment URL (frontend):** `https://routelog-red.vercel.app`  
-**Backend API URL:** set in Vercel as `VITE_API_URL` (e.g. `https://<your-service>.onrender.com` — use your actual Render hostname).
+**Backend API URL:** set in Vercel as `VITE_API_URL` :`https://routelog-7i2o.onrender.com`
 
 ---
 

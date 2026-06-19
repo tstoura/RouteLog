@@ -18,13 +18,8 @@ type AuthRequest = ExpressRequest & { user: JwtPayload }
 
 /**
  * Handles EOOA Excel export requests.
- *
- * Phase 11D: POST /export/club/:clubId is now protected by JwtAuthGuard.
- *   - Requester identity comes from req.user.sub (JWT), not from the request body.
- *   - dto.requesterUserId is accepted for backward compatibility but is IGNORED.
- *   - Authorization is enforced in ExportService:
- *       super_admin or club_admin of the requested club → allowed
- *       anything else → 403 Forbidden
+ * POST /export/club/:clubId requires JWT; requester identity comes from req.user.sub.
+ * Authorization is enforced in ExportService: super_admin or club_admin → allowed, otherwise 403.
  */
 @Controller('export')
 export class ExportController {
@@ -44,8 +39,7 @@ export class ExportController {
    * Body:
    * {
    *   "selectedUserIds": ["<uuid>", ...],  // required — filter for the export
-   *   "year": 2026,                        // optional year filter
-   *   "requesterUserId": "<uuid>"          // ignored — backward compat only
+   *   "year": 2026                         // optional year filter
    * }
    *
    * Returns 401 if not authenticated.

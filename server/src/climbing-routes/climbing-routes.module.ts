@@ -7,8 +7,8 @@ import { AuthModule } from '../auth/auth.module'
   imports: [AuthModule],
   controllers: [ClimbingRoutesController],
   providers: [ClimbingRoutesService],
-  // ClimbingRoutesService is exported so ActivitiesModule (Phase 7B) can
-  // fetch a route by id and snapshot its identity fields into climbing_activity_details.
+  // ClimbingRoutesService is exported so ActivitiesModule can fetch a route by id
+  // and snapshot its identity fields into climbing_activity_details.
   exports: [ClimbingRoutesService],
 })
 export class ClimbingRoutesModule {}
