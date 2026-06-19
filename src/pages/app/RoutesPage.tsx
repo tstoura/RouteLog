@@ -413,9 +413,9 @@ export function RoutesPage() {
               onChange={setMountainFilter}
               heightClass="h-11"
               className="min-w-[160px] flex-1 sm:max-w-[240px]"
-              aria-label="Βουνό / Περιοχή (φίλτρο)"
+              aria-label="Περιοχή / Βουνό (φίλτρο)"
               options={[
-                { value: '', label: 'Βουνό / Περιοχή' },
+                { value: '', label: 'Περιοχή / Βουνό' },
                 ...mountainOptions.map((m) => ({ value: m, label: m })),
               ]}
             />

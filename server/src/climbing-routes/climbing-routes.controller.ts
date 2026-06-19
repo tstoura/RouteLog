@@ -1,14 +1,18 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Request, UseGuards } from '@nestjs/common'
+import type { Request as ExpressRequest } from 'express'
 import { ClimbingRoutesService } from './climbing-routes.service'
 import { CreateRouteDto } from './dto/create-route.dto'
 import { SearchRoutesDto } from './dto/search-routes.dto'
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import type { JwtPayload } from '../auth/auth.service'
+
+type AuthRequest = ExpressRequest & { user: JwtPayload }
 
 /**
- * NOTE: All endpoints here are currently UNPROTECTED for development convenience.
- * A later auth/authorization phase will add JWT guards and role checks:
- *   POST /climbing-routes       → any authenticated user (create route)
- *   GET  /climbing-routes       → any authenticated user (search)
- *   GET  /climbing-routes/:id   → any authenticated user
+ * Auth summary:
+ *   POST /climbing-routes       → JWT required; any authenticated user may submit a new route
+ *   GET  /climbing-routes       → public (used by the climbing activity form combobox)
+ *   GET  /climbing-routes/:id   → public
  *   Route editing (PATCH/PUT)   → super_admin only (not implemented in MVP)
  */
 @Controller('climbing-routes')
@@ -17,13 +21,18 @@ export class ClimbingRoutesController {
 
   /**
    * Create a new climbing route.
+   *
+   * Auth: JWT required (401 without token).
+   * The authenticated user's id (req.user.sub) is stored as created_by_user_id.
+   *
    * Returns 409 Conflict if a route with the same normalized name,
    * mountain/area, and climbing field already exists. The response body
    * includes the existing route's id and key fields.
    */
   @Post()
-  create(@Body() dto: CreateRouteDto) {
-    return this.climbingRoutesService.create(dto)
+  @UseGuards(JwtAuthGuard)
+  create(@Body() dto: CreateRouteDto, @Request() req: AuthRequest) {
+    return this.climbingRoutesService.create(dto, req.user.sub)
   }
 
   /**

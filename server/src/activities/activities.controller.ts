@@ -26,15 +26,9 @@ import { PreviewPointsDto } from './dto/preview-points.dto'
 type AuthRequest = ExpressRequest & { user: JwtPayload }
 
 /**
- * Phase 11C: all activity endpoints are now protected by JwtAuthGuard.
+ * All activity endpoints are protected by JwtAuthGuard.
  *
  * The only trusted userId is req.user.sub — extracted from the verified JWT.
- * Any userId or clubId present in the request body or query string is
- * IGNORED (kept for backward compat while frontend still sends DEV_USER_ID).
- *
- * TODO (Phase 11E): once frontend stops sending DEV_USER_ID / DEV_CLUB_ID,
- * remove userId and clubId from all activity DTOs.
- *
  * Official activity clubId is inferred from the user's ClubMembership in the
  * service layer — never taken from the request body.
  */

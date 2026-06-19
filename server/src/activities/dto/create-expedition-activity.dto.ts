@@ -5,7 +5,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
   ValidateIf,
@@ -31,21 +30,9 @@ import { Type } from 'class-transformer'
  *   organization_type reflects whether the expedition was organized by the user's club.
  *   If it was NOT organized by the club, use "no".
  *
- * Auth note:
- *   userId is included in the body until JWT auth is implemented in a later phase.
+ * Auth: userId comes from the verified JWT (req.user.sub). Not accepted in the body.
  */
 export class CreateExpeditionActivityDto {
-  // ── Auth ───────────────────────────────────────────────────────────────────
-
-  /**
-   * Kept for backward compatibility during Phase 11C.
-   * The controller ignores this field and uses req.user.sub (JWT) instead.
-   * TODO (Phase 11E): remove once frontend stops sending DEV_USER_ID.
-   */
-  @IsOptional()
-  @IsUUID()
-  userId?: string
-
   // ── Activity base fields ───────────────────────────────────────────────────
 
   @IsBoolean()
@@ -55,16 +42,6 @@ export class CreateExpeditionActivityDto {
   /** Activity date. "YYYY-MM-DD" ISO format. */
   @IsDateString()
   date: string
-
-  /**
-   * Kept for backward compatibility during Phase 11C.
-   * The service ignores this field — clubId is inferred from the authenticated
-   * user's ClubMembership for official activities.
-   * TODO (Phase 11E): remove once frontend stops sending clubId.
-   */
-  @IsOptional()
-  @IsUUID()
-  clubId?: string
 
   // ── Expedition detail fields — always required (non-nullable in DB) ────────
 
@@ -91,7 +68,7 @@ export class CreateExpeditionActivityDto {
   mountain: string
 
   /**
-   * Summit / peak reached. Example: "Κορυφή Χίλαρι".
+   * Summit / peak reached.
    * Required for official activities; optional for personal (stored as "" when absent).
    */
   @ValidateIf((o) => o.isOfficial === true || Boolean(o.summit))
@@ -101,7 +78,7 @@ export class CreateExpeditionActivityDto {
   summit?: string
 
   /**
-   * Route name / description. Example: "Νοτιοδυτική Ράχη".
+   * Route name / description. 
    * Required for official activities; optional for personal (stored as "" when absent).
    */
   @ValidateIf((o) => o.isOfficial === true || Boolean(o.routeName))

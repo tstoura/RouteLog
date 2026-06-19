@@ -29,12 +29,4 @@ export class ExportClubDto {
   @Max(2100)
   year?: number
 
-  /**
-   * DEPRECATED — kept for backward compatibility during Phase 11D.
-   * The service ignores this field; requester identity comes from the JWT token.
-   * TODO (Phase 11E): remove once frontend stops sending requesterUserId.
-   */
-  @IsOptional()
-  @IsUUID('4')
-  requesterUserId?: string
 }

@@ -6,7 +6,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator'
@@ -77,11 +76,4 @@ export class CreateRouteDto {
   @IsIn(ROUTE_CATEGORIES)
   category?: string
 
-  /**
-   * User who created this route. Will be set from the JWT token once auth
-   * is implemented. For now it is optional.
-   */
-  @IsOptional()
-  @IsUUID()
-  createdByUserId?: string
 }

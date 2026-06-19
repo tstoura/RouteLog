@@ -1,25 +1,9 @@
-import { IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator'
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator'
 import { Type } from 'class-transformer'
 import { ACTIVITY_CATEGORIES } from '../activities.constants'
 
-/**
- * Query parameters for GET /activities.
- *
- * Temporary auth note:
- *   userId is a required query param until JWT auth is implemented.
- *   Once auth guards are added, userId will come from the token and this
- *   field will be removed.
- */
+/** Query parameters for GET /activities. userId comes from the JWT, not the query string. */
 export class GetActivitiesDto {
-  /**
-   * Kept for backward compatibility during Phase 11C.
-   * The controller ignores this field and uses req.user.sub (JWT) instead.
-   * TODO (Phase 11E): remove once frontend stops sending DEV_USER_ID.
-   */
-  @IsOptional()
-  @IsUUID()
-  userId?: string
-
   /**
    * Optional category filter.
    * Allowed values: "hiking" | "climbing" | "expedition"

@@ -4,6 +4,11 @@
 
 The UI is in Greek.
 
+Developed as a thesis project at the Department of Electrical and Computer Engineering, University of Patras.
+
+**Deployment URL (frontend):** `https://routelog-red.vercel.app`  
+**Backend API URL:** set in Vercel as `VITE_API_URL` (e.g. `https://<your-service>.onrender.com` — use your actual Render hostname).
+
 ---
 
 ## Tech stack
@@ -53,6 +58,12 @@ cp .env.example .env
 ```
 
 The defaults in `.env.example` match the Docker Compose database credentials and work out of the box for local development. Edit `server/.env` only if you need to change ports or secrets.
+
+For the **frontend**, create a `.env` or `.env.local` in the repository root if the API is not on the default dev origin:
+
+| Variable | Example | Description |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:3001` | Backend base URL (omit trailing slash). Required for production builds pointing at Render. |
 
 ### 4. Start the database
 
@@ -107,9 +118,9 @@ All variables live in `server/.env` (copy from `server/.env.example`).
 | Variable | Example | Description |
 |---|---|---|
 | `DATABASE_URL` | `postgresql://routelog:routelog@localhost:5432/routelog_dev` | Prisma connection string |
-| `JWT_SECRET` | `change-me-in-production` | Signs access tokens |
-| `JWT_EXPIRES_IN` | `15m` | Access token lifetime |
-| `JWT_REFRESH_SECRET` | `change-me-refresh-secret-in-production` | Signs refresh tokens |
+| `JWT_SECRET` | `change-me-in-production` | Signs access tokens — use a long random string in production |
+| `JWT_EXPIRES_IN` | `1h` | Access token lifetime |
+| `JWT_REFRESH_SECRET` | `change-me-refresh-secret-in-production` | Signs refresh tokens — must differ from `JWT_SECRET` |
 | `JWT_REFRESH_EXPIRES_IN` | `7d` | Refresh token lifetime (httpOnly cookie) |
 | `PORT` | `3001` | NestJS listen port |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed frontend origins |
@@ -139,21 +150,23 @@ Seeded by `npm run prisma:seed`. All passwords are `password123`.
 | Feature | Notes |
 |---|---|
 | Register / login / logout | Email + password; JWT access token + httpOnly refresh cookie |
-| Session persistence | Refresh cookie silently restores session on page reload |
+| Session persistence | Refresh cookie silently restores session on page reload; proactive background refresh prevents mid-session expiry |
+| Secure logout | `localStorage` flag prevents a stale refresh cookie from restoring a previous session |
 | Profile — club declaration | User can join a club from the profile dropdown |
 | Activity creation — hiking | EOOA hiking / ski mountaineering form with full field validation |
-| Activity creation — climbing | Route combobox, difficulty scale (UIAA / Alpine / French), mixed/ice |
+| Activity creation — climbing | Route combobox (keyboard-navigable), difficulty scale (UIAA / Alpine / French), mixed/ice |
 | Activity creation — expedition | Expedition abroad form with organization coefficient |
-| Official vs personal records | Official entries require club membership and follow EOOA rules |
+| Official vs personal records | Official entries require club membership and follow EOOA rules; helper texts adapt per mode |
 | Live EOOA points preview | Debounced preview updates as the user fills the form (backend scoring) |
 | EOOA scoring | Backend-only; hiking, climbing, expedition formulas per EOOA rules |
 | Activity history | Filterable list; climbing sessions grouped by date and field |
 | Activity detail | Full detail view with edit / delete actions |
 | Edit activity | Per-category edit forms; official rules re-validated on save |
 | Delete activity | Confirmation modal; hard delete with transactional detail cleanup |
-| Climbing route catalog | Searchable routes with difficulty, altitude, sector |
+| Climbing route catalog | Searchable routes with difficulty, altitude, sector; add new routes inline |
 | Admin dashboard | Club activity overview, member list, per-user stats |
-| Excel export | EOOA-format `.xlsx` with hiking, climbing, and expedition sheets |
+| Excel export | EOOA-format `.xlsx`; custom filename `routelog-<club>-ΔΡΑΣΕΙΣ-<year>.xlsx`; Συμμετέχοντες column includes submitter name |
+| In-app help page | `/app/help` — brief usage guide for end users |
 
 ---
 
@@ -211,20 +224,44 @@ RouteLog/
 │       ├── activities/   # Activity CRUD + preview endpoint
 │       ├── auth/         # JWT auth, guards, refresh cookies
 │       ├── clubs/        # Club and membership management
-│       ├── export/       # Excel export service
-│       ├── scoring/      # EOOA scoring formulas and constants
-│       └── routes/       # Climbing routes catalog
+│       ├── export/           # Excel export service
+│       ├── scoring/          # EOOA scoring formulas and constants
+│       └── climbing-routes/  # Climbing routes catalogue API
 ├── docker-compose.yml    # PostgreSQL dev database
 └── docs/                 # Implementation notes and audit docs
 ```
 
 ---
 
+## Deployment
+
+The application is deployed on a free-tier stack:
+
+| Layer | Service |
+|---|---|
+| Frontend | Vercel |
+| Backend | Render (Docker) |
+| Database | Supabase (PostgreSQL) |
+
+Documentation:
+
+- `docs/security-and-deployment-summary.md` — concise auth and deployment model  
+- `docs/security-and-deployment.md` — full checklist, cookies, CORS, Docker notes  
+- `docs/final-implementation-status.md` — MVP scope, limitations, future work  
+- `docs/user-testing-findings-updated.md` — user testing issues and fix status  
+- `docs/post-user-testing-fixes.md` — technical changelog after testing sessions  
+
+---
+
 ## Known limitations (MVP)
 
-- **Refresh tokens are not stored in the database** — revoking a session requires waiting for the refresh token to expire.
+- **Refresh tokens are not stored in the database** — revoking a session requires waiting for the refresh token to expire (7 days). Full mitigation requires DB-backed token revocation.
 - **No password reset or email verification** — registration completes immediately with no email confirmation.
 - **No club membership approval workflow** — users self-declare club membership; admin approval is not implemented.
+- **No leave / change club UI** — MVP assumes a single declared club per account.
 - **Club membership is one-per-user (MVP)** — the system supports a single primary club per account.
 - **Routes catalog covers climbing only** — hiking and expedition route management is planned for a future phase.
-- **No production deployment configuration** — the repository is set up for local development. The `docker-compose.yml` API service uses a `full` profile and is not the intended production deployment path.
+- **Render free tier cold-start** — the backend may take ~30 s to respond after inactivity; the login page shows a progress message to inform users.
+- **No soft delete for activities** — delete is permanent (transactional hard delete).
+- **Admins cannot edit or delete another member’s activities** — only the record owner can.
+- **User testing sample was small** (two sessions) — suitable for MVP feedback, not for statistical generalisation; see `docs/user-testing-findings-updated.md`.

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { RouteLogLogoMark } from '../brand/RouteLogLogoMark.tsx'
 
-type ActiveSection = 'features' | 'about'
+type ActiveSection = 'features' | 'about' | null
 
 const activeClass =
   'border-b-2 border-[#064e3b] pb-1.5 text-[14px] font-semibold uppercase tracking-[0.35px] text-[#064e3b]'
@@ -15,18 +15,30 @@ export function PublicHeader() {
   const { pathname } = useLocation()
   const onLanding = pathname === '/'
 
-  const [activeSection, setActiveSection] = useState<ActiveSection>('features')
+  // null = user is at the top (hero), no section is active yet
+  const [activeSection, setActiveSection] = useState<ActiveSection>(null)
 
   useEffect(() => {
-    if (!onLanding) return
+    if (!onLanding) {
+      setActiveSection(null)
+      return
+    }
 
     const update = () => {
+      const features = document.getElementById('features')
       const about = document.getElementById('about')
-      if (!about) return
-      // Activate 'about' once the user has scrolled to (or past) its top,
-      // accounting for the sticky header plus a small look-ahead buffer.
-      const threshold = about.offsetTop - HEADER_HEIGHT - 40
-      setActiveSection(window.scrollY >= threshold ? 'about' : 'features')
+      if (!features || !about) return
+
+      const aboutThreshold = about.offsetTop - HEADER_HEIGHT - 40
+      const featuresThreshold = features.offsetTop - HEADER_HEIGHT - 40
+
+      if (window.scrollY >= aboutThreshold) {
+        setActiveSection('about')
+      } else if (window.scrollY >= featuresThreshold) {
+        setActiveSection('features')
+      } else {
+        setActiveSection(null)
+      }
     }
 
     update()
@@ -43,7 +55,7 @@ export function PublicHeader() {
       }
     : undefined!
 
-  const featuresActive = !onLanding || activeSection === 'features'
+  const featuresActive = onLanding && activeSection === 'features'
   const aboutActive = onLanding && activeSection === 'about'
 
   return (

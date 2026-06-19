@@ -106,7 +106,7 @@ export class ClimbingRoutesService {
    *   TODO (future phase): add fuzzy/similar-name detection and surface as a
    *   warning/suggestion without blocking creation.
    */
-  async create(dto: CreateRouteDto) {
+  async create(dto: CreateRouteDto, userId: string) {
     const normalizedName = normalizeName(dto.name)
     const trimmedArea = dto.mountainOrArea.trim()
     const trimmedField = dto.climbingField.trim()
@@ -147,7 +147,7 @@ export class ClimbingRoutesService {
         altitude: dto.altitude ?? null,
         routeLength: dto.routeLength ?? null,
         category: dto.category ?? 'climbing',
-        createdByUserId: dto.createdByUserId ?? null,
+        createdByUserId: userId,
       },
     })
   }

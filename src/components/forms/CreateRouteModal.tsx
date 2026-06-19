@@ -198,7 +198,7 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
 
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-2">
-              <FieldLabelReq>Βουνό / Περιοχή</FieldLabelReq>
+              <FieldLabelReq>Περιοχή / Βουνό</FieldLabelReq>
               <Input value={mountain} onChange={(e) => setMountain(e.target.value)} placeholder="Βουνό/Περιοχή" className="h-12" required />
               <p className="text-xs text-[#94a3b8]">Η ευρύτερη περιοχή ή το βουνό όπου βρίσκεται η διαδρομή.</p>
             </label>

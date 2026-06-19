@@ -13,6 +13,7 @@ import {
   fieldTypeToLabel,
   formatDateLabel,
   organizationTypeToLabel,
+  repetitionTypeToLabel,
   seasonToLabel,
 } from '../../lib/activityLabels.ts'
 import { climbingSameFieldRoutesHref } from '../../lib/climbingRoutesCatalogLink.ts'
@@ -113,7 +114,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
     const basics: DetailInfoRow[] = [
       { label: 'Διαδρομή', value: c.routeName },
       { label: 'Αναρριχητικό Πεδίο', value: c.climbingField },
-      { label: 'Βουνό / Περιοχή', value: c.mountainOrArea },
+      { label: 'Περιοχή / Βουνό', value: c.mountainOrArea },
       { label: 'Ημερομηνία', value: dateLabel },
       { label: 'Εποχή', value: seasonToLabel(c.season) },
       { label: 'Καταγραφή', value: status === 'official' ? 'Επίσημη' : 'Προσωπική' },
@@ -123,6 +124,7 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       { label: 'Βαθμός', value: gradeDisplay },
       { label: 'Ανάπτυγμα', value: c.routeLength > 0 ? `${c.routeLength} m` : '—' },
       { label: 'Τελικό Υψόμετρο', value: c.altitude > 0 ? `${c.altitude} m` : '—' },
+      { label: 'Χαρακτηρισμός', value: repetitionTypeToLabel(c.repetitionType) },
     ]
     if (c.completionType) {
       technical.push({ label: 'Τρόπος Ολοκλήρωσης', value: completionTypeToLabel(c.completionType) })

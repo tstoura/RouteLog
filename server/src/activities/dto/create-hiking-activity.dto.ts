@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
   ValidateIf,
@@ -23,22 +22,9 @@ import { Type } from 'class-transformer'
  *   - club_id is accepted from the client but ignored; service infers it from membership.
  *   - Basic type validators (@IsInt, @IsString, etc.) always run.
  *
- * Auth note:
- *   userId is included in the body until JWT auth is implemented in a later phase.
- *   At that point it will be read from the decoded token instead.
+ * Auth: userId comes from the verified JWT (req.user.sub). Not accepted in the body.
  */
 export class CreateHikingActivityDto {
-  // ── Auth ───────────────────────────────────────────────────────────────────
-
-  /**
-   * Kept for backward compatibility during Phase 11C.
-   * The controller ignores this field and uses req.user.sub (JWT) instead.
-   * TODO (Phase 11E): remove this field once frontend stops sending DEV_USER_ID.
-   */
-  @IsOptional()
-  @IsUUID()
-  userId?: string
-
   // ── Activity base fields ───────────────────────────────────────────────────
 
   /**
@@ -53,16 +39,6 @@ export class CreateHikingActivityDto {
   /** Activity date in ISO 8601 format: "YYYY-MM-DD". Always required. */
   @IsDateString()
   date: string
-
-  /**
-   * Kept for backward compatibility during Phase 11C.
-   * The service ignores this field entirely — clubId is inferred from the
-   * authenticated user's ClubMembership for official activities.
-   * TODO (Phase 11E): remove this field once frontend stops sending clubId.
-   */
-  @IsOptional()
-  @IsUUID()
-  clubId?: string
 
   // ── Hiking detail fields — always required (non-nullable in DB) ────────────
 
