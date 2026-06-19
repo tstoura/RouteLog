@@ -162,10 +162,11 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-route-title"
-        className="relative max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#e8eef0] bg-white p-6 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)] sm:p-8"
+        className="relative w-full max-w-lg rounded-2xl border border-[#e8eef0] bg-white shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)]"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="max-h-[min(90dvh,720px)] overflow-y-auto p-5 sm:p-7">
+          <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="new-route-title" className="font-heading text-xl font-bold text-[#00453e] sm:text-2xl">
               Νέα Διαδρομή
@@ -189,14 +190,14 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
           </div>
         ) : null}
 
-        <div className={showLinkedActivityBadge ? 'mt-6 space-y-5' : 'mt-5 space-y-5'}>
+        <div className={showLinkedActivityBadge ? 'mt-5 space-y-4' : 'mt-4 space-y-4'}>
           <label className="block space-y-2">
             <FieldLabelReq>Όνομα Διαδρομής</FieldLabelReq>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Όνομα Διαδρομής" className="h-12" required />
             <p className="text-xs text-[#94a3b8]">Χρησιμοποίησε την επίσημη ονομασία της διαδρομής.</p>
           </label>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
               <FieldLabelReq>Περιοχή / Βουνό</FieldLabelReq>
               <Input value={mountain} onChange={(e) => setMountain(e.target.value)} placeholder="Βουνό/Περιοχή" className="h-12" required />
@@ -212,7 +213,7 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
             </label>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
               <FieldLabelReq>Κλίμακα</FieldLabelReq>
               {/* Uses CLIMBING_SCALE_FORM_OPTIONS: French | UIAA | Alpine (no empty placeholder). */}
@@ -231,7 +232,7 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
             </div>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2">
               <span className="text-sm font-bold text-[#00453e]">Τελικό Υψόμετρο (m)</span>
               <Input
@@ -239,19 +240,19 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
                 inputMode="numeric"
                 value={altitude}
                 onChange={(e) => setAltitude(toWholeNumber(e.target.value))}
-                placeholder="Υψόμετρο αναρρίχησης (m)"
+                placeholder="Τελικό Υψόμετρο (m)"
                 className="h-12 placeholder:text-xs"
               />
               <p className="text-xs text-[#94a3b8]">Το υψόμετρο στο οποίο καταλήγει η αναρρίχηση.</p>
             </label>
             <label className="space-y-2">
-              <span className="text-sm font-bold text-[#00453e]">Ανάπτυγμα Αναρρίχησης</span>
+              <span className="text-sm font-bold text-[#00453e]">Ανάπτυγμα Αναρρίχησης (m)</span>
               <Input
                 type="text"
                 inputMode="decimal"
                 value={length}
                 onChange={(e) => setLength(toDecimalNumber(e.target.value))}
-                placeholder="Συνολικό μήκος αναρρίχησης (m)"
+                placeholder="Ανάπτυγμα Αναρρίχησης (m)"
                 className="h-12 placeholder:text-xs"
               />
               <p className="text-xs text-[#94a3b8]">Το συνολικό μήκος της αναρρίχησης.</p>
@@ -259,13 +260,14 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" className="h-12 min-w-[120px] border-[#cfe6f2] bg-[#e8f4fc] text-[#0f3d36]" onClick={onClose}>
             Ακύρωση
           </Button>
           <Button type="button" className="h-12 min-w-[180px] bg-[#00453e]" onClick={handleSave}>
             Αποθήκευση Διαδρομής
           </Button>
+        </div>
         </div>
       </div>
     </div>
