@@ -101,7 +101,7 @@ export function AdminSidebar() {
           aria-current={dashActive ? 'page' : undefined}
         >
           <LayoutDashboard className="size-5 shrink-0" strokeWidth={2} aria-hidden />
-          Dashboard
+          Πίνακας Διαχείρισης
         </NavLink>
         <NavLink
           to="/admin/members"

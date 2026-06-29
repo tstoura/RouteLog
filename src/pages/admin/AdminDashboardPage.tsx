@@ -150,7 +150,7 @@ export function AdminDashboardPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="font-heading text-lg font-bold text-[#022c22]">Πρόσφατες επίσημες δράσεις</h3>
           <Button type="button" className="h-11 w-full bg-[#00453e] sm:w-auto" onClick={openExportModal}>
-            Εξαγωγή Δεδομένων (Excel)
+            Εξαγωγή Δεδομένων
           </Button>
         </div>
 

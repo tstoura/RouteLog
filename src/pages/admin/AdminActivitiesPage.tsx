@@ -192,7 +192,7 @@ export function AdminActivitiesPage() {
 
       <div className="flex justify-end">
         <Button type="button" className="h-11 bg-[#00453e]" onClick={openExportModal}>
-          Εξαγωγή Δεδομένων (Excel)
+          Εξαγωγή Δεδομένων
         </Button>
       </div>
 

@@ -17,7 +17,7 @@ export function AdminBottomNavigation() {
       <div className="mx-auto flex max-w-lg justify-between px-2 pt-1">
         <NavLink to="/admin" end className={itemClass}>
           <LayoutDashboard className="size-[22px]" strokeWidth={2} aria-hidden />
-          Dashboard
+          Πίνακας Διαχείρισης
         </NavLink>
         <NavLink to="/admin/members" className={itemClass}>
           <Users className="size-[22px]" strokeWidth={2} aria-hidden />
