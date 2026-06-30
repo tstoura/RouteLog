@@ -69,7 +69,9 @@ export function ExpeditionEditForm({ activity, onSaved, onCancel }: ExpeditionEd
   const [season, setSeason] = useState(e.season)
   const [altitude, setAltitude] = useState(String(e.altitude || ''))
   const [totalElevationGain, setTotalElevationGain] = useState(String(e.totalElevationGain || ''))
-  const [difficultyGrade, setDifficultyGrade] = useState(e.difficultyGrade)
+  const [difficultyGrade, setDifficultyGrade] = useState(
+    e.difficultyGrade === 'hiking' ? 'pezoporia' : e.difficultyGrade,
+  )
   const [participantsNum, setParticipantsNum] = useState(e.participantsNum)
   const [organizationType, setOrganizationType] = useState(e.organizationType)
   const [privateNotes, setPrivateNotes] = useState(activity.privateNotes ?? '')

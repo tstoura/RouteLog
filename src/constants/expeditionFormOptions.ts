@@ -33,12 +33,12 @@ export const EXPEDITION_SEASON_OPTIONS: ExpeditionFormOption[] = [
  * Expedition difficulty uses a wider range than hiking (extends to ED+)
  * and different coefficients — do NOT reuse hiking difficulty options.
  *
- * Backend allowed: "hiking" | "F-" … "AD+" | "D-" … "ED+"
- * The backend value "hiking" corresponds to the Greek label "Πεζοπορία".
+ * Backend allowed: "pezoporia" | "F-" … "AD+" | "D-" … "ED+"
+ * The backend value "pezoporia" corresponds to the Greek label "Πεζοπορία".
  * All other grade labels match their backend value.
  */
 export const EXPEDITION_DIFFICULTY_GRADE_OPTIONS: ExpeditionFormOption[] = [
-  { value: 'hiking', label: 'Πεζοπορία' },
+  { value: 'pezoporia', label: 'Πεζοπορία' },
   { value: 'F-', label: 'F-' },
   { value: 'F', label: 'F' },
   { value: 'F+', label: 'F+' },

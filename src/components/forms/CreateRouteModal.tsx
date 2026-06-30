@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Link2, MapPin, X } from 'lucide-react'
 import { toWholeNumber, toDecimalNumber } from './shared/FormBuildingBlocks.tsx'
 import type { ClimbingRouteFormRecord } from '../../types/climbingRouteForm.ts'
@@ -150,47 +151,62 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
     onSave(route)
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="presentation">
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [])
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{ height: '100dvh', minHeight: '100dvh' }}
+      role="presentation"
+    >
       <button
         type="button"
         aria-label="Κλείσιμο διαλόγου"
-        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/45 backdrop-blur-sm"
+        style={{ height: '100dvh', minHeight: '100dvh' }}
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-route-title"
-        className="relative w-full max-w-lg rounded-2xl border border-[#e8eef0] bg-white shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)]"
+        className="relative flex w-full max-w-lg max-h-[min(90dvh,720px)] flex-col overflow-hidden rounded-2xl border border-[#e8eef0] bg-white shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)]"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="max-h-[min(90dvh,720px)] overflow-y-auto p-5 sm:p-7">
+        <div className="shrink-0 border-b border-[#eef2f0] p-5 sm:px-7 sm:pt-7 sm:pb-5">
           <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="new-route-title" className="font-heading text-xl font-bold text-[#00453e] sm:text-2xl">
-              Νέα Διαδρομή
-            </h2>
-            <p className="mt-2 text-sm text-[#64748b]">Πρόσθεσε μια νέα διαδρομή που δεν υπάρχει στη βάση.</p>
+            <div>
+              <h2 id="new-route-title" className="font-heading text-xl font-bold text-[#00453e] sm:text-2xl">
+                Νέα Διαδρομή
+              </h2>
+              <p className="mt-2 text-sm text-[#64748b]">Πρόσθεσε μια νέα διαδρομή που δεν υπάρχει στη βάση.</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#022c22]"
+              aria-label="Κλείσιμο"
+            >
+              <X className="size-6" strokeWidth={2} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-[#64748b] transition hover:bg-[#f1f5f9] hover:text-[#022c22]"
-            aria-label="Κλείσιμο"
-          >
-            <X className="size-6" strokeWidth={2} />
-          </button>
+
+          {showLinkedActivityBadge ? (
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e0f2f1] px-3 py-1.5 text-xs font-semibold text-[#0f766e]">
+              <Link2 className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+              Συνδέεται με την καταγραφή σου
+            </div>
+          ) : null}
         </div>
 
-        {showLinkedActivityBadge ? (
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#e0f2f1] px-3 py-1.5 text-xs font-semibold text-[#0f766e]">
-            <Link2 className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
-            Συνδέεται με την καταγραφή σου
-          </div>
-        ) : null}
-
-        <div className={showLinkedActivityBadge ? 'mt-5 space-y-4' : 'mt-4 space-y-4'}>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-7 [scrollbar-width:thin]">
+          <div className="space-y-4">
           <label className="block space-y-2">
             <FieldLabelReq>Όνομα Διαδρομής</FieldLabelReq>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Όνομα Διαδρομής" className="h-12" required />
@@ -258,18 +274,21 @@ export function CreateRouteModal({ initial, onClose, onSave, showLinkedActivityB
               <p className="text-xs text-[#94a3b8]">Το συνολικό μήκος της αναρρίχησης.</p>
             </label>
           </div>
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="h-12 min-w-[120px] border-[#cfe6f2] bg-[#e8f4fc] text-[#0f3d36]" onClick={onClose}>
-            Ακύρωση
-          </Button>
-          <Button type="button" className="h-12 min-w-[180px] bg-[#00453e]" onClick={handleSave}>
-            Αποθήκευση Διαδρομής
-          </Button>
-        </div>
+        <div className="shrink-0 border-t border-[#eef2f0] p-5 sm:px-7 sm:pb-7 sm:pt-5">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="h-12 min-w-[120px] border-[#cfe6f2] bg-[#e8f4fc] text-[#0f3d36]" onClick={onClose}>
+              Ακύρωση
+            </Button>
+            <Button type="button" className="h-12 min-w-[180px] bg-[#00453e]" onClick={handleSave}>
+              Αποθήκευση Διαδρομής
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
