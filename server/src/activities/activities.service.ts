@@ -294,22 +294,26 @@ export class ActivitiesService {
       )
     }
 
-    // EOOA formula floors (§3.10–3.11 hiking §2.5 distance): when official fields are omitted,
-    // persist the same numeric defaults the scoring formula already applies via max(...).
-    const persistAltitude = dto.isOfficial
-      ? dto.altitude != null && Number(dto.altitude) >= 1
+    // Optional altitude/routeLength: store 0 when omitted (Phase A sentinel). EOOA floors
+    // (altitude 1000 m, routeLength 100 m) are applied only at scoring time, not in the DB.
+    const persistAltitude =
+      dto.altitude != null && Number(dto.altitude) >= 1
         ? Math.round(Number(dto.altitude))
+        : 0
+    const persistRouteLength =
+      dto.routeLength != null && Number(dto.routeLength) >= 0.01
+        ? Number(dto.routeLength)
+        : 0
+    const scoringAltitude = dto.isOfficial
+      ? persistAltitude >= 1
+        ? persistAltitude
         : 1000
-      : dto.altitude != null && Number(dto.altitude) >= 1
-        ? Math.round(Number(dto.altitude))
-        : 0
-    const persistRouteLength = dto.isOfficial
-      ? dto.routeLength != null && Number(dto.routeLength) >= 0.01
-        ? Number(dto.routeLength)
+      : persistAltitude
+    const scoringRouteLength = dto.isOfficial
+      ? persistRouteLength >= 0.01
+        ? persistRouteLength
         : 100
-      : dto.routeLength != null && Number(dto.routeLength) >= 0.01
-        ? Number(dto.routeLength)
-        : 0
+      : persistRouteLength
 
     // ── Official-activity business rules ────────────────────────────────────
     let points: number | null = null
@@ -383,8 +387,8 @@ export class ActivitiesService {
       // Calculate points.
       try {
         const rawPoints = await this.scoring.calculateClimbingPoints({
-          altitude: persistAltitude,
-          routeLength: persistRouteLength,
+          altitude: scoringAltitude,
+          routeLength: scoringRouteLength,
           season: dto.season,
           repetitionType: dto.repetitionType,
           participantsNum: dto.participantsNum,
@@ -866,12 +870,28 @@ export class ActivitiesService {
     // Merge fields — snapshot fields (routeId, routeName, mountainOrArea, climbingField) are never changed.
     const season          = dto.season          ?? d.season
     const repetitionType  = dto.repetitionType  ?? d.repetitionType
-    let altitude          = dto.altitude        !== undefined ? Number(dto.altitude) : d.altitude
-    let routeLength       = dto.routeLength     !== undefined ? Number(dto.routeLength) : Number(d.routeLength)
-    if (existing.isOfficial) {
-      if (!Number.isFinite(altitude) || altitude < 1) altitude = 1000
-      if (!Number.isFinite(routeLength) || routeLength < 0.01) routeLength = 100
-    }
+    const persistAltitude =
+      dto.altitude !== undefined
+        ? Number.isFinite(Number(dto.altitude)) && Number(dto.altitude) >= 1
+          ? Math.round(Number(dto.altitude))
+          : 0
+        : d.altitude
+    const persistRouteLength =
+      dto.routeLength !== undefined
+        ? Number.isFinite(Number(dto.routeLength)) && Number(dto.routeLength) >= 0.01
+          ? Number(dto.routeLength)
+          : 0
+        : Number(d.routeLength)
+    const scoringAltitude = existing.isOfficial
+      ? persistAltitude >= 1
+        ? persistAltitude
+        : 1000
+      : persistAltitude
+    const scoringRouteLength = existing.isOfficial
+      ? persistRouteLength >= 0.01
+        ? persistRouteLength
+        : 100
+      : persistRouteLength
     const participantsNum = dto.participantsNum  ?? d.participantsNum
     const participantsText = dto.participantsText !== undefined ? dto.participantsText : d.participantsText
     const completionType  = dto.completionType  !== undefined ? dto.completionType : d.completionType
@@ -970,8 +990,8 @@ export class ActivitiesService {
       // Recalculate points.
       try {
         const raw = await this.scoring.calculateClimbingPoints({
-          altitude,
-          routeLength,
+          altitude: scoringAltitude,
+          routeLength: scoringRouteLength,
           season,
           repetitionType,
           participantsNum,
@@ -1035,8 +1055,8 @@ export class ActivitiesService {
           update: {
             season,
             repetitionType,
-            altitude,
-            routeLength,
+            altitude: persistAltitude,
+            routeLength: persistRouteLength,
             participantsNum,
             participantsText: participantsText ?? '',
             completionType:   completionType   ?? null,

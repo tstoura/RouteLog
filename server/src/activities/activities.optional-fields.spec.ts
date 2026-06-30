@@ -11,7 +11,7 @@ import { ScoringService } from '../scoring/scoring.service'
  * in both scoring calls and DB persistence:
  *
  *   hiking distanceLength  omitted / ≤ 0     → service passes 15 km to scoring
- *   climbing altitude      omitted / < 1 m   → service passes 1000 m to scoring
+ *   climbing altitude      omitted / < 1 m   → stored as 0; scoring uses 1000 m (EOOA floor)
  *   climbing routeLength   omitted / < 0.01  → service passes 100 m to scoring
  *
  * These floors match the max(...) expressions already present in the EOOA formulas:
@@ -296,10 +296,10 @@ describe('ActivitiesService — optional minimum scoring fields (Sections J, K, 
       )
     })
 
-    it('K3. official climbing with altitude omitted → persisted with 1000', async () => {
+    it('K3. official climbing with altitude omitted → persisted with 0 (not provided)', async () => {
       await service.createClimbing({ ...baseOfficialClimbing }, CALLER_USER_ID)
       const createData = mockActivity.create.mock.calls[0][0].data
-      expect(createData.climbingDetail.create.altitude).toBe(1000)
+      expect(createData.climbingDetail.create.altitude).toBe(0)
     })
 
     it('K4. official climbing with altitude=0 → scoring called with 1000 (EOOA floor)', async () => {
@@ -339,10 +339,10 @@ describe('ActivitiesService — optional minimum scoring fields (Sections J, K, 
       )
     })
 
-    it('K9. official climbing with routeLength omitted → persisted with 100', async () => {
+    it('K9. official climbing with routeLength omitted → persisted with 0 (not provided)', async () => {
       await service.createClimbing({ ...baseOfficialClimbing }, CALLER_USER_ID)
       const createData = mockActivity.create.mock.calls[0][0].data
-      expect(createData.climbingDetail.create.routeLength).toBe(100)
+      expect(createData.climbingDetail.create.routeLength).toBe(0)
     })
 
     it('K10. official climbing with routeLength=0 → scoring called with 100 (EOOA floor)', async () => {
@@ -368,11 +368,11 @@ describe('ActivitiesService — optional minimum scoring fields (Sections J, K, 
       )
     })
 
-    it('K13. official climbing with both altitude and routeLength omitted → both persisted with floors', async () => {
+    it('K13. official climbing with both altitude and routeLength omitted → both stored as 0', async () => {
       await service.createClimbing({ ...baseOfficialClimbing }, CALLER_USER_ID)
       const createData = mockActivity.create.mock.calls[0][0].data
-      expect(createData.climbingDetail.create.altitude).toBe(1000)
-      expect(createData.climbingDetail.create.routeLength).toBe(100)
+      expect(createData.climbingDetail.create.altitude).toBe(0)
+      expect(createData.climbingDetail.create.routeLength).toBe(0)
     })
 
     it('K14. official climbing with explicit altitude=1500 and routeLength=200 → actual values used throughout', async () => {

@@ -102,10 +102,10 @@ function buildHistoryCard(item: ActivityListItem): HistoryCard {
     const rows: HistoryInfoRow[] = [
       { iconKey: 'pin', text: `${c.climbingField} · ${c.mountainOrArea}` },
     ]
-    if (item.isOfficial || c.altitude > 0) {
+    if (c.altitude >= 1) {
       rows.push({ iconKey: 'mountain', text: `Τελικό Υψόμετρο: ${c.altitude} m` })
     }
-    if (item.isOfficial || c.routeLength > 0) {
+    if (c.routeLength >= 0.01) {
       rows.push({ iconKey: 'ruler', text: `Ανάπτυγμα: ${c.routeLength} m` })
     }
     if (item.points != null) rows.push({ iconKey: 'award', text: `Βαθμοί: ${item.points}` })

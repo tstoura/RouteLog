@@ -123,9 +123,11 @@ function buildDetailModel(item: ActivityListItem): ActivityDetailModel {
       { label: 'Κλίμακα', value: scaleDisplay },
       { label: 'Βαθμός', value: gradeDisplay },
       { label: 'Ανάπτυγμα', value: c.routeLength > 0 ? `${c.routeLength} m` : '—' },
-      { label: 'Τελικό Υψόμετρο', value: c.altitude > 0 ? `${c.altitude} m` : '—' },
-      { label: 'Χαρακτηρισμός', value: repetitionTypeToLabel(c.repetitionType) },
     ]
+    if (c.altitude >= 1) {
+      technical.push({ label: 'Τελικό Υψόμετρο', value: `${c.altitude} m` })
+    }
+    technical.push({ label: 'Χαρακτηρισμός', value: repetitionTypeToLabel(c.repetitionType) })
     if (c.completionType) {
       technical.push({ label: 'Τρόπος Ολοκλήρωσης', value: completionTypeToLabel(c.completionType) })
     }
