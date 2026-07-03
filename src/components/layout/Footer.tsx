@@ -33,12 +33,6 @@ export function Footer() {
           {FeaturesLink}
           {AboutLink}
         </div>
-
-        <div className="flex flex-wrap gap-8 text-xs font-medium tracking-[-0.3px] text-[#64748b]">
-          <span className="cursor-default">Πολιτική Απορρήτου</span>
-          <span className="cursor-default">Όροι Χρήσης</span>
-          <span className="cursor-default">Υποστήριξη</span>
-        </div>
       </div>
     </footer>
   )
